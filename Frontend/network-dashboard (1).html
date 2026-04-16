@@ -306,101 +306,164 @@
           </div>
         </div>
 
-        <div className="management-grid">
-          <div className="manage-section">
-            <div className="section-header">
-              <span className="section-title">VLAN Management</span>
-              <div className="status-indicator" style={{ background: '#22c55e' }}></div>
-            </div>
-            <div className="data-row"><span className="data-label">Total VLANs</span><span className="data-value" style={{ color: '#6366f1' }}>3 configured</span></div>
-            <div className="data-row"><span className="data-label">Last created</span><span className="data-value">VLAN 20 - Staff</span></div>
-            <div className="data-row"><span className="data-label">Quarantine VLAN</span><span className="data-value" style={{ color: '#f59e0b' }}>VLAN 99 active</span></div>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-              <span className="action-link" onClick={() => goTo('vlan')}>View VLANs</span>
-              <button className="btn-small btn-primary" onClick={() => goTo('vlan')}>Create VLAN</button>
-            </div>
+      <div className="management-grid">
+        {/* VLAN Management */}
+        <div className="manage-section">
+          <div className="section-header">
+            <span className="section-title">VLAN Management</span>
+            <div className="status-indicator" style={{background: '#22c55e'}}></div>
           </div>
-
-          <div className="manage-section">
-            <div className="section-header">
-              <span className="section-title">Interfaces</span>
-              <div className="status-indicator" style={{ background: '#22c55e' }}></div>
-            </div>
-            <div className="data-row"><span className="data-label">Ports UP</span><span className="data-value" style={{ color: '#22c55e' }}>4 active</span></div>
-            <div className="data-row"><span className="data-label">Ports DOWN</span><span className="data-value">20 idle</span></div>
-            <div className="data-row"><span className="data-label">Trunk links</span><span className="data-value" style={{ color: '#6366f1' }}>2 configured</span></div>
-            <span className="action-link">View Interfaces</span>
-          </div>
-
-          <div className="manage-section">
-            <div className="section-header">
-              <span className="section-title">Network Monitoring</span>
-              <div className="status-indicator" style={{ background: '#22c55e' }}></div>
-            </div>
-            <div className="data-row"><span className="data-label">Traffic status</span><span className="data-value" style={{ color: '#22c55e' }}>Normal</span></div>
-            <div className="data-row"><span className="data-label">Interface errors</span><span className="data-value">0 detected</span></div>
-            <div className="data-row"><span className="data-label">Bandwidth use</span><span className="data-value">12% avg</span></div>
-            <span className="action-link">View Details</span>
-          </div>
-
-          <div className="manage-section">
-            <div className="section-header">
-              <span className="section-title">Security Alerts (Snort)</span>
-              <div className="status-indicator" style={{ background: '#ef4444' }}></div>
-            </div>
-            <div className="data-row"><span className="data-label">Alerts today</span><span className="data-value" style={{ color: '#ef4444' }}>2 triggered</span></div>
-            <div className="data-row"><span className="data-label">Last attack type</span><span className="data-value" style={{ color: '#ef4444' }}>Port Scan</span></div>
-            <div className="data-row"><span className="data-label">Source IP</span><span className="data-value" style={{ fontFamily: 'monospace' }}>192.168.1.10</span></div>
-            <span className="action-link" onClick={() => goTo('alerts')}>View Alerts</span>
-          </div>
-
-          <div className="manage-section">
-            <div className="section-header">
-              <span className="section-title">Automation</span>
-              <div className="status-indicator" style={{ background: '#3b82f6' }}></div>
-            </div>
-            <div className="data-row"><span className="data-label">Auto-isolate threats</span><span className="data-value">ON</span></div>
-            <div className="data-row"><span className="data-label">Active rules</span><span className="data-value" style={{ color: '#6366f1' }}>4 rules</span></div>
-            <div className="data-row"><span className="data-label">Last triggered</span><span className="data-value">fa0/3 - VLAN 99</span></div>
-            <button className="btn-small btn-primary" style={{ marginTop: '5px', width: 'fit-content' }}>Configure Rules</button>
-          </div>
-
-          <div className="manage-section">
-            <div className="section-header">
-              <span className="section-title">System Status</span>
-              <div className="status-indicator" style={{ background: '#22c55e' }}></div>
-            </div>
-            <div className="data-row"><span className="data-label">Switch uptime</span><span className="data-value">14d 6h</span></div>
-            <div className="data-row"><span className="data-label">CPU load</span><span className="data-value">8%</span></div>
-            <div className="data-row"><span className="data-label">Config backup</span><span className="data-value" style={{ color: '#22c55e' }}>Up to date</span></div>
-            <span className="action-link">View Details</span>
+          <div className="data-row"><span className="data-label">Total VLANs</span><span className="data-value" style={{color:'#6366f1'}}>3 configured</span></div>
+          <div className="data-row"><span className="data-label">Last created</span><span className="data-value">VLAN 20 — Staff</span></div>
+          <div className="data-row"><span className="data-label">Quarantine VLAN</span><span className="data-value" style={{color:'#f59e0b'}}>VLAN 99 active</span></div>
+          <div style={{display:'flex', gap:'10px', marginTop:'5px'}}>
+             <span className="action-link" onClick={() => setPage('vlan')}>View VLANs</span>
+             <button className="btn-small btn-primary" onClick={() => setPage('vlan')}>Create VLAN</button>
           </div>
         </div>
 
-        <div className="logs-section">
-          <div className="section-header"><span className="section-title">Recent Activity Logs</span></div>
-          <div className="log-row">
-            <span className="log-time">11:05:34</span>
-            <span className="log-msg">User Admin updated VLAN 20 (Staff) configuration</span>
-            <span className="log-tag bg-blue">Config</span>
+        {/* Interfaces */}
+        <div className="manage-section">
+          <div className="section-header">
+            <span className="section-title">Interfaces</span>
+            <div className="status-indicator" style={{background: '#22c55e'}}></div>
           </div>
-          <div className="log-row">
-            <span className="log-time">10:42:12</span>
-            <span className="log-msg">Security: Port Scan detected from 192.168.1.10</span>
-            <span className="log-tag bg-red">Alert</span>
-          </div>
-          <div className="log-row">
-            <span className="log-time">09:15:00</span>
-            <span className="log-msg">Automation: Port fa0/3 automatically moved to VLAN 99</span>
-            <span className="log-tag bg-amber">Auto</span>
-          </div>
+          <div className="data-row"><span className="data-label">Ports UP</span><span className="data-value" style={{color:'#22c55e'}}>4 active</span></div>
+          <div className="data-row"><span className="data-label">Ports DOWN</span><span className="data-value">20 idle</span></div>
+          <div className="data-row"><span className="data-label">Trunk links</span><span className="data-value" style={{color:'#6366f1'}}>2 configured</span></div>
+          <span className="action-link">View Interfaces</span>
         </div>
-      </>
-    );
 
-    function App() {
-      return <Dashboard />;
+        {/* Network Monitoring */}
+        <div className="manage-section">
+          <div className="section-header">
+            <span className="section-title">Network Monitoring</span>
+            <div className="status-indicator" style={{background: '#22c55e'}}></div>
+          </div>
+          <div className="data-row"><span className="data-label">Traffic status</span><span className="data-value" style={{color:'#22c55e'}}>Normal</span></div>
+          <div className="data-row"><span className="data-label">Interface errors</span><span className="data-value">0 detected</span></div>
+          <div className="data-row"><span className="data-label">Bandwidth use</span><span className="data-value">12% avg</span></div>
+          <span className="action-link">View Details</span>
+        </div>
+
+        {/* Security Alerts (Snort) */}
+        <div className="manage-section">
+          <div className="section-header">
+            <span className="section-title">Security Alerts (Snort)</span>
+            <div className="status-indicator" style={{background: '#ef4444'}}></div>
+          </div>
+          <div className="data-row"><span className="data-label">Alerts today</span><span className="data-value" style={{color:'#ef4444'}}>2 triggered</span></div>
+          <div className="data-row"><span className="data-label">Last attack type</span><span className="data-value" style={{color:'#ef4444'}}>Port Scan</span></div>
+          <div className="data-row"><span className="data-label">Source IP</span><span className="data-value" style={{fontFamily:'monospace'}}>192.168.1.10</span></div>
+          <span className="action-link" onClick={() => setPage('alerts')}>View Alerts</span>
+        </div>
+
+        {/* Automation */}
+        <div className="manage-section">
+          <div className="section-header">
+            <span className="section-title">Automation</span>
+            <div className="status-indicator" style={{background: '#3b82f6'}}></div>
+          </div>
+          <div className="data-row"><span className="data-label">Auto-isolate threats</span><span className="data-value">ON</span></div>
+          <div className="data-row"><span className="data-label">Active rules</span><span className="data-value" style={{color:'#6366f1'}}>4 rules</span></div>
+          <div className="data-row"><span className="data-label">Last triggered</span><span className="data-value">fa0/3 → VLAN 99</span></div>
+          <button className="btn-small btn-primary" style={{marginTop:'5px', width:'fit-content'}}>Configure Rules</button>
+        </div>
+
+        {/* System Status */}
+        <div className="manage-section">
+          <div className="section-header">
+            <span className="section-title">System Status</span>
+            <div className="status-indicator" style={{background: '#22c55e'}}></div>
+          </div>
+          <div className="data-row"><span className="data-label">Switch uptime</span><span className="data-value">14d 6h</span></div>
+          <div className="data-row"><span className="data-label">CPU load</span><span className="data-value">8%</span></div>
+          <div className="data-row"><span className="data-label">Config backup</span><span className="data-value" style={{color:'#22c55e'}}>Up to date</span></div>
+          <span className="action-link">View Details</span>
+        </div>
+      </div>
+
+      <div className="logs-section">
+        <div className="section-header"><span className="section-title">Recent Activity Logs</span></div>
+        <div className="log-row">
+          <span className="log-time">11:05:34</span>
+          <span className="log-msg">User 'Admin' updated VLAN 20 (Staff) configuration</span>
+          <span className="log-tag bg-blue">Config</span>
+        </div>
+        <div className="log-row">
+          <span className="log-time">10:42:12</span>
+          <span className="log-msg">Security: Port Scan detected from 192.168.1.10</span>
+          <span className="log-tag bg-red">Alert</span>
+        </div>
+        <div className="log-row">
+          <span className="log-time">09:15:00</span>
+          <span className="log-msg">Automation: Port fa0/3 automatically moved to VLAN 99</span>
+          <span className="log-tag bg-amber">Auto</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
+const VLANPage = ({ setPage }) => (
+  <div><button onClick={() => setPage('dashboard')} className="action-link" style={{marginBottom:20}}>← Retour</button><h2>Gestion des VLANs</h2></div>
+);
+
+const AlertsPage = ({ setPage }) => (
+  <div><button onClick={() => setPage('dashboard')} className="action-link" style={{marginBottom:20}}>← Retour</button><h2>Alertes de Sécurité</h2></div>
+);
+
+// --- Dans ton composant App ---
+function App() {
+  const [page, setPage] = useState('dashboard');
+
+  const handleNavigation = (targetPage) => {
+    if (targetPage === 'vlan') {
+      // Redirection vers le fichier externe
+      window.location.href = 'vlan.html'; 
+    } else {
+      setPage(targetPage);
     }
+  };
+
+  return (
+    <div className="app-shell">
+      <div className="sidebar">
+        <div className="logo-wrap" onClick={() => handleNavigation('dashboard')} style={{cursor:'pointer'}}>
+          <Icon type="vlan" />
+        </div>
+        
+        {/* Item Dashboard */}
+        <div 
+          className={`nav-item ${page === 'dashboard' ? 'active' : ''}`} 
+          onClick={() => handleNavigation('dashboard')}
+        >
+          <Icon type="monitor" /><span>Dashboard</span>
+        </div>
+
+        {/* Item VLAN -> Redirige vers vlan.html */}
+        <div 
+          className="nav-item" 
+          onClick={() => handleNavigation('vlan')}
+        >
+          <Icon type="vlan" /><span>VLAN</span>
+        </div>
+
+        <div className="nav-item" onClick={() => handleNavigation('alerts')}>
+          <Icon type="alert" /><span>Alerts</span>
+        </div>
+      </div>
+
+      <div className="main">
+        {/* ... reste de la topbar ... */}
+        <div className="content">
+          {page === 'dashboard' && <Dashboard setPage={handleNavigation} />}
+          {page === 'alerts' && <AlertsPage setPage={handleNavigation} />}
+        </div>
+      </div>
+    </div>
+  );
+}
 
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
