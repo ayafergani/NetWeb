@@ -19,6 +19,77 @@
     .vlan-card {
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
+
+    .topbar {
+      animation: slideDown 0.4s ease;
+    }
+
+    .animate-in {
+      animation: fadeInUp 0.4s ease backwards;
+      animation-delay: 0.1s;
+    }
+
+    .vlan-card {
+      animation: fadeInUp 0.4s ease backwards;
+      animation-delay: 0.2s;
+    }
+
+    .table-row {
+      animation: rowSlideIn 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1) both;
+    }
+
+    .table-row:nth-child(1) { animation-delay: 0.3s; }
+    .table-row:nth-child(2) { animation-delay: 0.35s; }
+    .table-row:nth-child(3) { animation-delay: 0.4s; }
+
+    .animate-in.slide-in-from-right {
+      animation: fadeInRight 0.4s ease backwards;
+      animation-delay: 0.5s;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes rowSlideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes fadeInRight {
+      from {
+        opacity: 0;
+        transform: translateX(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen app-body">
@@ -93,7 +164,7 @@
                         <tr
                           key={vlan.id}
                           onClick={() => setSelectedVlan(vlan)}
-                          className={`group cursor-pointer transition-all ${selectedVlan?.id === vlan.id ? 'bg-indigo-50/40' : 'hover:bg-slate-50/80'}`}
+                          className={`group cursor-pointer transition-all table-row ${selectedVlan?.id === vlan.id ? 'bg-indigo-50/40' : 'hover:bg-slate-50/80'}`}
                         >
                           <td className="px-8 py-5 font-mono font-bold text-indigo-600">VLAN {vlan.id}</td>
                           <td className="px-8 py-5 font-bold text-slate-700">{vlan.name}</td>
