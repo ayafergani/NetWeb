@@ -9,13 +9,15 @@
   const links = [
     { id: 'dashboard', label: 'Dashboard', href: 'network-dashboard%20(1).html', icon: 'monitor' },
     { id: 'vlan', label: 'VLAN', href: 'vlan.html', icon: 'vlan' },
-    { id: 'alerts', label: 'Alerts', href: 'alerts.html', icon: 'alert' }
+    { id: 'alerts', label: 'Alerts', href: 'snort_alerts_dashboard.html', icon: 'alert' },
+    { id: 'traffic', label: 'Traffic', href: 'nettraffic-analyzer.html', icon: 'traffic' }
   ];
 
   const icons = {
     vlan: '<path d="M21 5H3a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM21 13H3a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"></path>',
     alert: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>',
-    monitor: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>'
+    monitor: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>',
+    traffic: '<path d="M3 12h4l2-6 4 12 2-6h6"></path>'
   };
 
   const renderIcon = (type) =>

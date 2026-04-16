@@ -8,6 +8,7 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="sidebar.css" />
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -47,7 +48,15 @@
       var(--bg);
   }
 
-  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #root {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+  }
+
+  .sidebar-host { width: 90px; flex-shrink: 0; }
+  .main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   .topbar { padding: 18px 25px; display: flex; align-items: center; justify-content: space-between; gap: 20px; background: rgba(255,255,255,0.72); border-bottom: 1px solid #e2e8f0; backdrop-filter: blur(16px); }
   .tabs-bar {
     display: flex;
@@ -79,7 +88,32 @@
     color: #6366f1;
     border-bottom-color: #6366f1;
   }
-  .content { flex: 1; padding: 25px; overflow-y: auto; }
+  .content {
+    flex: 1;
+    min-height: 0;
+    padding: 25px;
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+  }
+
+  .content::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  .content::-webkit-scrollbar-track {
+    background: rgba(226, 232, 240, 0.7);
+    border-radius: 999px;
+  }
+
+  .content::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.45);
+    border-radius: 999px;
+    border: 2px solid rgba(226, 232, 240, 0.7);
+  }
+
+  .content::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.65);
+  }
 
   .title-group { display: flex; flex-direction: column; gap: 4px; }
   .eyebrow { font-size: 11px; letter-spacing: 0.18em; color: #64748b; text-transform: uppercase; font-weight: 700; }
@@ -149,7 +183,8 @@
 
   @media (max-width: 860px) {
     body { overflow: auto; }
-    .app-shell { height: auto; min-height: 100vh; }
+    .app-shell { height: auto; min-height: 100vh; flex-direction: column; }
+    .sidebar-host { width: 100%; }
     .topbar { align-items: flex-start; flex-direction: column; }
     .tabs-bar { padding: 0 18px; }
     .content { padding: 18px; }
@@ -166,7 +201,10 @@
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div class="app-shell">
+  <aside id="sidebar-root" class="sidebar-host" data-page="traffic"></aside>
+  <div id="root"></div>
+</div>
 
 <script type="text/babel">
 const { useMemo, useState } = React;
@@ -497,8 +535,7 @@ function App() {
   };
 
   return (
-    <div className="app-shell">
-      <div className="main">
+    <div className="main">
         <div className="topbar">
           <div className="title-group">
             <span className="eyebrow">Traffic Insight</span>
@@ -528,12 +565,12 @@ function App() {
           {page === 'ip' && <IpPage search={search} setSearch={setSearch} filter={filter} setFilter={setFilter} />}
           {page === 'ports' && <PortsPage />}
         </div>
-      </div>
     </div>
   );
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
+<script src="sidebar.js"></script>
 </body>
 </html>
