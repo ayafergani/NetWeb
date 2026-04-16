@@ -343,7 +343,8 @@
       const routes = {
         dashboard: 'network-dashboard%20(1).html',
         vlan: 'vlan.html',
-        alerts: 'alerts.html'
+        alerts: 'snort_alerts_dashboard.html',
+        configuration: 'Configuration.html'
       };
 
       window.location.href = routes[page] || routes.dashboard;
@@ -442,7 +443,7 @@
             <div className="data-row"><span className="data-label">Auto-isolate threats</span><span className="data-value">ON</span></div>
             <div className="data-row"><span className="data-label">Active rules</span><span className="data-value" style={{ color: '#6366f1' }}>4 rules</span></div>
             <div className="data-row"><span className="data-label">Last triggered</span><span className="data-value">fa0/3 - VLAN 99</span></div>
-            <button className="btn-small btn-primary" style={{ marginTop: '5px', width: 'fit-content' }}>Configure Rules</button>
+            <button className="btn-small btn-primary" style={{ marginTop: '5px', width: 'fit-content' }} onClick={() => goTo('configuration')}>Configure Rules</button>
           </div>
 
           <div className="manage-section">
