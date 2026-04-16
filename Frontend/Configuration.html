@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Configuration IDS - Console d'Administration</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f8fafc;
+    --card: rgba(255, 255, 255, 0.9);
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --muted: #64748b;
+    --primary: #6366f1;
+    --primary-soft: rgba(99, 102, 241, 0.12);
+    --success: #22c55e;
+    --danger: #ef4444;
+    --info: #2563eb;
+    --info-soft: #eff6ff;
+    --shadow: 0 10px 25px -18px rgba(15, 23, 42, 0.35), 0 4px 12px -8px rgba(15, 23, 42, 0.14);
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  body { overflow: hidden; }
+  button, input, textarea { font: inherit; }
+
+  .app-shell {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    background:
+      radial-gradient(circle at top right, rgba(99, 102, 241, 0.08), transparent 22%),
+      radial-gradient(circle at bottom left, rgba(34, 197, 94, 0.05), transparent 18%),
+      var(--bg);
+  }
+
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .topbar {
+    padding: 18px 25px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    background: rgba(255,255,255,0.72);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(16px);
+  }
+
+  .tabs-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 25px;
+    background: rgba(255,255,255,0.72);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(16px);
+    overflow-x: auto;
+  }
+
+  .tab-item {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    padding: 16px 4px 14px;
+    margin-right: 18px;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    transition: 0.2s;
+    white-space: nowrap;
+  }
+
+  .tab-item:hover { color: #334155; }
+  .tab-item.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+  }
+
+  .content {
+    flex: 1;
+    padding: 25px;
+    overflow-y: auto;
+  }
+
+  .title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .page-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--info);
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.88);
+    color: var(--success);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    flex-shrink: 0;
+  }
+
+  .content-grid {
+    display: grid;
+    gap: 24px;
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: 16px;
+    border: 1px solid rgba(226, 232, 240, 0.82);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+    padding: 20px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+  }
+
+  .section-meta {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
+
+  .stack {
+    display: grid;
+    gap: 12px;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(248,250,252,0.92), rgba(255,255,255,0.98));
+  }
+
+  .checkbox-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+    cursor: pointer;
+  }
+
+  .checkbox-label {
+    font-size: 13px;
+    color: #334155;
+    font-weight: 500;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 680px;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 14px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+  }
+
+  th {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    white-space: nowrap;
+    background: #f8fafc;
+  }
+
+  tbody tr:nth-child(even) td {
+    background: #fcfdff;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  td {
+    color: #334155;
+    font-weight: 500;
+  }
+
+  .mono {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
+
+  .editor-area {
+    width: 100%;
+    min-height: 150px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    resize: vertical;
+    background: rgba(255,255,255,0.92);
+    color: var(--text);
+    outline: none;
+  }
+
+  .editor-area:focus {
+    border-color: rgba(99,102,241,0.4);
+    box-shadow: 0 0 0 4px rgba(99,102,241,0.08);
+  }
+
+  .button-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+
+  .btn {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(0.98);
+  }
+
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-success { background: var(--success); color: white; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-muted { background: #e2e8f0; color: #334155; }
+
+  .info-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(248,250,252,0.92), rgba(255,255,255,0.98));
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  .path-text {
+    color: #334155;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .bottom-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 24px;
+    padding: 18px 20px;
+    background: rgba(255,255,255,0.82);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+    flex-wrap: wrap;
+  }
+
+  .status-label {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .toast {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(30, 41, 59, 0.96);
+    color: white;
+    font-size: 13px;
+    box-shadow: 0 12px 24px -18px rgba(15, 23, 42, 0.8);
+    z-index: 20;
+  }
+
+  @media (max-width: 980px) {
+    .settings-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 860px) {
+    body { overflow: auto; }
+    .app-shell { height: auto; min-height: 100vh; }
+    .topbar { align-items: flex-start; flex-direction: column; }
+    .tabs-bar { padding: 0 18px; }
+    .content { padding: 18px; }
+  }
+
+  @media (max-width: 560px) {
+    .page-title { font-size: 20px; }
+    .card { padding: 16px; }
+    .button-row { flex-direction: column; }
+    .btn { width: 100%; }
+    table { min-width: 560px; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useEffect, useMemo, useState } = React;
+
+const initialRules = [
+  { sid: '1000001', definition: 'alert tcp any any -> any 22 (msg:"SSH brute force suspect"; sid:1000001; rev:1;)' },
+  { sid: '1000002', definition: 'alert udp any any -> any 53 (msg:"DNS tunnel activity"; sid:1000002; rev:1;)' },
+  { sid: '1000003', definition: 'alert icmp any any -> any any (msg:"ICMP sweep detected"; sid:1000003; rev:1;)' },
+  { sid: '1000004', definition: 'alert tcp any any -> any 80 (msg:"Suspicious cleartext HTTP request"; sid:1000004; rev:1;)' }
+];
+
+const tabs = {
+  general: '⚙️ Général',
+  rules: '📋 Règles',
+  export: '🐍 Export Snort'
+};
+
+const Card = ({ title, meta, children }) => (
+  <div className="card">
+    <div className="section-header">
+      <span className="section-title">{title}</span>
+      {meta ? <span className="section-meta">{meta}</span> : null}
+    </div>
+    {children}
+  </div>
+);
+
+function App() {
+  const [activeTab, setActiveTab] = useState('general');
+  const [monitoringEnabled, setMonitoringEnabled] = useState(true);
+  const [autoBoot, setAutoBoot] = useState(true);
+  const [autoRestart, setAutoRestart] = useState(true);
+  const [rules, setRules] = useState(initialRules);
+  const [selectedSid, setSelectedSid] = useState(initialRules[0].sid);
+  const [editorValue, setEditorValue] = useState(initialRules[0].definition);
+  const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(''), 2500);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const generatedRules = useMemo(() => rules.map((rule) => rule.definition).join('\n'), [rules]);
+
+  const sendToast = (message) => {
+    console.log(message);
+    setToast(message);
+  };
+
+  const syncEditorToSelection = (sid) => {
+    const found = rules.find((rule) => rule.sid === sid);
+    setSelectedSid(sid);
+    setEditorValue(found ? found.definition : '');
+  };
+
+  const handleAddRule = () => {
+    const trimmed = editorValue.trim();
+    if (!trimmed) {
+      sendToast('Aucune règle à ajouter.');
+      return;
+    }
+    const nextSid = String(1000000 + rules.length + 1);
+    const nextRule = { sid: nextSid, definition: trimmed.includes('sid:') ? trimmed : `${trimmed} (sid:${nextSid}; rev:1;)` };
+    const nextRules = [...rules, nextRule];
+    setRules(nextRules);
+    setSelectedSid(nextSid);
+    setEditorValue(nextRule.definition);
+    sendToast(`Règle ajoutée (SID ${nextSid}).`);
+  };
+
+  const handleModifyRule = () => {
+    const trimmed = editorValue.trim();
+    if (!selectedSid || !trimmed) {
+      sendToast('Sélectionnez une règle à modifier.');
+      return;
+    }
+    setRules((prev) => prev.map((rule) => rule.sid === selectedSid ? { ...rule, definition: trimmed } : rule));
+    sendToast(`Règle ${selectedSid} modifiée.`);
+  };
+
+  const handleDeleteRule = () => {
+    if (!selectedSid) {
+      sendToast('Aucune règle sélectionnée.');
+      return;
+    }
+    const nextRules = rules.filter((rule) => rule.sid !== selectedSid);
+    setRules(nextRules);
+    const fallback = nextRules[0];
+    setSelectedSid(fallback ? fallback.sid : '');
+    setEditorValue(fallback ? fallback.definition : '');
+    sendToast(`Règle ${selectedSid} supprimée.`);
+  };
+
+  const handleExport = (path) => {
+    sendToast(`Export simulé vers ${path}`);
+  };
+
+  const handleApply = () => {
+    sendToast('Configuration appliquée et règles exportées');
+  };
+
+  const handleReset = () => {
+    setMonitoringEnabled(true);
+    setAutoBoot(true);
+    setAutoRestart(true);
+    setRules(initialRules);
+    setSelectedSid(initialRules[0].sid);
+    setEditorValue(initialRules[0].definition);
+    sendToast('Configuration réinitialisée.');
+  };
+
+  const handleSave = () => {
+    sendToast('Configuration sauvegardée localement.');
+  };
+
+  return (
+    <div className="app-shell">
+      <div className="main">
+        <div className="topbar">
+          <div className="title-group">
+            <span className="eyebrow">Console IDS</span>
+            <h1 className="page-title">🛡️ CONFIGURATION AVANCÉE DU SYSTÈME</h1>
+            <p className="page-subtitle">Paramétrage statique de démonstration pour l'administration des règles et l'export Snort.</p>
+          </div>
+          <div className="status-pill">
+            <span className="status-dot"></span>
+            ● STATUT: ACTIF
+          </div>
+        </div>
+
+        <div className="tabs-bar">
+          {Object.entries(tabs).map(([key, label]) => (
+            <button
+              key={key}
+              className={`tab-item ${activeTab === key ? 'active' : ''}`}
+              onClick={() => setActiveTab(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="content">
+          <div className="content-grid">
+            {activeTab === 'general' && (
+              <div className="settings-grid">
+                <Card title="Activation du Système" meta="Surveillance centrale">
+                  <div className="stack">
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={monitoringEnabled}
+                        onChange={(e) => setMonitoringEnabled(e.target.checked)}
+                      />
+                      <span className="checkbox-label">Activer la surveillance temps-réel</span>
+                    </label>
+                  </div>
+                </Card>
+
+                <Card title="Options de Boot" meta="Résilience et démarrage">
+                  <div className="stack">
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={autoBoot}
+                        onChange={(e) => setAutoBoot(e.target.checked)}
+                      />
+                      <span className="checkbox-label">Lancement automatique au boot</span>
+                    </label>
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={autoRestart}
+                        onChange={(e) => setAutoRestart(e.target.checked)}
+                      />
+                      <span className="checkbox-label">Auto-restart en cas de crash</span>
+                    </label>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {activeTab === 'rules' && (
+              <>
+                <Card title="Règles IDS" meta={`${rules.length} règles chargées`}>
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>SID</th>
+                          <th>DÉFINITION DE LA RÈGLE</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rules.map((rule) => (
+                          <tr
+                            key={rule.sid}
+                            onClick={() => syncEditorToSelection(rule.sid)}
+                            style={{ cursor: 'pointer', outline: selectedSid === rule.sid ? '2px solid rgba(99,102,241,0.14)' : 'none' }}
+                          >
+                            <td className="mono">{rule.sid}</td>
+                            <td className="mono">{rule.definition}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+
+                <Card title="Éditeur Quick-Rule" meta={selectedSid ? `SID sélectionné: ${selectedSid}` : 'Nouvelle règle'}>
+                  <textarea
+                    className="editor-area mono"
+                    value={editorValue}
+                    onChange={(e) => setEditorValue(e.target.value)}
+                    placeholder="Saisissez ou modifiez une règle Snort..."
+                  />
+                  <div className="button-row">
+                    <button className="btn btn-success" onClick={handleAddRule}>➕ Ajouter</button>
+                    <button className="btn btn-primary" onClick={handleModifyRule}>✏️ Modifier</button>
+                    <button className="btn btn-danger" onClick={handleDeleteRule}>❌ Supprimer</button>
+                  </div>
+                </Card>
+              </>
+            )}
+
+            {activeTab === 'export' && (
+              <>
+                <Card title="📁 Export des règles vers Snort" meta="Simulation d'export">
+                  <div className="info-box">
+                    <span className="path-text">📂 Dossier de destination: <span className="mono">/etc/snort/rules</span></span>
+                    <div className="button-row" style={{ marginTop: 0 }}>
+                      <button className="btn btn-success" onClick={() => handleExport('/etc/snort/rules')}>📤 Exporter vers Snort</button>
+                      <button className="btn btn-primary" onClick={() => handleExport('/custom/export/ids.rules')}>💾 Exporter vers fichier personnalisé</button>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card title="📄 Aperçu des règles générées" meta="Fichier .rules">
+                  <textarea
+                    className="editor-area mono"
+                    value={generatedRules}
+                    onChange={() => {}}
+                    readOnly
+                  />
+                </Card>
+              </>
+            )}
+
+            <div className="bottom-toolbar">
+              <div className="button-row" style={{ marginTop: 0 }}>
+                <button className="btn btn-primary" onClick={handleApply}>🚀 APPLIQUER & EXPORTER</button>
+                <button className="btn btn-danger" onClick={handleReset}>🔄 RESET</button>
+                <button className="btn btn-muted" onClick={handleSave}>💾 SAUVEGARDER</button>
+              </div>
+              <span className="status-label">Prêt | Console synchronisée</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {toast ? <div className="toast">{toast}</div> : null}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
