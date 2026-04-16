@@ -135,7 +135,6 @@ const Dashboard = ({ setPage }) => {
       </div>
 
       <div className="management-grid">
-        {/* VLAN Management */}
         <div className="manage-section">
           <div className="section-header">
             <span className="section-title">VLAN Management</span>
@@ -150,7 +149,6 @@ const Dashboard = ({ setPage }) => {
           </div>
         </div>
 
-        {/* Interfaces */}
         <div className="manage-section">
           <div className="section-header">
             <span className="section-title">Interfaces</span>
@@ -162,7 +160,6 @@ const Dashboard = ({ setPage }) => {
           <span className="action-link">View Interfaces</span>
         </div>
 
-        {/* Network Monitoring */}
         <div className="manage-section">
           <div className="section-header">
             <span className="section-title">Network Monitoring</span>
@@ -174,7 +171,6 @@ const Dashboard = ({ setPage }) => {
           <span className="action-link">View Details</span>
         </div>
 
-        {/* Security Alerts (Snort) */}
         <div className="manage-section">
           <div className="section-header">
             <span className="section-title">Security Alerts (Snort)</span>
@@ -186,7 +182,6 @@ const Dashboard = ({ setPage }) => {
           <span className="action-link" onClick={() => setPage('alerts')}>View Alerts</span>
         </div>
 
-        {/* Automation */}
         <div className="manage-section">
           <div className="section-header">
             <span className="section-title">Automation</span>
@@ -198,7 +193,6 @@ const Dashboard = ({ setPage }) => {
           <button className="btn-small btn-primary" style={{marginTop:'5px', width:'fit-content'}}>Configure Rules</button>
         </div>
 
-        {/* System Status */}
         <div className="manage-section">
           <div className="section-header">
             <span className="section-title">System Status</span>
@@ -241,13 +235,11 @@ const AlertsPage = ({ setPage }) => (
   <div><button onClick={() => setPage('dashboard')} className="action-link" style={{marginBottom:20}}>← Retour</button><h2>Alertes de Sécurité</h2></div>
 );
 
-// --- Dans ton composant App ---
 function App() {
   const [page, setPage] = useState('dashboard');
 
   const handleNavigation = (targetPage) => {
     if (targetPage === 'vlan') {
-      // Redirection vers le fichier externe
       window.location.href = 'vlan.html'; 
     } else {
       setPage(targetPage);
@@ -261,7 +253,6 @@ function App() {
           <Icon type="vlan" />
         </div>
         
-        {/* Item Dashboard */}
         <div 
           className={`nav-item ${page === 'dashboard' ? 'active' : ''}`} 
           onClick={() => handleNavigation('dashboard')}
@@ -269,7 +260,6 @@ function App() {
           <Icon type="monitor" /><span>Dashboard</span>
         </div>
 
-        {/* Item VLAN -> Redirige vers vlan.html */}
         <div 
           className="nav-item" 
           onClick={() => handleNavigation('vlan')}
@@ -283,7 +273,6 @@ function App() {
       </div>
 
       <div className="main">
-        {/* ... reste de la topbar ... */}
         <div className="content">
           {page === 'dashboard' && <Dashboard setPage={handleNavigation} />}
           {page === 'alerts' && <AlertsPage setPage={handleNavigation} />}
