@@ -191,12 +191,94 @@
     .stats-header-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 
-  @media (max-width: 560px) {
-    .stats-header-grid, .mini-stats-grid { grid-template-columns: 1fr; }
-    .page-title { font-size: 20px; }
-    .panel-card, .table-card, .stat-mini-card { padding: 16px; }
-    .port-row, .metric-line { grid-template-columns: 1fr; align-items: flex-start; }
-    table { min-width: 620px; }
+  .topbar {
+    animation: slideDown 0.4s ease;
+  }
+
+  .tabs-bar {
+    animation: fadeInUp 0.4s ease backwards;
+    animation-delay: 0.1s;
+  }
+
+  .stats-header-grid {
+    animation: fadeInUp 0.4s ease backwards;
+    animation-delay: 0.2s;
+  }
+
+  .panel-card, .table-card {
+    animation: fadeInUp 0.4s ease backwards;
+  }
+
+  .panel-card:nth-child(1), .table-card:nth-child(1) {
+    animation-delay: 0.3s;
+  }
+
+  .panel-card:nth-child(2), .table-card:nth-child(2) {
+    animation-delay: 0.4s;
+  }
+
+  .panel-card:nth-child(3), .table-card:nth-child(3) {
+    animation-delay: 0.5s;
+  }
+
+  .table-row {
+    animation: rowSlideIn 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1) both;
+  }
+
+  .table-row:nth-child(1) { animation-delay: 0.2s; }
+  .table-row:nth-child(2) { animation-delay: 0.25s; }
+  .table-row:nth-child(3) { animation-delay: 0.3s; }
+  .table-row:nth-child(4) { animation-delay: 0.35s; }
+  .table-row:nth-child(5) { animation-delay: 0.4s; }
+  .table-row:nth-child(6) { animation-delay: 0.45s; }
+  .table-row:nth-child(7) { animation-delay: 0.5s; }
+
+  .toolbar {
+    animation: fadeInUp 0.4s ease backwards;
+    animation-delay: 0.3s;
+  }
+
+  .ports-grid {
+    animation: fadeInUp 0.4s ease backwards;
+    animation-delay: 0.3s;
+  }
+
+  .port-activity {
+    animation: fadeInUp 0.4s ease backwards;
+    animation-delay: 0.4s;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes rowSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 </style>
 </head>
@@ -371,7 +453,7 @@ const OverviewPage = () => (
           </thead>
           <tbody>
             {topIps.map((row) => (
-              <tr key={row.ip}>
+              <tr key={row.ip} className="table-row">
                 <td className="mono">{row.ip}</td>
                 <td>{row.volume}</td>
                 <td>{row.packets}</td>
@@ -434,7 +516,7 @@ const IpPage = ({ search, setSearch, filter, setFilter }) => {
             </thead>
             <tbody>
               {filteredRows.map((row) => (
-                <tr key={row.ip}>
+                <tr key={row.ip} className="table-row">
                   <td className="mono">{row.ip}</td>
                   <td>{row.tcp.toLocaleString('fr-FR')}</td>
                   <td>{row.udp.toLocaleString('fr-FR')}</td>
@@ -468,7 +550,7 @@ const PortsPage = () => (
             </thead>
             <tbody>
               {tcpPorts.map((row) => (
-                <tr key={`tcp-${row.port}`}>
+                <tr key={`tcp-${row.port}`} className="table-row">
                   <td className="mono">{row.port}</td>
                   <td>{row.service}</td>
                   <td>{row.count}</td>
@@ -491,7 +573,7 @@ const PortsPage = () => (
             </thead>
             <tbody>
               {udpPorts.map((row) => (
-                <tr key={`udp-${row.port}`}>
+                <tr key={`udp-${row.port}`} className="table-row">
                   <td className="mono">{row.port}</td>
                   <td>{row.service}</td>
                   <td>{row.count}</td>
