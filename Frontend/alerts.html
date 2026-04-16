@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetGuard - Alerts</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="layout.css" />
+  <link rel="stylesheet" href="sidebar.css" />
+  <style>
+    .alerts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 24px;
+    }
+
+    .alert-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+    }
+
+    .alert-level {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 6px 10px;
+      border-radius: 999px;
+      margin-bottom: 14px;
+    }
+
+    .level-critical {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+
+    .level-warning {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    .alert-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #0f172a;
+    }
+
+    .alert-meta {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 18px;
+    }
+
+    .alert-description {
+      font-size: 14px;
+      color: #334155;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 900px) {
+      .alerts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body class="app-body">
+  <div class="app-shell">
+    <aside id="sidebar-root" class="sidebar-host" data-page="alerts"></aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="topbar-title">Security Alerts</div>
+          <div class="topbar-subtitle">Suivi rapide des alertes Snort et des incidents reseau.</div>
+        </div>
+      </header>
+
+      <section class="content">
+        <div class="page-block">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Alerts Center</h1>
+              <p class="page-subtitle">Une page dediee pour consulter les alertes de securite separement du dashboard.</p>
+            </div>
+          </div>
+
+          <div class="alerts-grid">
+            <article class="alert-card">
+              <div class="alert-level level-critical">Critical</div>
+              <h2 class="alert-title">Port Scan Detected</h2>
+              <p class="alert-meta">Source IP: 192.168.1.10 • VLAN 99 • 10:42:12</p>
+              <p class="alert-description">Snort a detecte une activite de scan de ports et l equipement a ete automatiquement isole dans le VLAN de quarantaine.</p>
+            </article>
+
+            <article class="alert-card">
+              <div class="alert-level level-warning">Warning</div>
+              <h2 class="alert-title">Unusual Traffic Pattern</h2>
+              <p class="alert-meta">Interface: fa0/3 • 09:15:00</p>
+              <p class="alert-description">Le trafic observe depasse le comportement attendu. Une verification manuelle des flux ou des regles d automatisation est recommandee.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="sidebar.js"></script>
+</body>
+</html>
