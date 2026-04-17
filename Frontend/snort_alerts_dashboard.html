@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Snort Alerts Dashboard | Animations</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="layout.css" />
+<link rel="stylesheet" href="sidebar.css" />
 <style>
 *{box-sizing:border-box;margin:0;padding:0} :root{--bg:#f8fafc;--panel:rgba(255,255,255,.9);--soft:#f1f5f9;--primary:#6366f1;--primary-soft:rgba(99,102,241,.12);--text:#1e293b;--muted:#64748b;--dim:#94a3b8;--border:#e2e8f0;--crit:#ef4444;--crit-soft:#fef2f2;--med:#f59e0b;--med-soft:#fffbeb;--low:#22c55e;--low-soft:#f0fdf4;--info:#3b82f6;--info-soft:#eff6ff;--shadow:0 10px 25px -18px rgba(15,23,42,.35),0 4px 12px -8px rgba(15,23,42,.14)} html,body{height:100%;font-family:"DM Sans",sans-serif;background:var(--bg);color:var(--text)} body{overflow:hidden;background:radial-gradient(circle at top right,rgba(99,102,241,.08),transparent 22%),radial-gradient(circle at bottom left,rgba(34,197,94,.05),transparent 18%),var(--bg)}
 .app-shell{display:flex;height:100vh}.main-shell{flex:1;display:flex;flex-direction:column;min-width:0}.topbar{display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:18px 24px;background:rgba(255,255,255,.72);border-bottom:1px solid var(--border);backdrop-filter:blur(16px)}.topbar-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.status-pill,.icon-btn,.primary-btn{border-radius:12px;border:1px solid var(--border)}.status-pill{display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(255,255,255,.88);color:var(--text);font-size:12px;font-weight:600}.live-dot{width:8px;height:8px;border-radius:50%;background:var(--low);animation:pulse 1.4s infinite}.icon-btn{width:42px;height:42px;background:rgba(255,255,255,.88);color:var(--muted);position:relative;cursor:pointer;transition:transform .2s ease, background .2s ease}.icon-btn:hover{transform:scale(1.05);background:#fff}.primary-btn{padding:11px 14px;background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600;cursor:pointer;transition:transform .2s ease, box-shadow .2s ease}.primary-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px -6px var(--primary)}.notif-count{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;border-radius:999px;background:var(--crit);color:#fff;font:700 10px "DM Mono",monospace;display:none;align-items:center;justify-content:center;padding:0 4px;animation:bounceIn .3s cubic-bezier(0.68, -0.55, 0.265, 1.55)}.content{flex:1;overflow:auto;padding:24px}
@@ -281,6 +283,9 @@
   }
   .pp-footer span { font-size: 8px; color: #cbd5e1; font-family: "DM Mono",monospace; }
   .pp-footer-center { font-size: 8px; font-weight: 700; color: #94a3b8; letter-spacing: .06em; text-transform: uppercase; }
+
+  /* Masquer la sidebar à l'impression */
+  .sidebar-host, aside#sidebar-root { display: none !important; }
 }
 
 @media(max-width:1280px){.stats-grid{grid-template-columns:repeat(3,1fr)}.table-layout{grid-template-columns:1fr}.detail-panel{position:static}} @media(max-width:1080px){.controls-grid{grid-template-columns:1fr}.stats-grid{grid-template-columns:repeat(2,1fr)}} @media(max-width:820px){body{overflow:auto}.app-shell{height:auto;min-height:100vh;flex-direction:column}.topbar{justify-content:flex-start}.topbar-actions{width:100%;justify-content:flex-start}.stats-grid{grid-template-columns:1fr}.table-head{display:none}.alert-row{grid-template-columns:28px 1fr auto;gap:8px 10px;padding:14px 16px}.alert-row .ts,.alert-row .dst,.alert-row .proto{display:none}.alert-row .attack-name,.alert-row .src{grid-column:2}}
@@ -288,6 +293,11 @@
 </head>
 <body>
 <div class="app-shell">
+  <!-- ============================================================
+       SIDEBAR — intégrée comme dans network-dashboard
+       ============================================================ -->
+  <aside id="sidebar-root" class="sidebar-host" data-page="alerts"></aside>
+
   <main class="main-shell">
     <header class="topbar">
       <div class="topbar-actions">
@@ -544,5 +554,9 @@ function loadRealAlerts(){
 }
 loadRealAlerts();
 </script>
+<!-- ============================================================
+     SIDEBAR SCRIPT — chargé en dernier comme dans network-dashboard
+     ============================================================ -->
+<script src="sidebar.js"></script>
 </body>
 </html>
