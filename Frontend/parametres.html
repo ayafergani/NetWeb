@@ -1,0 +1,1746 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paramètres - Centre d'administration</title>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f3ff;
+            min-height: 100vh;
+        }
+
+        /* Top Navigation Bar */
+        .top-nav {
+            background: #4c1d95;
+            box-shadow: 0 2px 10px rgba(76, 29, 149, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 70px;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .logo-icon i {
+            font-size: 22px;
+            color: #c4b5fd;
+        }
+
+        .logo-text h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+            letter-spacing: -0.3px;
+        }
+
+        .logo-text p {
+            font-size: 10px;
+            color: #c4b5fd;
+            margin-top: 2px;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 8px;
+            background: rgba(255,255,255,0.05);
+            padding: 4px;
+            border-radius: 50px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            border-radius: 40px;
+            color: #d8b4fe;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.25s ease;
+            background: transparent;
+            border: none;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .nav-link.active {
+            background: #8b5cf6;
+            color: white;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .nav-link i {
+            font-size: 16px;
+        }
+
+        .user-area {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .stat-badge {
+            padding: 6px 14px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #e9d5ff;
+        }
+
+        .user-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.1);
+            padding: 6px 16px 6px 10px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .user-badge:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: #8b5cf6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
+            color: white;
+        }
+
+        .user-badge-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .user-badge-role {
+            font-size: 9px;
+            opacity: 0.8;
+            color: #e9d5ff;
+        }
+
+        /* Main content */
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid #e9d5ff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 2px solid #f3e8ff;
+        }
+
+        .card-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #4c1d95;
+            letter-spacing: -0.2px;
+        }
+
+        /* Filter bar */
+        .filter-bar {
+            background: #faf5ff;
+            border-radius: 16px;
+            padding: 14px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+            border: 1px solid #e9d5ff;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4c1d95;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 7px 14px;
+            border-radius: 10px;
+            border: 1px solid #e9d5ff;
+            background: white;
+            font-size: 12px;
+            color: #4c1d95;
+        }
+
+        .search-input {
+            padding: 7px 14px;
+            border-radius: 10px;
+            border: 1px solid #e9d5ff;
+            width: 220px;
+        }
+
+        /* Table */
+        .users-table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 14px 12px;
+            background: #faf5ff;
+            font-weight: 700;
+            font-size: 12px;
+            color: #4c1d95;
+            border-bottom: 2px solid #e9d5ff;
+        }
+
+        td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #f3e8ff;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+
+        .user-row {
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+
+        .user-row:hover {
+            background: #faf5ff;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .badge-online {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-offline {
+            background: #f3e8ff;
+            color: #6b21a5;
+        }
+
+        .badge-role {
+            background: #e9d5ff;
+            color: #4c1d95;
+        }
+
+        .badge-service {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 7px 14px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #7c3aed;
+            color: white;
+            box-shadow: 0 2px 6px rgba(124, 58, 237, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: #6d28d9;
+            transform: scale(1.02);
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #e9d5ff;
+            color: #6b21a5;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 11px;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        /* Roles grid */
+        .roles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 24px;
+        }
+
+        .role-card {
+            background: #faf5ff;
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid #e9d5ff;
+            transition: all 0.2s;
+        }
+
+        .role-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(76, 29, 149, 0.08);
+        }
+
+        .role-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e9d5ff;
+        }
+
+        .role-name {
+            font-size: 18px;
+            font-weight: 800;
+            color: #4c1d95;
+        }
+
+        .role-badge {
+            padding: 4px 10px;
+            background: #e9d5ff;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #4c1d95;
+        }
+
+        .perm-group {
+            margin-bottom: 16px;
+        }
+
+        .perm-group-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #6b7280;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .perm-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9d5ff;
+            font-size: 12px;
+            color: #374151;
+        }
+
+        .perm-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: 0.2s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.2s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: #7c3aed;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(22px);
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid #e9d5ff;
+        }
+
+        .metric-card h3 {
+            font-size: 16px;
+            color: #4c1d95;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f3e8ff;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+
+        .user-selector {
+            margin-bottom: 20px;
+        }
+
+        .user-selector select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid #e9d5ff;
+            background: white;
+        }
+
+        .stats-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #f3e8ff;
+        }
+
+        .stat-summary-item {
+            text-align: center;
+        }
+
+        .stat-summary-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #7c3aed;
+        }
+
+        .stat-summary-label {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        .interface-list {
+            margin-top: 16px;
+        }
+
+        .interface-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #faf5ff;
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+
+        .interface-name {
+            font-weight: 600;
+            color: #4c1d95;
+        }
+
+        .interface-hours {
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .progress-bar {
+            flex: 1;
+            margin: 0 12px;
+            height: 6px;
+            background: #e9d5ff;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* Password strength */
+        .password-strength {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .strength-bar {
+            flex: 1;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .strength-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .strength-text {
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .password-input-wrapper {
+            position: relative;
+        }
+
+        .password-input-wrapper input {
+            padding-right: 35px;
+        }
+
+        .password-visible {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #9ca3af;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 28px;
+            padding: 28px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: #4c1d95;
+            margin-bottom: 6px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid #e9d5ff;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mt-3 {
+            margin-top: 14px;
+        }
+
+        .text-muted {
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .user-info-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 28px;
+            padding: 28px;
+            width: 400px;
+            z-index: 2000;
+            box-shadow: 0 25px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1999;
+        }
+
+        /* Alert */
+        .alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 3000;
+            animation: slideRight 0.3s ease;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        @keyframes slideRight {
+            from {
+                transform: translateX(100px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .alert-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .alert-error {
+            background: #ef4444;
+            color: white;
+        }
+
+        .alert-info {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #9ca3af;
+        }
+
+        @media (max-width: 768px) {
+            .nav-container {
+                flex-direction: column;
+                height: auto;
+                padding: 16px;
+                gap: 16px;
+            }
+
+            .nav-menu {
+                flex-wrap: wrap;
+                justify-content: center;
+                border-radius: 20px;
+            }
+
+            .user-area {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .main-content {
+                padding: 20px 16px;
+            }
+
+            .roles-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-group {
+                justify-content: space-between;
+            }
+
+            .search-input {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <div class="top-nav">
+        <div class="nav-container">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i class="fas fa-sliders-h"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>PARAMÈTRES</h1>
+                    <p>Centre d'administration</p>
+                </div>
+            </div>
+            <div class="nav-menu">
+                <button class="nav-link active" data-page="users">
+                    <i class="fas fa-users"></i> Utilisateurs
+                </button>
+                <button class="nav-link" data-page="roles">
+                    <i class="fas fa-user-tag"></i> Rôles
+                </button>
+                <button class="nav-link" data-page="metrics">
+                    <i class="fas fa-chart-line"></i> Métriques
+                </button>
+            </div>
+            <div class="user-area">
+                <span class="stat-badge" id="statUsers">0 utilisateurs</span>
+                <div class="user-badge" onclick="showCurrentUserModal()">
+                    <div class="user-avatar" id="userAvatar">AD</div>
+                    <div>
+                        <div class="user-badge-name" id="userBadgeName">Admin</div>
+                        <div class="user-badge-role" id="userBadgeRole">Super Admin</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="main-content">
+        <!-- Page Utilisateurs -->
+        <div id="pageUsers">
+            <div class="filter-bar">
+                <div class="filter-group"><label>Recherche</label><input type="text" id="searchInput" class="search-input" placeholder="Nom, email..." onkeyup="filterUsers()"></div>
+                <div class="filter-group"><label>Service</label><select id="filterService" onchange="filterUsers()"><option value="all">Tous</option><option value="IT">IT</option><option value="Réseau">Réseau</option><option value="Sécurité">Sécurité</option><option value="Direction">Direction</option></select></div>
+                <div class="filter-group"><label>Rôle</label><select id="filterRole" onchange="filterUsers()"><option value="all">Tous</option></select></div>
+                <div class="filter-group"><label>Statut</label><select id="filterStatus" onchange="filterUsers()"><option value="all">Tous</option><option value="online">En ligne</option><option value="offline">Hors ligne</option></select></div>
+                <button class="btn btn-primary" onclick="openAddUserModal()" style="margin-left: auto;">+ Nouvel utilisateur</button>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><h3 class="card-title">Liste des utilisateurs</h3><span class="text-muted" id="userCountDisplay">0 utilisateur(s)</span></div>
+                <div class="users-table-container"><div id="usersTable"></div></div>
+            </div>
+        </div>
+
+        <!-- Page Rôles -->
+        <div id="pageRoles" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Gestion des rôles et permissions</h3>
+                    <button class="btn btn-primary" onclick="showAddRoleModal()">+ Nouveau rôle</button>
+                </div>
+                <div class="roles-grid" id="rolesGrid"></div>
+            </div>
+        </div>
+
+        <!-- Page Métriques -->
+        <div id="pageMetrics" style="display: none;">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3><i class="fas fa-clock"></i> Heures d'utilisation par utilisateur</h3>
+                    <div class="chart-container">
+                        <canvas id="hoursChart"></canvas>
+                    </div>
+                    <div class="stats-summary">
+                        <div class="stat-summary-item">
+                            <div class="stat-summary-value" id="totalHours">0</div>
+                            <div class="stat-summary-label">Heures totales</div>
+                        </div>
+                        <div class="stat-summary-item">
+                            <div class="stat-summary-value" id="avgHours">0</div>
+                            <div class="stat-summary-label">Moyenne heures</div>
+                        </div>
+                        <div class="stat-summary-item">
+                            <div class="stat-summary-value" id="activeUsers">0</div>
+                            <div class="stat-summary-label">Utilisateurs actifs</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <h3><i class="fas fa-chart-line"></i> Activité par heure (24h)</h3>
+                    <div class="user-selector">
+                        <select id="activityUserSelect" onchange="updateHourlyChart()">
+                            <option value="all">Tous les utilisateurs</option>
+                        </select>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="hourlyChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <h3><i class="fas fa-plug"></i> Utilisation des interfaces</h3>
+                    <div class="user-selector">
+                        <select id="interfaceUserSelect" onchange="updateInterfaceDetails()">
+                            <option value="">Sélectionner un utilisateur</option>
+                        </select>
+                    </div>
+                    <div id="interfaceDetails" class="interface-list">
+                        <div class="text-muted" style="text-align:center;padding:20px;">Sélectionnez un utilisateur</div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <h3><i class="fas fa-star"></i> Services les plus utilisés</h3>
+                    <div class="chart-container">
+                        <canvas id="servicesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- User Info Modal -->
+    <div id="userInfoOverlay" class="overlay" style="display: none;"></div>
+    <div id="userInfoModal" class="user-info-modal" style="display: none;">
+        <div style="text-align:center;margin-bottom:20px;"><div class="user-avatar" id="modalAvatar" style="width:70px;height:70px;font-size:28px;margin:0 auto 12px;background:#8b5cf6;">AD</div><h3 id="modalUserName"></h3><span class="badge badge-role" id="modalUserRole"></span></div>
+        <div class="flex-between mb-2"><strong>Email</strong><span id="modalUserEmail"></span></div>
+        <div class="flex-between mb-2"><strong>Service</strong><span id="modalUserService"></span></div>
+        <div class="flex-between mb-2"><strong>Dernière connexion</strong><span id="modalUserLastLogin"></span></div>
+        <button class="btn btn-outline" style="width:100%;margin-top:20px;" onclick="closeUserInfoModal()">Fermer</button>
+    </div>
+
+    <!-- User Modal -->
+    <div id="userModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3 id="userModalTitle" style="margin-bottom:20px;color:#4c1d95;">Ajouter un utilisateur</h3>
+            <input type="hidden" id="editUserId">
+            <div class="form-group"><label>Nom complet</label><input type="text" id="userName" placeholder="Jean Dupont"></div>
+            <div class="form-group"><label>Email</label><input type="email" id="userEmail" placeholder="jean@entreprise.com"></div>
+            <div class="form-group"><label>Mot de passe</label>
+                <div class="password-input-wrapper">
+                    <input type="password" id="userPassword" placeholder="••••••••">
+                    <i class="fas fa-eye password-visible" onclick="togglePasswordVisibility()"></i>
+                </div>
+                <div class="password-strength" id="passwordStrength">
+                    <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+                    <span class="strength-text" id="strengthText">Très faible</span>
+                </div>
+            </div>
+            <div class="form-group"><label>Service</label><select id="userService"><option value="IT">IT</option><option value="Réseau">Réseau</option><option value="Sécurité">Sécurité</option><option value="Direction">Direction</option></select></div>
+            <div class="form-group"><label>Rôle</label><select id="userRole"></select></div>
+            <div class="form-group"><label>Statut</label><select id="userStatus"><option value="true">En ligne</option><option value="false">Hors ligne</option></select></div>
+            <div class="flex-between" style="margin-top:24px;"><button class="btn btn-outline" onclick="closeUserModal()">Annuler</button><button class="btn btn-primary" onclick="saveUser()">Enregistrer</button></div>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div id="resetPasswordModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3 style="margin-bottom:20px;color:#4c1d95;">Réinitialiser le mot de passe</h3>
+            <p style="margin-bottom:16px;font-size:13px;" id="resetUserInfo"></p>
+            <div class="form-group"><label>Nouveau mot de passe</label>
+                <div class="password-input-wrapper">
+                    <input type="password" id="resetPassword" placeholder="••••••••">
+                    <i class="fas fa-eye password-visible" onclick="toggleResetPasswordVisibility()"></i>
+                </div>
+                <div class="password-strength" id="resetStrength">
+                    <div class="strength-bar"><div class="strength-fill" id="resetStrengthFill"></div></div>
+                    <span class="strength-text" id="resetStrengthText">Très faible</span>
+                </div>
+            </div>
+            <div class="flex-between" style="margin-top:24px;"><button class="btn btn-outline" onclick="closeResetPasswordModal()">Annuler</button><button class="btn btn-primary" onclick="confirmResetPassword()">Réinitialiser</button></div>
+        </div>
+    </div>
+
+    <!-- Add Role Modal -->
+    <div id="addRoleModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3 style="margin-bottom:20px;color:#4c1d95;">Nouveau rôle</h3>
+            <div class="form-group"><label>Nom du rôle</label><input type="text" id="newRoleName" placeholder="Ex: Admin Réseau"></div>
+            <div class="form-group"><label>Description</label><input type="text" id="newRoleDesc" placeholder="Description du rôle"></div>
+            <div class="flex-between" style="margin-top:24px;"><button class="btn btn-outline" onclick="closeAddRoleModal()">Annuler</button><button class="btn btn-primary" onclick="addRole()">Créer</button></div>
+        </div>
+    </div>
+
+    <script>
+        // Widgets pour les permissions
+        const widgets = [
+            { id: 'total_vlans', label: 'Total VLANs', category: 'Réseau' },
+            { id: 'active_ports', label: 'Active Ports', category: 'Réseau' },
+            { id: 'snort_alerts', label: 'Alertes Snort', category: 'Sécurité' },
+            { id: 'isolated_devices', label: 'Appareils isolés', category: 'Sécurité' },
+            { id: 'traffic_status', label: 'État du trafic', category: 'Monitoring' },
+            { id: 'bandwidth_use', label: 'Utilisation bande', category: 'Monitoring' },
+            { id: 'system_uptime', label: 'Uptime', category: 'Système' },
+            { id: 'cpu_load', label: 'Charge CPU', category: 'Système' }
+        ];
+
+        // Données utilisateurs
+        let users = [
+            { 
+                id: 1, name: 'Alice Dupont', email: 'alice@reseau.com', password: 'Admin123!', role: 'super_admin', service: 'Direction', online: true, 
+                lastLogin: '2026-04-17 09:23', totalHours: 28,
+                services: [{name:'VPN', hours:12}, {name:'Firewall', hours:8}, {name:'Monitoring', hours:5}, {name:'DNS', hours:3}],
+                interfaces: [{name:'eth0', hours:45}, {name:'eth1', hours:32}, {name:'wlan0', hours:23}],
+                hourlyActivity: [2,1,0,0,0,1,2,3,5,8,12,15,18,16,14,12,10,8,6,4,3,2,1,1]
+            },
+            { 
+                id: 2, name: 'Bob Martin', email: 'bob@reseau.com', password: 'Network2024!', role: 'network_admin', service: 'Réseau', online: false, 
+                lastLogin: '2026-04-16 14:12', totalHours: 18,
+                services: [{name:'Switch Config', hours:10}, {name:'VLAN Manager', hours:5}, {name:'Router', hours:3}],
+                interfaces: [{name:'eth0', hours:38}, {name:'eth1', hours:28}, {name:'vlan10', hours:15}],
+                hourlyActivity: [0,0,0,0,1,1,2,4,6,9,11,14,13,12,10,8,7,5,4,3,2,1,0,0]
+            },
+            { 
+                id: 3, name: 'Charlie Durand', email: 'charlie@reseau.com', password: 'Securite123!', role: 'security_admin', service: 'Sécurité', online: false, 
+                lastLogin: '2026-04-15 11:45', totalHours: 12,
+                services: [{name:'Snort', hours:6}, {name:'Firewall', hours:4}, {name:'IDS/IPS', hours:2}],
+                interfaces: [{name:'eth0', hours:25}, {name:'eth1', hours:18}, {name:'mon0', hours:12}],
+                hourlyActivity: [1,0,0,0,0,0,1,2,4,6,8,10,9,8,7,6,5,4,3,2,1,1,0,0]
+            },
+            { 
+                id: 4, name: 'Diane Lefevre', email: 'diane@reseau.com', password: 'Monitoring123', role: 'monitoring', service: 'IT', online: true, 
+                lastLogin: '2026-04-14 08:30', totalHours: 8,
+                services: [{name:'Grafana', hours:5}, {name:'Prometheus', hours:3}],
+                interfaces: [{name:'eth0', hours:15}, {name:'docker0', hours:10}],
+                hourlyActivity: [0,0,0,0,1,1,2,3,5,7,6,5,4,4,3,3,2,2,1,1,0,0,0,0]
+            },
+            { 
+                id: 5, name: 'Eric Moreau', email: 'eric@reseau.com', password: 'Viewer123', role: 'viewer', service: 'IT', online: false, 
+                lastLogin: '2026-04-13 10:00', totalHours: 5,
+                services: [{name:'Dashboard', hours:3}, {name:'Reports', hours:2}],
+                interfaces: [{name:'eth0', hours:8}],
+                hourlyActivity: [0,0,0,0,0,0,1,1,2,3,4,3,2,2,1,1,1,0,0,0,0,0,0,0]
+            }
+        ];
+
+        // Rôles et permissions - Version avec les 5 rôles de votre dashboard
+        let roles = {
+            super_admin: { 
+                name: 'Super Admin', 
+                description: 'Accès total à toutes les fonctionnalités', 
+                permissions: {
+                    total_vlans: true, active_ports: true, snort_alerts: true, isolated_devices: true,
+                    traffic_status: true, bandwidth_use: true, system_uptime: true, cpu_load: true
+                }
+            },
+            network_admin: { 
+                name: 'Admin Réseau', 
+                description: 'Gestion des VLANs, ports et interfaces réseau', 
+                permissions: {
+                    total_vlans: true, active_ports: true, snort_alerts: false, isolated_devices: false,
+                    traffic_status: true, bandwidth_use: true, system_uptime: false, cpu_load: false
+                }
+            },
+            security_admin: { 
+                name: 'Admin Sécurité', 
+                description: 'Gestion des alertes Snort et isolation des appareils', 
+                permissions: {
+                    total_vlans: false, active_ports: false, snort_alerts: true, isolated_devices: true,
+                    traffic_status: false, bandwidth_use: false, system_uptime: false, cpu_load: false
+                }
+            },
+            monitoring: { 
+                name: 'Monitoring', 
+                description: 'Visualisation des métriques et du trafic réseau', 
+                permissions: {
+                    total_vlans: false, active_ports: false, snort_alerts: false, isolated_devices: false,
+                    traffic_status: true, bandwidth_use: true, system_uptime: true, cpu_load: true
+                }
+            },
+            viewer: { 
+                name: 'Observateur', 
+                description: 'Lecture seule limitée du tableau de bord', 
+                permissions: {
+                    total_vlans: false, active_ports: false, snort_alerts: false, isolated_devices: false,
+                    traffic_status: true, bandwidth_use: false, system_uptime: true, cpu_load: false
+                }
+            }
+        };
+
+        let currentUser = users[0];
+        let nextUserId = 6;
+        let currentSearchTerm = '', currentServiceFilter = 'all', currentRoleFilter = 'all', currentStatusFilter = 'all';
+        let resetUserId = null;
+        
+        // Chart instances
+        let hoursChart, hourlyChart, servicesChart;
+
+        // Fonctions de mot de passe
+        function checkPasswordStrength(password) {
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (password.length >= 12) strength++;
+            if (/[A-Z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^A-Za-z0-9]/.test(password)) strength++;
+            
+            let level = Math.min(strength, 4);
+            let percentage = (level / 4) * 100;
+            let text = '';
+            let color = '';
+            
+            if (level === 0) { text = 'Très faible'; color = '#ef4444'; percentage = 25; }
+            else if (level === 1) { text = 'Faible'; color = '#f59e0b'; percentage = 50; }
+            else if (level === 2) { text = 'Moyen'; color = '#f59e0b'; percentage = 75; }
+            else if (level === 3) { text = 'Fort'; color = '#10b981'; percentage = 100; }
+            else if (level === 4) { text = 'Très fort'; color = '#10b981'; percentage = 100; }
+            
+            return { percentage, text, color };
+        }
+
+        function updatePasswordStrength() {
+            const password = document.getElementById('userPassword').value;
+            const strength = checkPasswordStrength(password);
+            document.getElementById('strengthFill').style.width = strength.percentage + '%';
+            document.getElementById('strengthFill').style.backgroundColor = strength.color;
+            document.getElementById('strengthText').textContent = strength.text;
+            document.getElementById('strengthText').style.color = strength.color;
+        }
+
+        function updateResetPasswordStrength() {
+            const password = document.getElementById('resetPassword').value;
+            const strength = checkPasswordStrength(password);
+            document.getElementById('resetStrengthFill').style.width = strength.percentage + '%';
+            document.getElementById('resetStrengthFill').style.backgroundColor = strength.color;
+            document.getElementById('resetStrengthText').textContent = strength.text;
+            document.getElementById('resetStrengthText').style.color = strength.color;
+        }
+
+        function togglePasswordVisibility() {
+            const input = document.getElementById('userPassword');
+            const icon = event.target;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        function toggleResetPasswordVisibility() {
+            const input = document.getElementById('resetPassword');
+            const icon = event.target;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        function openResetPasswordModal(id) {
+            const user = users.find(u => u.id === id);
+            if (!user) return;
+            resetUserId = id;
+            document.getElementById('resetUserInfo').innerHTML = `Utilisateur : <strong>${user.name}</strong><br>Email : ${user.email}`;
+            document.getElementById('resetPassword').value = '';
+            document.getElementById('resetStrengthFill').style.width = '0%';
+            document.getElementById('resetStrengthText').textContent = 'Très faible';
+            document.getElementById('resetPasswordModal').style.display = 'flex';
+        }
+
+        function closeResetPasswordModal() {
+            document.getElementById('resetPasswordModal').style.display = 'none';
+            resetUserId = null;
+        }
+
+        function confirmResetPassword() {
+            const newPassword = document.getElementById('resetPassword').value;
+            if (!newPassword) {
+                showAlert('Veuillez entrer un nouveau mot de passe', 'error');
+                return;
+            }
+            const strength = checkPasswordStrength(newPassword);
+            if (strength.percentage < 50) {
+                showAlert('Le mot de passe est trop faible. Utilisez au moins 8 caractères avec majuscules, chiffres et caractères spéciaux.', 'error');
+                return;
+            }
+            
+            const user = users.find(u => u.id === resetUserId);
+            if (user) {
+                user.password = newPassword;
+                showAlert(`Mot de passe réinitialisé pour ${user.name}`, 'success');
+                closeResetPasswordModal();
+                save();
+            }
+        }
+
+        // Fonctions utilisateurs
+        function renderUsersTable() {
+            let filteredUsers = users.filter(u => {
+                const matchSearch = currentSearchTerm === '' || u.name.toLowerCase().includes(currentSearchTerm) || u.email.toLowerCase().includes(currentSearchTerm);
+                const matchService = currentServiceFilter === 'all' || u.service === currentServiceFilter;
+                const matchRole = currentRoleFilter === 'all' || u.role === currentRoleFilter;
+                const matchStatus = currentStatusFilter === 'all' || (currentStatusFilter === 'online' && u.online) || (currentStatusFilter === 'offline' && !u.online);
+                return matchSearch && matchService && matchRole && matchStatus;
+            });
+            
+            document.getElementById('userCountDisplay').innerText = `${filteredUsers.length} utilisateur(s)`;
+            document.getElementById('usersTable').innerHTML = filteredUsers.length === 0 ? 
+                '<div class="empty-state"><i class="fas fa-users"></i><p>Aucun utilisateur trouvé</p></div>' :
+                `<table><thead><tr><th>Utilisateur</th><th>Service</th><th>Rôle</th><th>Heures</th><th>Statut</th><th>Actions</th></tr></thead><tbody>${filteredUsers.map(u => `
+                    <tr class="user-row" onclick="showUserDetails(${u.id})">
+                        <td><strong>${escapeHtml(u.name)}</strong><br><span class="text-muted">${escapeHtml(u.email)}</span></td>
+                        <td><span class="badge badge-service">${u.service}</span></td>
+                        <td><span class="badge badge-role">${roles[u.role]?.name || u.role}</span></td>
+                        <td><span class="badge badge-service">${u.totalHours} heures</span></td>
+                        <td><span class="badge ${u.online ? 'badge-online' : 'badge-offline'}">${u.online ? 'En ligne' : 'Hors ligne'}</span></td>
+                        <td onclick="event.stopPropagation()">
+                            <button class="btn btn-warning btn-sm" onclick="openEditUserModal(${u.id})">Modifier</button>
+                            <button class="btn btn-success btn-sm" onclick="openResetPasswordModal(${u.id})">MDP</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">Supprimer</button>
+                        </td>
+                    </tr>
+                `).join('')}</tbody></tr>`;
+            
+            document.getElementById('statUsers').innerText = `${users.length} utilisateurs`;
+        }
+
+        function filterUsers() {
+            currentSearchTerm = document.getElementById('searchInput').value.toLowerCase();
+            currentServiceFilter = document.getElementById('filterService').value;
+            currentRoleFilter = document.getElementById('filterRole').value;
+            currentStatusFilter = document.getElementById('filterStatus').value;
+            renderUsersTable();
+        }
+
+        function populateFilters() {
+            document.getElementById('filterRole').innerHTML = '<option value="all">Tous</option>' + Object.entries(roles).map(([k,v]) => `<option value="${k}">${v.name}</option>`).join('');
+            document.getElementById('userRole').innerHTML = Object.entries(roles).map(([k,v]) => `<option value="${k}">${v.name}</option>`).join('');
+            
+            const userSelects = ['activityUserSelect', 'interfaceUserSelect'];
+            userSelects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    const currentVal = select.value;
+                    select.innerHTML = selectId === 'activityUserSelect' ? '<option value="all">Tous les utilisateurs</option>' : '<option value="">Sélectionner un utilisateur</option>';
+                    users.forEach(u => {
+                        select.innerHTML += `<option value="${u.id}">${u.name} (${u.totalHours}h)</option>`;
+                    });
+                    if (currentVal) select.value = currentVal;
+                }
+            });
+        }
+
+        function openAddUserModal() {
+            document.getElementById('userModalTitle').innerText = 'Ajouter un utilisateur';
+            document.getElementById('editUserId').value = '';
+            document.getElementById('userName').value = '';
+            document.getElementById('userEmail').value = '';
+            document.getElementById('userPassword').value = '';
+            document.getElementById('userService').value = 'IT';
+            document.getElementById('userStatus').value = 'true';
+            document.getElementById('strengthFill').style.width = '0%';
+            document.getElementById('strengthText').textContent = 'Très faible';
+            document.getElementById('userModal').style.display = 'flex';
+        }
+
+        function openEditUserModal(id) {
+            const user = users.find(u => u.id === id);
+            if (!user) return;
+            document.getElementById('userModalTitle').innerText = 'Modifier l\'utilisateur';
+            document.getElementById('editUserId').value = id;
+            document.getElementById('userName').value = user.name;
+            document.getElementById('userEmail').value = user.email;
+            document.getElementById('userPassword').value = '';
+            document.getElementById('userService').value = user.service;
+            document.getElementById('userStatus').value = user.online ? 'true' : 'false';
+            document.getElementById('userRole').value = user.role;
+            document.getElementById('strengthFill').style.width = '0%';
+            document.getElementById('strengthText').textContent = 'Laisser vide pour conserver';
+            document.getElementById('strengthText').style.color = '#6b7280';
+            document.getElementById('userModal').style.display = 'flex';
+        }
+
+        function saveUser() {
+            const id = document.getElementById('editUserId').value;
+            const name = document.getElementById('userName').value.trim();
+            const email = document.getElementById('userEmail').value.trim();
+            const password = document.getElementById('userPassword').value;
+            const service = document.getElementById('userService').value;
+            const role = document.getElementById('userRole').value;
+            const online = document.getElementById('userStatus').value === 'true';
+            
+            if (!name || !email) { showAlert('Veuillez remplir tous les champs', 'error'); return; }
+            if (!email.includes('@')) { showAlert('Email invalide', 'error'); return; }
+            
+            if (id) {
+                const user = users.find(u => u.id == parseInt(id));
+                if (user) { 
+                    user.name = name; 
+                    user.email = email; 
+                    user.service = service; 
+                    user.role = role; 
+                    user.online = online;
+                    if (password) {
+                        const strength = checkPasswordStrength(password);
+                        if (strength.percentage < 50) {
+                            showAlert('Le mot de passe est trop faible', 'error');
+                            return;
+                        }
+                        user.password = password;
+                        showAlert(`Utilisateur ${name} modifié avec succès`, 'success');
+                    } else {
+                        showAlert(`Utilisateur ${name} modifié avec succès`, 'success');
+                    }
+                }
+            } else {
+                if (!password) { showAlert('Veuillez définir un mot de passe', 'error'); return; }
+                const strength = checkPasswordStrength(password);
+                if (strength.percentage < 50) {
+                    showAlert('Le mot de passe est trop faible. Utilisez au moins 8 caractères avec majuscules, chiffres et caractères spéciaux.', 'error');
+                    return;
+                }
+                const newUser = { 
+                    id: nextUserId++, name, email, password, role, service, online, 
+                    lastLogin: new Date().toLocaleString(), 
+                    totalHours: 0,
+                    services: [{name:'Service par défaut', hours:0}],
+                    interfaces: [{name:'eth0', hours:0}],
+                    hourlyActivity: Array(24).fill(0)
+                };
+                users.push(newUser);
+                showAlert(`✅ Utilisateur ${name} ajouté avec succès !`, 'success');
+            }
+            closeUserModal();
+            renderAll();
+        }
+
+        function deleteUser(id) { 
+            if (confirm('Supprimer cet utilisateur ?')) { 
+                const userName = users.find(u => u.id === id)?.name;
+                users = users.filter(u => u.id !== id); 
+                renderAll(); 
+                showAlert(`🗑️ Utilisateur ${userName} supprimé avec succès`, 'success');
+            } 
+        }
+
+        function showUserDetails(id) {
+            const user = users.find(u => u.id === id);
+            if (!user) return;
+            document.getElementById('modalAvatar').innerText = user.name.substring(0,2).toUpperCase();
+            document.getElementById('modalUserName').innerText = user.name;
+            document.getElementById('modalUserRole').innerText = roles[user.role]?.name;
+            document.getElementById('modalUserEmail').innerText = user.email;
+            document.getElementById('modalUserService').innerText = user.service;
+            document.getElementById('modalUserLastLogin').innerText = user.lastLogin;
+            document.getElementById('userInfoOverlay').style.display = 'block';
+            document.getElementById('userInfoModal').style.display = 'block';
+        }
+
+        function showCurrentUserModal() { showUserDetails(currentUser); }
+        function closeUserModal() { document.getElementById('userModal').style.display = 'none'; }
+        function closeUserInfoModal() { document.getElementById('userInfoOverlay').style.display = 'none'; document.getElementById('userInfoModal').style.display = 'none'; }
+        
+        function updateUserBadge() { 
+            document.getElementById('userAvatar').innerText = currentUser.name.substring(0,2).toUpperCase(); 
+            document.getElementById('userBadgeName').innerText = currentUser.name; 
+            document.getElementById('userBadgeRole').innerText = roles[currentUser.role]?.name; 
+        }
+        
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${message}`;
+            document.body.appendChild(alertDiv);
+            setTimeout(() => alertDiv.remove(), 3000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Fonctions métriques
+        function updateHoursChart() {
+            const ctx = document.getElementById('hoursChart').getContext('2d');
+            const userNames = users.map(u => u.name.split(' ')[0]);
+            const userHours = users.map(u => u.totalHours);
+            const total = userHours.reduce((a,b) => a + b, 0);
+            const avg = (total / users.length).toFixed(1);
+            
+            document.getElementById('totalHours').innerText = total;
+            document.getElementById('avgHours').innerText = avg;
+            document.getElementById('activeUsers').innerText = users.filter(u => u.totalHours > 0).length;
+            
+            if (hoursChart) hoursChart.destroy();
+            
+            hoursChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: userNames,
+                    datasets: [{
+                        label: 'Heures d\'utilisation',
+                        data: userHours,
+                        backgroundColor: 'rgba(139, 92, 246, 0.7)',
+                        borderColor: '#7c3aed',
+                        borderWidth: 1,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { callbacks: { label: (ctx) => `${ctx.raw} heures` } }
+                    },
+                    scales: { y: { beginAtZero: true, title: { display: true, text: 'Heures' } } }
+                }
+            });
+        }
+
+        function updateHourlyChart() {
+            const userId = document.getElementById('activityUserSelect').value;
+            const ctx = document.getElementById('hourlyChart').getContext('2d');
+            
+            let data;
+            let label;
+            
+            if (userId === 'all') {
+                data = Array(24).fill(0);
+                users.forEach(u => {
+                    u.hourlyActivity.forEach((val, idx) => {
+                        data[idx] += val;
+                    });
+                });
+                data = data.map(d => d / users.length);
+                label = 'Activité moyenne (24h)';
+            } else {
+                const user = users.find(u => u.id == userId);
+                data = user ? user.hourlyActivity : Array(24).fill(0);
+                label = user ? `Activité de ${user.name}` : 'Activité';
+            }
+            
+            if (hourlyChart) hourlyChart.destroy();
+            
+            hourlyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 24}, (_, i) => `${i}h`),
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#7c3aed'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { callbacks: { label: (ctx) => `${ctx.raw.toFixed(1)} connexions` } }
+                    },
+                    scales: { y: { beginAtZero: true, title: { display: true, text: 'Connexions' } } }
+                }
+            });
+        }
+
+        function updateInterfaceDetails() {
+            const userId = document.getElementById('interfaceUserSelect').value;
+            const container = document.getElementById('interfaceDetails');
+            
+            if (!userId) {
+                container.innerHTML = '<div class="text-muted" style="text-align:center;padding:20px;">Sélectionnez un utilisateur</div>';
+                return;
+            }
+            
+            const user = users.find(u => u.id == userId);
+            if (!user) return;
+            
+            const maxHours = Math.max(...user.interfaces.map(i => i.hours), 1);
+            
+            container.innerHTML = `
+                <div style="margin-bottom:16px;">
+                    <strong>${user.name}</strong> - Total: ${user.totalHours} heures
+                </div>
+                ${user.interfaces.map(iface => `
+                    <div class="interface-item">
+                        <div class="interface-name"><i class="fas fa-network-wired"></i> ${iface.name}</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${(iface.hours / maxHours) * 100}%"></div>
+                        </div>
+                        <div class="interface-hours">${iface.hours} heures</div>
+                    </div>
+                `).join('')}
+                <div class="stats-summary" style="margin-top:16px;">
+                    <div class="stat-summary-item">
+                        <div class="stat-summary-value">${user.interfaces.length}</div>
+                        <div class="stat-summary-label">Interfaces</div>
+                    </div>
+                    <div class="stat-summary-item">
+                        <div class="stat-summary-value">${user.interfaces.reduce((s,i) => s + i.hours, 0)}</div>
+                        <div class="stat-summary-label">Heures totales</div>
+                    </div>
+                    <div class="stat-summary-item">
+                        <div class="stat-summary-value">${(user.interfaces.reduce((s,i) => s + i.hours, 0) / user.interfaces.length).toFixed(1)}</div>
+                        <div class="stat-summary-label">Moyenne/interface</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateServicesChart() {
+            const ctx = document.getElementById('servicesChart').getContext('2d');
+            
+            const serviceMap = new Map();
+            users.forEach(user => {
+                user.services.forEach(service => {
+                    const current = serviceMap.get(service.name) || 0;
+                    serviceMap.set(service.name, current + service.hours);
+                });
+            });
+            
+            const sortedServices = Array.from(serviceMap.entries()).sort((a,b) => b[1] - a[1]).slice(0, 8);
+            const serviceNames = sortedServices.map(s => s[0]);
+            const serviceHours = sortedServices.map(s => s[1]);
+            
+            if (servicesChart) servicesChart.destroy();
+            
+            servicesChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: serviceNames,
+                    datasets: [{
+                        data: serviceHours,
+                        backgroundColor: ['#8b5cf6', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#a78bfa', '#c4b5fd', '#e9d5ff'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { font: { size: 11 } } },
+                        tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw} heures` } }
+                    }
+                }
+            });
+        }
+
+        // Fonctions rôles
+        function renderRolesGrid() {
+            const categories = [...new Set(widgets.map(w => w.category))];
+            let html = '';
+            for (const [key, role] of Object.entries(roles)) {
+                const usersWithRole = users.filter(u => u.role === key).length;
+                const permissionsCount = Object.values(role.permissions).filter(v => v === true).length;
+                html += `<div class="role-card">
+                    <div class="role-header">
+                        <div>
+                            <div class="role-name">${role.name}</div>
+                            <div style="font-size:11px; color:#6b7280;">${role.description || 'Rôle système'}</div>
+                        </div>
+                        <div>
+                            <div class="role-badge">${permissionsCount} permissions</div>
+                            <div class="role-badge" style="margin-top:6px;">${usersWithRole} utilisateurs</div>
+                        </div>
+                    </div>`;
+                for (const cat of categories) {
+                    const catW = widgets.filter(w => w.category === cat);
+                    if (catW.length) {
+                        html += `<div class="perm-group"><div class="perm-group-title">${cat}</div>`;
+                        for (const w of catW) {
+                            html += `<div class="perm-item">
+                                <span><i class="fas fa-${getIconForCategory(cat)}"></i> ${w.label}</span>
+                                <label class="switch">
+                                    <input type="checkbox" ${role.permissions[w.id] ? 'checked' : ''} onchange="updatePerm('${key}','${w.id}',this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>`;
+                        }
+                        html += `</div>`;
+                    }
+                }
+                if (key !== 'super_admin') {
+                    html += `<div class="flex-between" style="margin-top:16px; padding-top:12px; border-top:1px solid #e9d5ff;">
+                        <button class="btn btn-outline btn-sm" onclick="editRole('${key}')">Modifier</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteRole('${key}')">Supprimer</button>
+                    </div>`;
+                }
+                html += `</div>`;
+            }
+            document.getElementById('rolesGrid').innerHTML = html;
+        }
+
+        function getIconForCategory(cat) {
+            const icons = { 'Réseau': 'network-wired', 'Sécurité': 'shield-haltered', 'Monitoring': 'chart-line', 'Système': 'microchip' };
+            return icons[cat] || 'cog';
+        }
+
+        function updatePerm(roleKey, widgetId, val) { 
+            roles[roleKey].permissions[widgetId] = val; 
+            renderRolesGrid(); 
+            save(); 
+            showAlert(`Permission ${widgetId} ${val ? 'activée' : 'désactivée'} pour ${roles[roleKey].name}`, 'info');
+        }
+
+        function addRole() { 
+            const name = document.getElementById('newRoleName').value.trim(); 
+            const desc = document.getElementById('newRoleDesc').value.trim(); 
+            if(name){ 
+                const key = name.toLowerCase().replace(/\s/g,'_'); 
+                if(!roles[key]){ 
+                    const defaultPerms = {};
+                    widgets.forEach(w => { defaultPerms[w.id] = false; });
+                    roles[key] = { 
+                        name, 
+                        description: desc || 'Nouveau rôle', 
+                        permissions: defaultPerms
+                    }; 
+                    renderRolesGrid(); 
+                    populateFilters();
+                    closeAddRoleModal(); 
+                    save(); 
+                    showAlert(`✅ Rôle ${name} créé avec succès`, 'success');
+                } else showAlert('Ce rôle existe déjà', 'error');
+            } else showAlert('Veuillez entrer un nom de rôle', 'error');
+        }
+
+        function deleteRole(key) { 
+            const usersWithRole = users.filter(u => u.role === key).length;
+            if(usersWithRole > 0) { 
+                showAlert(`Impossible de supprimer ce rôle car ${usersWithRole} utilisateur(s) y sont associés.`, 'error'); 
+                return; 
+            }
+            if(key !== 'super_admin' && confirm('Supprimer ce rôle ?')){ 
+                delete roles[key]; 
+                renderRolesGrid(); 
+                populateFilters();
+                save(); 
+                showAlert('Rôle supprimé', 'success');
+            } 
+        }
+
+        function editRole(key) { 
+            const n = prompt('Nouveau nom:', roles[key].name); 
+            if(n && n.trim()){ 
+                roles[key].name = n.trim(); 
+                renderRolesGrid(); 
+                populateFilters();
+                save(); 
+                showAlert(`Rôle renommé en ${n}`, 'success');
+            } 
+        }
+
+        function showAddRoleModal() { document.getElementById('addRoleModal').style.display='flex'; }
+        function closeAddRoleModal() { document.getElementById('addRoleModal').style.display='none'; document.getElementById('newRoleName').value=''; document.getElementById('newRoleDesc').value=''; }
+
+        // Sauvegarde et chargement
+        function save() { localStorage.setItem('netadmin_users',JSON.stringify(users)); localStorage.setItem('netadmin_roles',JSON.stringify(roles)); }
+        function load() { 
+            const u=localStorage.getItem('netadmin_users'), r=localStorage.getItem('netadmin_roles'); 
+            if(u) users=JSON.parse(u); 
+            if(r) roles=JSON.parse(r); 
+        }
+
+        function renderAll() {
+            renderUsersTable();
+            populateFilters();
+            updateUserBadge();
+            renderRolesGrid();
+            updateHoursChart();
+            updateHourlyChart();
+            updateServicesChart();
+            updateInterfaceDetails();
+            save();
+        }
+
+        // Navigation
+        function initNavigation() {
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', function() {
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                    const page = this.dataset.page;
+                    document.getElementById('pageUsers').style.display = page === 'users' ? 'block' : 'none';
+                    document.getElementById('pageRoles').style.display = page === 'roles' ? 'block' : 'none';
+                    document.getElementById('pageMetrics').style.display = page === 'metrics' ? 'block' : 'none';
+                    if (page === 'users') renderUsersTable();
+                    if (page === 'roles') renderRolesGrid();
+                    if (page === 'metrics') {
+                        updateHoursChart();
+                        updateHourlyChart();
+                        updateServicesChart();
+                        updateInterfaceDetails();
+                    }
+                });
+            });
+        }
+
+        // Événements
+        document.getElementById('userPassword')?.addEventListener('input', updatePasswordStrength);
+        document.getElementById('resetPassword')?.addEventListener('input', updateResetPasswordStrength);
+
+        // Initialisation
+        load();
+        initNavigation();
+        renderAll();
+        
+        window.onclick = e => { 
+            if(e.target.classList.contains('modal')) closeUserModal(); 
+            if(e.target.id === 'userInfoOverlay') closeUserInfoModal(); 
+            if(e.target.classList.contains('modal') && e.target.id !== 'resetPasswordModal') closeResetPasswordModal();
+        };
+    </script>
+</body>
+</html>
