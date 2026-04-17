@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetGuard - Interfaces Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="layout.css" />
+  <link rel="stylesheet" href="sidebar.css" />
+  <style>
+    body { font-family: 'DM Sans', sans-serif; }
+    .topbar { animation: slideDown 0.4s ease; }
+    .animate-in { animation: fadeInUp 0.4s ease backwards; animation-delay: 0.1s; }
+    .table-row { animation: rowSlideIn 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1) both; }
+    .table-row:nth-child(1) { animation-delay: 0.2s; }
+    .table-row:nth-child(2) { animation-delay: 0.25s; }
+    .table-row:nth-child(3) { animation-delay: 0.3s; }
+    .table-row:nth-child(4) { animation-delay: 0.35s; }
+    .slide-in-right { animation: fadeInRight 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1) backwards; }
+    
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes rowSlideIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes fadeInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+    
+    /* Custom scrollbar for panel */
+    .custom-scroll::-webkit-scrollbar { width: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen app-body">
+  <div class="app-shell">
+    <aside id="sidebar-root" class="sidebar-host" data-page="interfaces"></aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="topbar-title">Interfaces Management</div>
+          <div class="topbar-subtitle">Gestion des ports, configuration VLAN et isolation de sécurité.</div>
+        </div>
+      </header>
+
+      <section class="content custom-scroll">
+        <div id="interfaces-root" class="page-block"></div>
+      </section>
+    </main>
+  </div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    const initialPorts = [
+  { id: 'Gi1/0/1', status: 'UP', vlan: '10', mode: 'Access', speed: '1Gb', devices: 1, alert: false },
+  { id: 'Gi1/0/2', status: 'DOWN', vlan: '10', mode: 'Access', speed: '-', devices: 0, alert: false },
+  { id: 'Gi1/0/3', status: 'UP', vlan: '20', mode: 'Access', speed: '1Gb', devices: 1, alert: false },
+  { id: 'Gi1/0/4', status: 'UP', vlan: '10', mode: 'Access', speed: '100Mb', devices: 1, alert: true, srcIp: '192.168.1.10', threat: 'Port Scan Detécté' },
+  { id: 'Gi1/0/24', status: 'DOWN', vlan: '30', mode: 'Access', speed: '-', devices: 0, alert: false },
+  // Ajout des ports SFP (Uplinks fibre)
+  { id: 'Te1/1/1', status: 'UP', vlan: 'All', mode: 'Trunk', speed: '10Gb', devices: 0, alert: false },
+  { id: 'Te1/1/2', status: 'DOWN', vlan: 'All', mode: 'Trunk', speed: '-', devices: 0, alert: false }
+];
+
+   const InterfacesPage = () => {
+      const [ports, setPorts] = useState(initialPorts);
+      const [selectedPortId, setSelectedPortId] = useState(null);
+
+      const selectedPort = ports.find(p => p.id === selectedPortId);
+
+      // --- Actions Simulatrices ---
+      const toggleStatus = (id) => {
+        setPorts(ports.map(p => p.id === id ? { ...p, status: p.status === 'UP' ? 'DOWN' : 'UP', speed: p.status === 'UP' ? '-' : '1Gb' } : p));
+      };
+
+      const isolatePort = (id) => {
+        setPorts(ports.map(p => p.id === id ? { ...p, vlan: '99', alert: false, status: 'DOWN' } : p));
+        setSelectedPortId(null); // Ferme le panneau après isolation
+      };
+
+      const updatePortMode = (id, newMode, newVlan) => {
+        setPorts(ports.map(p => p.id === id ? { ...p, mode: newMode, vlan: newVlan } : p));
+      };
+
+      // --- Composants UI ---
+    const PhysicalSwitch = () => {
+  return (
+    <div className="bg-[#1a1c3a] p-6 rounded-2xl shadow-xl shadow-slate-200/50 mb-8 border border-slate-200 flex flex-col items-center">
+      <div className="w-full flex justify-between items-center mb-6">
+        <span className="text-slate-400 font-mono text-xs tracking-widest font-bold">CISCO CATALYST 9200 SERIES</span>
+        <span className="text-emerald-400 font-mono text-xs flex items-center gap-2">
+          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div> IOS-XE SECURE
+        </span>
+      </div>
+      
+      <div className="flex gap-8 items-center w-full justify-center overflow-x-auto pb-4">
+        {/* Bloc des 24 ports Cuivre (GigabitEthernet) */}
+        <div className="flex flex-col gap-2 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
+          <span className="text-[9px] font-mono text-slate-500 text-center uppercase tracking-widest mb-1">Access Ports (Cu)</span>
+          <div className="grid grid-cols-12 gap-1.5">
+            {Array.from({ length: 24 }).map((_, i) => {
+              const portId = `Gi1/0/${i + 1}`;
+              const portData = ports.find(p => p.id === portId);
+              
+              let bgColor = 'bg-slate-700'; // Port vide/inconnu
+              let borderColor = 'border-slate-800';
+              let animation = '';
+
+              if (portData) {
+                if (portData.alert) {
+                  bgColor = 'bg-orange-500'; borderColor = 'border-orange-300'; animation = 'animate-pulse';
+                } else if (portData.status === 'UP') {
+                  bgColor = 'bg-emerald-500'; borderColor = 'border-emerald-300';
+                } else {
+                  bgColor = 'bg-rose-500'; borderColor = 'border-rose-300';
+                }
+              }
+
+              return (
+                <div key={portId} onClick={() => portData && setSelectedPortId(portId)}
+                  className={`w-8 h-8 rounded border-b-2 ${bgColor} ${borderColor} ${animation} flex items-center justify-center cursor-pointer hover:scale-110 transition-transform shadow-inner`}
+                  title={`Interface ${portId}`}>
+                  <span className="text-[8px] font-mono text-white/90">{i + 1}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Bloc des 4 ports Fibre SFP+ (Uplinks) */}
+        <div className="flex flex-col gap-2 p-3 bg-slate-800/80 rounded-xl border border-slate-700">
+          <span className="text-[9px] font-mono text-cyan-500/70 text-center uppercase tracking-widest mb-1">Uplinks (SFP+)</span>
+          <div className="grid grid-cols-2 gap-2">
+            {Array.from({ length: 4 }).map((_, i) => {
+              const portId = `Te1/1/${i + 1}`;
+              const portData = ports.find(p => p.id === portId);
+              
+              let bgColor = 'bg-slate-900';
+              let borderColor = 'border-slate-700';
+
+              if (portData) {
+                if (portData.status === 'UP') {
+                  bgColor = 'bg-cyan-600'; borderColor = 'border-cyan-400';
+                } else {
+                  bgColor = 'bg-rose-900'; borderColor = 'border-rose-700';
+                }
+              }
+
+              return (
+                <div key={portId} onClick={() => portData && setSelectedPortId(portId)}
+                  className={`w-10 h-8 rounded border-2 ${bgColor} ${borderColor} flex items-center justify-center cursor-pointer hover:scale-105 transition-transform`}
+                  title={`Uplink ${portId}`}>
+                  <span className="text-[8px] font-mono text-white/60">T{i + 1}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+      return (
+        <div className="p-2 md:p-4 max-w-[1600px] mx-auto animate-in">
+          {/* Header & Actions */}
+          <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-8 gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Interfaces Management</h1>
+              <p className="text-slate-500 mt-1">Supervision physique, configuration des ports et remédiation.</p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2">
+                <span className="text-lg">⚡</span> Scan Interfaces
+              </button>
+            </div>
+          </div>
+
+          {/* Visual Switch Panel */}
+          <PhysicalSwitch />
+
+          <div className="grid grid-cols-12 gap-8">
+            {/* Main Table */}
+            <div className={`col-span-12 ${selectedPort ? 'lg:col-span-8' : 'lg:col-span-12'} transition-all duration-300`}>
+              <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50/80 border-b border-slate-100">
+                      <tr>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Port</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">VLAN</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mode</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Speed</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Devices</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {ports.map((port) => (
+                        <tr 
+                          key={port.id} 
+                          onClick={() => setSelectedPortId(port.id)}
+                          className={`group cursor-pointer transition-colors table-row 
+                            ${selectedPortId === port.id ? 'bg-indigo-50/40' : 'hover:bg-slate-50/80'}
+                            ${port.alert ? 'bg-orange-50/30 hover:bg-orange-50/60' : ''}`}
+                        >
+                          <td className="px-6 py-4 font-mono font-bold text-slate-700">{port.id}</td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${port.status === 'UP' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${port.status === 'UP' ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                              {port.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 font-mono font-bold text-indigo-600">
+                            {port.vlan !== 'All' ? `VLAN ${port.vlan}` : port.vlan}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${port.mode === 'Trunk' ? 'bg-purple-50 text-purple-600' : 'bg-slate-100 text-slate-600'}`}>
+                              {port.mode}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm font-medium text-slate-500">{port.speed}</td>
+                          <td className="px-6 py-4 text-sm font-bold text-slate-600">{port.devices > 0 ? `${port.devices} dev.` : '-'}</td>
+                          <td className="px-6 py-4 text-right space-x-3">
+                            {port.alert && (
+                              <span className="text-orange-600 text-xs font-bold uppercase mr-2 animate-pulse">⚠️ Menace</span>
+                            )}
+                            <button className="text-slate-400 hover:text-indigo-600 font-semibold text-sm transition-colors">Edit</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Side Panel for Editing */}
+            {selectedPort && (
+              <div className="col-span-12 lg:col-span-4 slide-in-right">
+                <div className="bg-white rounded-[2rem] border border-slate-200 p-6 shadow-xl shadow-slate-200/30 sticky top-6">
+                  
+                  {/* Panel Header */}
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-800">Configuration</h2>
+                      <p className="text-sm font-mono text-indigo-600 mt-1">Interface {selectedPort.id}</p>
+                    </div>
+                    <button onClick={() => setSelectedPortId(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors">✕</button>
+                  </div>
+
+                  {/* Security Alert Block (SNORT) */}
+                  {selectedPort.alert && (
+                    <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-2xl shadow-sm">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>
+                        <h4 className="text-orange-800 font-bold text-xs uppercase tracking-wider">Suspicious activity detected</h4>
+                      </div>
+                      <p className="text-orange-700 text-sm font-medium">{selectedPort.threat}</p>
+                      <div className="mt-3 py-2 px-3 bg-white rounded-lg border border-orange-100 text-[11px] font-mono text-orange-600 font-bold">
+                        Source IP: {selectedPort.srcIp}
+                      </div>
+                      <button onClick={() => isolatePort(selectedPort.id)} className="w-full mt-4 py-2.5 bg-orange-500 text-white text-xs font-bold rounded-xl hover:bg-orange-600 transition-all shadow-md shadow-orange-200 flex items-center justify-center gap-2">
+                        Isolate → VLAN 99
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Form */}
+                  <div className="space-y-5">
+                    
+                    {/* Admin Status Toggle */}
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Port Control</p>
+                        <p className={`text-sm font-bold ${selectedPort.status === 'UP' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          State: {selectedPort.status}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => toggleStatus(selectedPort.id)}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold text-white transition-colors ${selectedPort.status === 'UP' ? 'bg-rose-500 hover:bg-rose-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+                      >
+                        {selectedPort.status === 'UP' ? 'Shutdown' : 'No Shutdown'}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Switchport Mode</label>
+                        <select 
+                          value={selectedPort.mode}
+                          onChange={(e) => updatePortMode(selectedPort.id, e.target.value, selectedPort.vlan)}
+                          className="w-full border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 bg-white"
+                        >
+                          <option value="Access">Access</option>
+                          <option value="Trunk">Trunk</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">VLAN Assignment</label>
+                        <input 
+                          type="text" 
+                          value={selectedPort.vlan}
+                          onChange={(e) => updatePortMode(selectedPort.id, selectedPort.mode, e.target.value)}
+                          className="w-full border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-indigo-600 outline-none focus:border-indigo-500 bg-white" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-4 mt-2 border-t border-slate-100 flex gap-3">
+                      <button onClick={() => setSelectedPortId(null)} className="flex-1 py-2.5 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">Cancel</button>
+                      <button className="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all">Apply Changes</button>
+                    </div>
+
+                    {/* Preview CLI Block */}
+                    <div className="mt-4 p-3 bg-slate-800 rounded-xl">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">CLI Preview</p>
+                      <pre className="text-xs font-mono text-emerald-400 whitespace-pre-wrap">
+{`interface ${selectedPort.id}
+ switchport mode ${selectedPort.mode.toLowerCase()}
+ switchport ${selectedPort.mode === 'Access' ? 'access vlan' : 'trunk allowed vlan'} ${selectedPort.vlan}
+ ${selectedPort.status === 'UP' ? 'no shutdown' : 'shutdown'}`}
+                      </pre>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('interfaces-root'));
+    root.render(<InterfacesPage />);
+  </script>
+  
+  <script src="sidebar.js"></script>
+  <script>
+    // Petit patch si 'interfaces' n'est pas encore dans ton sidebar.js
+    setTimeout(() => {
+      const activeLink = document.querySelector('.sidebar-link.active');
+      if(!activeLink) {
+        const links = document.querySelectorAll('.sidebar-link');
+        if(links.length > 0) links[0].classList.add('active'); // Fallback visuel
+      }
+    }, 500);
+  </script>
+</body>
+</html>

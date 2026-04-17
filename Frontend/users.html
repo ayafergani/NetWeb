@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetGuard - User Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="layout.css" />
+  <link rel="stylesheet" href="sidebar.css" />
+  <style>
+    body { font-family: 'DM Sans', sans-serif; }
+    .topbar { animation: slideDown 0.4s ease; }
+    .animate-in { animation: fadeInUp 0.4s ease backwards; animation-delay: 0.1s; }
+    .table-row { animation: rowSlideIn 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1) both; }
+    
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes rowSlideIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    
+    .modal-enter { animation: fadeInScale 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen app-body">
+  <div class="app-shell">
+    <aside id="sidebar-root" class="sidebar-host" data-page="users"></aside>
+
+    <main class="main relative">
+      <header class="topbar">
+        <div>
+          <div class="topbar-title">User Management</div>
+          <div class="topbar-subtitle">Gérez les accès, les rôles et les permissions.</div>
+        </div>
+      </header>
+
+      <section class="content custom-scroll relative">
+        <div id="users-root" class="page-block min-h-full flex flex-col"></div>
+      </section>
+    </main>
+  </div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- MOCK DATA ---
+    // Change ce rôle en "NETWORK" ou "SECURITY" pour voir l'écran d'Accès Refusé !
+    const currentUser = { id: 1, username: "admin", role: "ADMIN" };
+
+    const initialUsers = [
+      { id: 1, username: "admin", email: "admin@netguard.local", role: "ADMIN", status: "Active", lastLogin: "Il y a 5 min" },
+      { id: 2, username: "yassine_net", email: "yassine@netguard.local", role: "NETWORK", status: "Active", lastLogin: "Aujourd'hui 08:45" },
+      { id: 3, username: "sara_sec", email: "sara@netguard.local", role: "SECURITY", status: "Active", lastLogin: "Hier 16:30" },
+      { id: 4, username: "audit_ext", email: "auditor@external.com", role: "VIEWER", status: "Disabled", lastLogin: "01/04/2026" }
+    ];
+
+    const UsersPage = () => {
+      const [users, setUsers] = useState(initialUsers);
+      const [searchQuery, setSearchQuery] = useState('');
+      const [toast, setToast] = useState(null);
+
+      // Modals State
+      const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+      const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+      const [editingUser, setEditingUser] = useState(null); // null = mode Création
+      const [targetUser, setTargetUser] = useState(null); // Pour la suppression
+
+      // Helper pour le toast
+      const showToast = (message, type = 'success') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+      };
+
+      // --- LOGIQUE DE VÉRIFICATION DES RÔLES (RBAC) ---
+      if (currentUser.role !== "ADMIN") {
+        return (
+          <div className="flex-1 flex items-center justify-center animate-in">
+            <div className="bg-white p-10 rounded-[2rem] shadow-xl text-center max-w-md border border-slate-200">
+              <div className="w-20 h-20 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">⛔</span>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">Accès Refusé</h2>
+              <p className="text-slate-500 mb-8">Les privilèges Administrateur sont requis pour accéder à la gestion des utilisateurs.</p>
+              <button 
+                onClick={() => window.location.href = 'network-dashboard (1).html'}
+                className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-colors"
+              >
+                Retour au Dashboard
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      // --- Rendu des badges ---
+      const getRoleBadge = (role) => {
+        const styles = {
+          'ADMIN': 'bg-rose-100 text-rose-700 border-rose-200',
+          'NETWORK': 'bg-blue-100 text-blue-700 border-blue-200',
+          'SECURITY': 'bg-orange-100 text-orange-700 border-orange-200',
+          'VIEWER': 'bg-slate-100 text-slate-600 border-slate-200'
+        };
+        return (
+          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${styles[role]}`}>
+            {role}
+          </span>
+        );
+      };
+
+      const getStatusBadge = (status) => {
+        return (
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+            {status}
+          </span>
+        );
+      };
+
+      // Filtrage
+      const filteredUsers = users.filter(u => 
+        u.username.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        u.email.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+      return (
+        <div className="p-2 md:p-4 max-w-[1400px] mx-auto animate-in w-full">
+          {/* Header & Actions */}
+          <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-8 gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Utilisateurs</h1>
+              <p className="text-slate-500 mt-1">Gérez les accès de l'équipe SOC & NOC.</p>
+            </div>
+            <div className="flex flex-wrap gap-3 items-center">
+              <div className="relative">
+                <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">🔍</span>
+                <input 
+                  type="text" 
+                  placeholder="Rechercher..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-medium w-64 shadow-sm"
+                />
+              </div>
+              <button 
+                onClick={() => { setEditingUser(null); setIsFormModalOpen(true); }}
+                className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2"
+              >
+                <span>+</span> Ajouter un Utilisateur
+              </button>
+            </div>
+          </div>
+
+          {/* Users Table */}
+          <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50/80 border-b border-slate-100">
+                  <tr>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Utilisateur</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Rôle</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Statut</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Dernière Connexion</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredUsers.map((user, idx) => (
+                    <tr key={user.id} className="group hover:bg-slate-50/80 transition-colors table-row" style={{ animationDelay: `${0.1 * idx}s` }}>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-sm">
+                            {user.username.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-700 flex items-center gap-2">
+                              {user.username}
+                              {user.id === currentUser.id && <span className="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded font-black uppercase">Vous</span>}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium text-slate-500">{user.email}</td>
+                      <td className="px-6 py-4">{getRoleBadge(user.role)}</td>
+                      <td className="px-6 py-4">{getStatusBadge(user.status)}</td>
+                      <td className="px-6 py-4 text-sm text-slate-400">{user.lastLogin}</td>
+                      <td className="px-6 py-4 text-right space-x-2">
+                        <button 
+                          onClick={() => { setEditingUser(user); setIsFormModalOpen(true); }}
+                          className="text-slate-400 hover:text-indigo-600 font-semibold text-sm transition-colors px-2"
+                        >
+                          Éditer
+                        </button>
+                        <button 
+                          onClick={() => { setTargetUser(user); setIsDeleteModalOpen(true); }}
+                          disabled={user.id === currentUser.id}
+                          className={`font-semibold text-sm transition-colors px-2 ${user.id === currentUser.id ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-rose-600'}`}
+                        >
+                          Supprimer
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredUsers.length === 0 && (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-12 text-center text-slate-400 font-medium">Aucun utilisateur trouvé.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Form Modal (Add / Edit) */}
+          {isFormModalOpen && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl modal-enter">
+                <h2 className="text-2xl font-bold text-slate-800 mb-6">{editingUser ? 'Modifier Utilisateur' : 'Créer un Utilisateur'}</h2>
+                <form className="space-y-4" onSubmit={(e) => {
+                  e.preventDefault();
+                  setIsFormModalOpen(false);
+                  showToast(editingUser ? 'Utilisateur mis à jour' : 'Utilisateur créé avec succès');
+                }}>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Nom d'utilisateur</label>
+                    <input type="text" defaultValue={editingUser?.username} required className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 bg-slate-50 font-medium" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Email</label>
+                    <input type="email" defaultValue={editingUser?.email} required className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 bg-slate-50 font-medium" />
+                  </div>
+                  {!editingUser && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Mot de passe</label>
+                      <input type="password" required className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 bg-slate-50" />
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Rôle</label>
+                      <select defaultValue={editingUser?.role || 'VIEWER'} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 font-bold text-slate-700 bg-slate-50">
+                        <option value="ADMIN">ADMIN</option>
+                        <option value="NETWORK">NETWORK</option>
+                        <option value="SECURITY">SECURITY</option>
+                        <option value="VIEWER">VIEWER</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Statut</label>
+                      <select defaultValue={editingUser?.status || 'Active'} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 font-bold text-slate-700 bg-slate-50">
+                        <option value="Active">Active</option>
+                        <option value="Disabled">Disabled</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl mt-4 flex items-start gap-2">
+                    <span className="text-amber-500 mt-0.5">⚠️</span>
+                    <p className="text-xs font-medium text-amber-800">Toute modification de rôle affectera les permissions de l'utilisateur immédiatement.</p>
+                  </div>
+
+                  <div className="flex gap-3 mt-8 pt-4 border-t border-slate-100">
+                    <button type="button" onClick={() => setIsFormModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all">Annuler</button>
+                    <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all">
+                      {editingUser ? 'Enregistrer' : 'Créer'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Confirmation Modal */}
+          {isDeleteModalOpen && targetUser && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 shadow-2xl modal-enter text-center">
+                <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">🗑️</span>
+                </div>
+                <h2 className="text-xl font-bold text-slate-800 mb-2">Supprimer l'utilisateur ?</h2>
+                <p className="text-sm text-slate-500 mb-6">Êtes-vous sûr de vouloir supprimer définitivement <strong>{targetUser.username}</strong> ? Cette action est irréversible.</p>
+                <div className="flex gap-3">
+                  <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-2.5 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all">Annuler</button>
+                  <button 
+                    onClick={() => {
+                      setUsers(users.filter(u => u.id !== targetUser.id));
+                      setIsDeleteModalOpen(false);
+                      showToast('Utilisateur supprimé', 'error');
+                    }} 
+                    className="flex-1 py-2.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 transition-all"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Toast Notification */}
+          {toast && (
+            <div className={`fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-2xl font-bold text-sm text-white modal-enter z-50 flex items-center gap-3 ${toast.type === 'error' ? 'bg-slate-800' : 'bg-emerald-600'}`}>
+              <span>{toast.type === 'error' ? '🗑️' : '✅'}</span>
+              {toast.message}
+            </div>
+          )}
+
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('users-root'));
+    root.render(<UsersPage />);
+  </script>
+  
+  <script src="sidebar.js"></script>
+</body>
+</html>
