@@ -44,12 +44,16 @@
   .bar-mini{width:3px;background:rgba(100,108,255,0.4);border-radius:1px;animation:grow 1.5s ease-in-out infinite}
   @keyframes grow{0%,100%{transform:scaleY(0.3)}50%{transform:scaleY(1)}}
   
-  /* Liens sous le bouton */
   .auth-links{display:flex;justify-content:space-between;margin-top:12px}
   .auth-link{font-size:11px;color:#818cf8;text-decoration:none;cursor:pointer;transition:color 0.2s}
   .auth-link:hover{color:#c7d2fe;text-decoration:underline}
   
-  /* Panneaux modaux */
+  .test-accounts{margin-top:16px;padding-top:12px;border-top:1px solid rgba(100,108,255,0.15)}
+  .test-title{font-size:9px;font-weight:700;color:rgba(160,170,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+  .test-badges{display:flex;gap:8px;flex-wrap:wrap}
+  .test-badge{background:rgba(100,108,255,0.1);border:0.5px solid rgba(100,108,255,0.2);border-radius:16px;padding:4px 10px;font-size:10px;color:#a5b4fc;cursor:pointer;transition:all 0.2s}
+  .test-badge:hover{background:rgba(100,108,255,0.2);border-color:rgba(100,108,255,0.4)}
+  
   .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:100;display:none;align-items:center;justify-content:center}
   .modal-card{background:rgba(10,10,30,0.95);border:1px solid rgba(100,108,255,0.3);border-radius:24px;padding:2rem;width:90%;max-width:380px;position:relative;backdrop-filter:blur(12px)}
   .modal-card h3{color:#fff;font-size:20px;margin-bottom:1rem;text-align:center}
@@ -82,7 +86,6 @@
       <div class="ids-tag"><div class="dot-live"></div>IDS · Surveillance · Réseau</div>
     </div>
 
-    <!-- Panneau Connexion Principal -->
     <div id="loginPanel">
       <div id="errBox" class="err">⚠ Identifiant ou mot de passe incorrect.</div>
       
@@ -104,10 +107,19 @@
 
       <button class="btn" id="loginBtn" onclick="doLogin()">Connexion →</button>
       
-      <!-- Liens sous le bouton -->
       <div class="auth-links">
         <a class="auth-link" onclick="openModal('register')">Créer un compte</a>
         <a class="auth-link" onclick="openModal('forgot')">Mot de passe oublié</a>
+      </div>
+      
+      <div class="test-accounts">
+        <div class="test-title">🔐 Comptes de test (mot de passe: 123)</div>
+        <div class="test-badges">
+          <span class="test-badge" onclick="setTestAccount('admin')">admin</span>
+          <span class="test-badge" onclick="setTestAccount('net')">net</span>
+          <span class="test-badge" onclick="setTestAccount('sec')">sec</span>
+          <span class="test-badge" onclick="setTestAccount('audit')">audit</span>
+        </div>
       </div>
     </div>
 
@@ -128,7 +140,6 @@
   </div>
 </div>
 
-<!-- Modal Création de compte -->
 <div id="registerModal" class="modal-overlay">
   <div class="modal-card">
     <span class="close-modal" onclick="closeModal('register')">&times;</span>
@@ -171,7 +182,6 @@
   </div>
 </div>
 
-<!-- Modal Mot de passe oublié -->
 <div id="forgotModal" class="modal-overlay">
   <div class="modal-card">
     <span class="close-modal" onclick="closeModal('forgot')">&times;</span>
@@ -192,24 +202,40 @@
   </div>
 </div>
 
+<script src="auth.js"></script>
 <script>
-// Stockage utilisateurs
+// Utiliser NetGuardAuth pour la gestion de session
+const auth = window.NetGuardAuth;
+
+// Vérifier si déjà connecté et rediriger
+if (auth.isAuthenticated()) {
+  const session = auth.getSession();
+  if (session && session.role) {
+    window.location.replace(auth.getDefaultPage(session.role));
+  }
+}
+
+// Stockage utilisateurs avec rôles
 let users = JSON.parse(localStorage.getItem('netguard_users')) || {
-  admin: { password: '123', role: 'ADMIN', name: 'Super Admin', email: 'admin@netguard.com' },
-  net: { password: '123', role: 'NETWORK', name: 'Ingénieur Réseau', email: 'net@netguard.com' },
-  sec: { password: '123', role: 'SECURITY', name: 'Analyste SOC', email: 'sec@netguard.com' },
-  audit: { password: '123', role: 'VIEWER', name: 'Auditeur Externe', email: 'audit@netguard.com' }
+  admin: { password: '123', role: auth.ROLES.ADMIN, name: 'Super Admin', email: 'admin@netguard.com' },
+  net: { password: '123', role: auth.ROLES.NETWORK_ADMIN, name: 'Ingénieur Réseau', email: 'net@netguard.com' },
+  sec: { password: '123', role: auth.ROLES.SECURITY_ADMIN, name: 'Analyste SOC', email: 'sec@netguard.com' },
+  audit: { password: '123', role: auth.ROLES.AUDITOR, name: 'Auditeur Externe', email: 'audit@netguard.com' }
 };
 
 function saveUsers() {
   localStorage.setItem('netguard_users', JSON.stringify(users));
 }
 
-// Gestion des modals
+function setTestAccount(username) {
+  document.getElementById('uIn').value = username;
+  document.getElementById('pIn').value = '123';
+  updateStrength('123');
+}
+
 function openModal(type) {
   if (type === 'register') {
     document.getElementById('registerModal').style.display = 'flex';
-    // Réinitialiser le formulaire
     document.getElementById('regUser').value = '';
     document.getElementById('regEmail').value = '';
     document.getElementById('regPass').value = '';
@@ -219,8 +245,7 @@ function openModal(type) {
     document.getElementById('forgotModal').style.display = 'flex';
     document.getElementById('forgotIdentity').value = '';
   }
-  // Cacher les messages d'erreur
-  document.querySelectorAll('.err, .success-msg').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('#registerModal .err, #registerModal .success-msg, #forgotModal .err, #forgotModal .success-msg').forEach(el => el.style.display = 'none');
 }
 
 function closeModal(type) {
@@ -231,7 +256,6 @@ function closeModal(type) {
   }
 }
 
-// Fermer en cliquant à l'extérieur
 window.onclick = function(event) {
   if (event.target.classList.contains('modal-overlay')) {
     event.target.style.display = 'none';
@@ -270,10 +294,19 @@ function doLogin() {
   setTimeout(() => {
     const user = users[u];
     if (user && user.password === p) {
+      // Utiliser NetGuardAuth.setSession
+      auth.setSession({
+        username: u,
+        name: user.name,
+        role: user.role
+      });
+      
       btn.style.background = 'linear-gradient(135deg,#22c55e,#16a34a)';
       btn.textContent = '✓ Accès autorisé — ' + user.name;
+      
+      // Rediriger via NetGuardAuth
       setTimeout(() => {
-        window.location.href = 'dashboard.html';
+        window.location.href = auth.getDefaultPage(user.role);
       }, 1000);
     } else {
       err.style.display = 'block';
@@ -291,7 +324,6 @@ function doRegister() {
   const confirmPass = document.getElementById('regConfirmPass').value;
   const errBox = document.getElementById('regErrBox');
   const successBox = document.getElementById('regSuccessBox');
-  const btn = document.querySelector('#registerModal .modal-btn');
   
   errBox.style.display = 'none';
   successBox.style.display = 'none';
@@ -322,13 +354,14 @@ function doRegister() {
     return;
   }
   
+  const btn = document.querySelector('#registerModal .modal-btn');
   btn.disabled = true;
   btn.textContent = 'Création...';
   
   setTimeout(() => {
     users[username] = {
       password: password,
-      role: 'USER',
+      role: auth.ROLES.USER || 'USER',
       name: username,
       email: email
     };
@@ -350,7 +383,6 @@ function doForgotPassword() {
   const identity = document.getElementById('forgotIdentity').value.trim().toLowerCase();
   const errBox = document.getElementById('forgotErrBox');
   const successBox = document.getElementById('forgotSuccessBox');
-  const btn = document.querySelector('#forgotModal .modal-btn');
   
   errBox.style.display = 'none';
   successBox.style.display = 'none';
@@ -378,6 +410,7 @@ function doForgotPassword() {
     return;
   }
   
+  const btn = document.querySelector('#forgotModal .modal-btn');
   btn.disabled = true;
   btn.textContent = 'Envoi...';
   
@@ -400,7 +433,6 @@ function doForgotPassword() {
   }, 1000);
 }
 
-// IP dynamique
 const ip = document.getElementById('ipDisplay');
 setInterval(() => { 
   ip.textContent = '192.168.' + Math.floor(Math.random()*5) + '.' + Math.floor(Math.random()*254)+1; 
