@@ -183,7 +183,6 @@
         <div class="bar-mini" style="height:16px;animation-delay:0.9s"></div>
         <div class="bar-mini" style="height:11px;animation-delay:1.2s"></div>
       </div>
-      <div style="font-size:10px;font-family:'DM Mono',monospace;letter-spacing:0.5px" id="ipDisplay">192.168.0.1</div>
     </div>
   </div>
 </div>
@@ -406,12 +405,6 @@ function doForgotPassword() {
     }, 3000);
   }, 1000);
 }
-
-// IP dynamique
-const ip = document.getElementById('ipDisplay');
-setInterval(() => { 
-  ip.textContent = '192.168.' + Math.floor(Math.random()*5) + '.' + Math.floor(Math.random()*254)+1; 
-}, 2200);
 
 // Canvas background
 const canvas = document.getElementById('bgCanvas');
