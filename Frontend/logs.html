@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetGuard - Audit Logs</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="auth.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="layout.css" />
+  <link rel="stylesheet" href="sidebar.css" />
+  <style>
+    body { font-family: 'DM Sans', sans-serif; }
+    .topbar { animation: slideDown 0.4s ease; }
+    .animate-in { animation: fadeInUp 0.4s ease backwards; animation-delay: 0.1s; }
+    .table-row { animation: rowSlideIn 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1) both; }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes rowSlideIn {
+      from { opacity: 0; transform: translateX(-12px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen app-body">
+  <div class="app-shell">
+    <aside id="sidebar-root" class="sidebar-host" data-page="logs"></aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="topbar-title">Audit Logs</div>
+          <div class="topbar-subtitle">Consultation en lecture seule des evenements de securite et d'administration.</div>
+        </div>
+      </header>
+
+      <section class="content">
+        <div id="logs-root" class="page-block"></div>
+      </section>
+    </main>
+  </div>
+
+  <script type="text/babel">
+    const auditEvents = [
+      { id: 1, date: '17/04/2026 09:12', actor: 'admin', action: 'Creation utilisateur', target: 'soc_lead', severity: 'Info' },
+      { id: 2, date: '17/04/2026 08:48', actor: 'sec', action: 'Activation regle IDS', target: 'Heartbleed custom rule', severity: 'High' },
+      { id: 3, date: '17/04/2026 08:10', actor: 'net', action: 'Modification VLAN', target: 'VLAN 20 / IT', severity: 'Medium' },
+      { id: 4, date: '16/04/2026 18:22', actor: 'audit', action: 'Consultation journal', target: 'Rapport incidents Q2', severity: 'Info' },
+      { id: 5, date: '16/04/2026 17:54', actor: 'admin', action: 'Changement role', target: 'viewer -> security_admin', severity: 'High' }
+    ];
+
+    const severityClasses = {
+      Info: 'bg-slate-100 text-slate-600',
+      Medium: 'bg-amber-100 text-amber-700',
+      High: 'bg-rose-100 text-rose-700'
+    };
+
+    function LogsPage() {
+      const session = window.NetGuardAuth.getSession();
+
+      return (
+        <div className="p-2 md:p-4 max-w-[1400px] mx-auto animate-in">
+          <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Journal d'audit</h1>
+              <p className="text-slate-500 mt-1">Vue reservee a l'administration et aux auditeurs, sans action d'ecriture.</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Session</div>
+              <div className="mt-1 text-sm font-semibold text-slate-700">{session ? `${session.name} (${session.role})` : '--'}</div>
+            </div>
+          </div>
+
+          <div className="mb-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total events</div>
+              <div className="mt-2 text-3xl font-bold text-slate-800">{auditEvents.length}</div>
+            </div>
+            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">High severity</div>
+              <div className="mt-2 text-3xl font-bold text-rose-600">{auditEvents.filter((event) => event.severity === 'High').length}</div>
+            </div>
+            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mode</div>
+              <div className="mt-2 text-3xl font-bold text-indigo-600">Read Only</div>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50/80 border-b border-slate-100">
+                  <tr>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Date</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Actor</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Action</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Target</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Severity</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {auditEvents.map((event, index) => (
+                    <tr key={event.id} className="table-row hover:bg-slate-50/80" style={{ animationDelay: `${index * 0.05}s` }}>
+                      <td className="px-6 py-4 font-mono text-sm text-slate-500">{event.date}</td>
+                      <td className="px-6 py-4 font-semibold text-slate-700">{event.actor}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-slate-600">{event.action}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500">{event.target}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold ${severityClasses[event.severity]}`}>
+                          {event.severity}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('logs-root')).render(<LogsPage />);
+  </script>
+  <script src="sidebar.js"></script>
+</body>
+</html>

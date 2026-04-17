@@ -23,6 +23,7 @@
 
 .sidebar-nav {
   width: 100%;
+  flex: 1;
 }
 
 .sidebar-link {
@@ -59,6 +60,13 @@
 .sidebar-link svg {
   width: 20px;
   height: 20px;
+}
+
+.sidebar-link-logout {
+  margin-top: auto;
+  border: none;
+  background: transparent;
+  font: inherit;
 }
 
 @media (max-width: 900px) {

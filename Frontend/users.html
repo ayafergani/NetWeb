@@ -8,6 +8,7 @@
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="auth.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="layout.css" />
   <link rel="stylesheet" href="sidebar.css" />
@@ -44,17 +45,18 @@
   </div>
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState } = React;
 
-    // --- MOCK DATA ---
-    // Change ce rôle en "NETWORK" ou "SECURITY" pour voir l'écran d'Accès Refusé !
-    const currentUser = { id: 1, username: "admin", role: "ADMIN" };
+    const currentSession = window.NetGuardAuth.getSession();
+    const currentUser = currentSession
+      ? { id: currentSession.username, username: currentSession.username, role: currentSession.role }
+      : null;
 
     const initialUsers = [
       { id: 1, username: "admin", email: "admin@netguard.local", role: "ADMIN", status: "Active", lastLogin: "Il y a 5 min" },
-      { id: 2, username: "yassine_net", email: "yassine@netguard.local", role: "NETWORK", status: "Active", lastLogin: "Aujourd'hui 08:45" },
-      { id: 3, username: "sara_sec", email: "sara@netguard.local", role: "SECURITY", status: "Active", lastLogin: "Hier 16:30" },
-      { id: 4, username: "audit_ext", email: "auditor@external.com", role: "VIEWER", status: "Disabled", lastLogin: "01/04/2026" }
+      { id: 2, username: "yassine_net", email: "yassine@netguard.local", role: "NETWORK_ADMIN", status: "Active", lastLogin: "Aujourd'hui 08:45" },
+      { id: 3, username: "sara_sec", email: "sara@netguard.local", role: "SECURITY_ADMIN", status: "Active", lastLogin: "Hier 16:30" },
+      { id: 4, username: "audit_ext", email: "auditor@external.com", role: "AUDITOR", status: "Disabled", lastLogin: "01/04/2026" }
     ];
 
     const UsersPage = () => {
@@ -75,7 +77,7 @@
       };
 
       // --- LOGIQUE DE VÉRIFICATION DES RÔLES (RBAC) ---
-      if (currentUser.role !== "ADMIN") {
+      if (!currentUser || currentUser.role !== window.NetGuardAuth.ROLES.ADMIN) {
         return (
           <div className="flex-1 flex items-center justify-center animate-in">
             <div className="bg-white p-10 rounded-[2rem] shadow-xl text-center max-w-md border border-slate-200">
@@ -85,7 +87,7 @@
               <h2 className="text-2xl font-bold text-slate-800 mb-2">Accès Refusé</h2>
               <p className="text-slate-500 mb-8">Les privilèges Administrateur sont requis pour accéder à la gestion des utilisateurs.</p>
               <button 
-                onClick={() => window.location.href = 'network-dashboard (1).html'}
+                onClick={() => window.location.href = window.NetGuardAuth.getDefaultPage(currentUser?.role)}
                 className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-colors"
               >
                 Retour au Dashboard
@@ -99,9 +101,9 @@
       const getRoleBadge = (role) => {
         const styles = {
           'ADMIN': 'bg-rose-100 text-rose-700 border-rose-200',
-          'NETWORK': 'bg-blue-100 text-blue-700 border-blue-200',
-          'SECURITY': 'bg-orange-100 text-orange-700 border-orange-200',
-          'VIEWER': 'bg-slate-100 text-slate-600 border-slate-200'
+          'NETWORK_ADMIN': 'bg-blue-100 text-blue-700 border-blue-200',
+          'SECURITY_ADMIN': 'bg-orange-100 text-orange-700 border-orange-200',
+          'AUDITOR': 'bg-slate-100 text-slate-600 border-slate-200'
         };
         return (
           <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${styles[role]}`}>
@@ -178,7 +180,7 @@
                           <div>
                             <span className="font-bold text-slate-700 flex items-center gap-2">
                               {user.username}
-                              {user.id === currentUser.id && <span className="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded font-black uppercase">Vous</span>}
+                              {user.username === currentUser.username && <span className="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded font-black uppercase">Vous</span>}
                             </span>
                           </div>
                         </div>
@@ -196,8 +198,8 @@
                         </button>
                         <button 
                           onClick={() => { setTargetUser(user); setIsDeleteModalOpen(true); }}
-                          disabled={user.id === currentUser.id}
-                          className={`font-semibold text-sm transition-colors px-2 ${user.id === currentUser.id ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-rose-600'}`}
+                          disabled={user.username === currentUser.username}
+                          className={`font-semibold text-sm transition-colors px-2 ${user.username === currentUser.username ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-rose-600'}`}
                         >
                           Supprimer
                         </button>
@@ -241,11 +243,11 @@
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-500 mb-1">Rôle</label>
-                      <select defaultValue={editingUser?.role || 'VIEWER'} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 font-bold text-slate-700 bg-slate-50">
+                      <select defaultValue={editingUser?.role || 'AUDITOR'} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 font-bold text-slate-700 bg-slate-50">
                         <option value="ADMIN">ADMIN</option>
-                        <option value="NETWORK">NETWORK</option>
-                        <option value="SECURITY">SECURITY</option>
-                        <option value="VIEWER">VIEWER</option>
+                        <option value="NETWORK_ADMIN">NETWORK_ADMIN</option>
+                        <option value="SECURITY_ADMIN">SECURITY_ADMIN</option>
+                        <option value="AUDITOR">AUDITOR</option>
                       </select>
                     </div>
                     <div>
