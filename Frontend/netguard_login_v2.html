@@ -1,64 +1,70 @@
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono&display=swap');
-  *{box-sizing:border-box;margin:0;padding:0}
-  body { min-height: 100vh; background: #0f0c29; background: linear-gradient(135deg, #0f0c29 0%, #1a1a3e 50%, #0a0a1a 100%); }
-  .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg, #0f0c29, #1a1a3e, #0a0a1a);position:relative;overflow:hidden;padding:2rem 1rem}
-  .bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;display:block}
-  .card{position:relative;z-index:10;width:100%;max-width:400px;background:rgba(10,10,30,0.85);border:0.5px solid rgba(100,108,255,0.3);border-radius:24px;padding:2.2rem 2.2rem;backdrop-filter:blur(12px);box-shadow:0 25px 50px -12px rgba(0,0,0,0.5)}
-  .logo-row{display:flex;align-items:center;justify-content:center;margin-bottom:1.4rem}
-  .shield-wrap{position:relative;width:68px;height:68px}
-  .pulse-ring{position:absolute;inset:-10px;border-radius:50%;border:1.5px solid rgba(100,108,255,0.4);animation:pr 2.4s ease-out infinite}
-  .pulse-ring2{position:absolute;inset:-22px;border-radius:50%;border:0.5px solid rgba(100,108,255,0.15);animation:pr 2.4s ease-out infinite 0.8s}
-  .pulse-ring3{position:absolute;inset:-34px;border-radius:50%;border:0.5px solid rgba(100,108,255,0.07);animation:pr 2.4s ease-out infinite 1.6s}
-  @keyframes pr{0%{transform:scale(0.88);opacity:1}100%{transform:scale(1.4);opacity:0}}
-  .shield-inner{width:68px;height:68px;background:rgba(30,30,80,0.8);border:1px solid rgba(100,108,255,0.5);border-radius:50%;display:flex;align-items:center;justify-content:center}
-  .title-block{text-align:center;margin-bottom:1.8rem}
-  .app-name{font-size:30px;font-weight:700;color:#fff;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px}
-  .app-name span{background:linear-gradient(135deg,#6366f1,#a855f7);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .app-sub{font-size:12px;color:rgba(160,170,255,0.6);font-weight:500;margin-top:4px;letter-spacing:0.5px}
-  .ids-tag{display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:rgba(100,108,255,0.1);border:0.5px solid rgba(100,108,255,0.25);border-radius:20px;padding:4px 12px;font-size:10px;font-weight:700;color:rgba(160,170,255,0.9);letter-spacing:1.5px;text-transform:uppercase}
-  .dot-live{width:6px;height:6px;border-radius:50%;background:#6366f1;animation:blink 1.8s ease-in-out infinite;box-shadow:0 0 6px #6366f1}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
-  label{display:block;font-size:9px;font-weight:700;color:rgba(160,170,255,0.5);text-transform:uppercase;letter-spacing:2px;margin-bottom:5px;font-family:'DM Sans',sans-serif}
-  .field{margin-bottom:12px;position:relative}
-  .field-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);opacity:0.4;pointer-events:none}
-  input[type=text],input[type=password],input[type=email]{width:100%;background:rgba(20,20,50,0.6);border:0.5px solid rgba(100,108,255,0.2);border-radius:12px;padding:11px 14px 11px 38px;color:#e2e8f0;font-size:13px;outline:none;transition:border-color 0.2s,box-shadow 0.2s;font-family:'DM Sans',sans-serif}
-  input:focus{border-color:rgba(100,108,255,0.7);box-shadow:0 0 0 3px rgba(100,108,255,0.1)}
-  input::placeholder{color:rgba(160,170,255,0.25)}
-  .strength-bar{height:2px;border-radius:2px;margin-top:5px;background:rgba(255,255,255,0.05);overflow:hidden}
-  .strength-fill{height:100%;border-radius:2px;transition:width 0.4s,background 0.4s;width:0}
-  .btn{width:100%;padding:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;margin-top:6px;font-family:'DM Sans',sans-serif;position:relative;overflow:hidden}
-  .btn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,0.1);opacity:0;transition:opacity 0.2s}
-  .btn:hover:not(:disabled)::after{opacity:1}
-  .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 25px -5px rgba(99,102,241,0.3)}
-  .btn:disabled{opacity:0.55;cursor:not-allowed}
-  .err{background:rgba(239,68,68,0.1);border:0.5px solid rgba(239,68,68,0.3);border-radius:10px;padding:9px 13px;color:#fca5a5;font-size:12px;margin-bottom:10px;display:none;font-family:'DM Sans',sans-serif}
-  .success-msg{background:rgba(34,197,94,0.1);border:0.5px solid rgba(34,197,94,0.3);border-radius:10px;padding:9px 13px;color:#86efac;font-size:12px;margin-bottom:10px;display:none;font-family:'DM Sans',sans-serif}
-  .scan-bar{height:1px;background:rgba(100,108,255,0.0);position:relative;overflow:hidden;margin:1.2rem 0 0.8rem}
-  .scan-line{position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(100,108,255,0.6),transparent);width:40%;animation:scan 2.5s ease-in-out infinite}
-  @keyframes scan{0%{left:-40%}100%{left:140%}}
-  .status-row{display:flex;align-items:center;gap:8px;margin-top:10px}
-  .status-indicator{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:rgba(160,170,255,0.6);letter-spacing:1px;text-transform:uppercase;font-family:'DM Mono',monospace}
-  .status-dot{width:5px;height:5px;border-radius:50%;background:#6366f1;animation:blink 2s ease-in-out infinite}
-  .traffic-mini{display:flex;gap:3px;align-items:flex-end;height:18px}
-  .bar-mini{width:3px;background:rgba(100,108,255,0.4);border-radius:1px;animation:grow 1.5s ease-in-out infinite}
-  @keyframes grow{0%,100%{transform:scaleY(0.3)}50%{transform:scaleY(1)}}
-  
-  /* Liens sous le bouton */
-  .auth-links{display:flex;justify-content:space-between;margin-top:12px}
-  .auth-link{font-size:11px;color:#818cf8;text-decoration:none;cursor:pointer;transition:color 0.2s}
-  .auth-link:hover{color:#c7d2fe;text-decoration:underline}
-  
-  /* Panneaux modaux */
-  .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:100;display:none;align-items:center;justify-content:center}
-  .modal-card{background:rgba(10,10,30,0.95);border:1px solid rgba(100,108,255,0.3);border-radius:24px;padding:2rem;width:90%;max-width:380px;position:relative;backdrop-filter:blur(12px)}
-  .modal-card h3{color:#fff;font-size:20px;margin-bottom:1rem;text-align:center}
-  .close-modal{position:absolute;top:15px;right:20px;color:#818cf8;font-size:24px;cursor:pointer;transition:color 0.2s}
-  .close-modal:hover{color:#fff}
-  .modal-btn{width:100%;padding:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px}
-  .modal-btn-secondary{background:rgba(100,108,255,0.2);border:1px solid rgba(100,108,255,0.3);margin-top:8px}
-</style>
-
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetGuard - Connexion</title>
+  <script src="auth.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body { min-height: 100vh; background: #0f0c29; background: linear-gradient(135deg, #0f0c29 0%, #1a1a3e 50%, #0a0a1a 100%); }
+    .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg, #0f0c29, #1a1a3e, #0a0a1a);position:relative;overflow:hidden;padding:2rem 1rem}
+    .bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;display:block}
+    .card{position:relative;z-index:10;width:100%;max-width:400px;background:rgba(10,10,30,0.85);border:0.5px solid rgba(100,108,255,0.3);border-radius:24px;padding:2.2rem 2.2rem;backdrop-filter:blur(12px);box-shadow:0 25px 50px -12px rgba(0,0,0,0.5)}
+    .logo-row{display:flex;align-items:center;justify-content:center;margin-bottom:1.4rem}
+    .shield-wrap{position:relative;width:68px;height:68px}
+    .pulse-ring{position:absolute;inset:-10px;border-radius:50%;border:1.5px solid rgba(100,108,255,0.4);animation:pr 2.4s ease-out infinite}
+    .pulse-ring2{position:absolute;inset:-22px;border-radius:50%;border:0.5px solid rgba(100,108,255,0.15);animation:pr 2.4s ease-out infinite 0.8s}
+    .pulse-ring3{position:absolute;inset:-34px;border-radius:50%;border:0.5px solid rgba(100,108,255,0.07);animation:pr 2.4s ease-out infinite 1.6s}
+    @keyframes pr{0%{transform:scale(0.88);opacity:1}100%{transform:scale(1.4);opacity:0}}
+    .shield-inner{width:68px;height:68px;background:rgba(30,30,80,0.8);border:1px solid rgba(100,108,255,0.5);border-radius:50%;display:flex;align-items:center;justify-content:center}
+    .title-block{text-align:center;margin-bottom:1.8rem}
+    .app-name{font-size:30px;font-weight:700;color:#fff;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px}
+    .app-name span{background:linear-gradient(135deg,#6366f1,#a855f7);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .app-sub{font-size:12px;color:rgba(160,170,255,0.6);font-weight:500;margin-top:4px;letter-spacing:0.5px}
+    .ids-tag{display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:rgba(100,108,255,0.1);border:0.5px solid rgba(100,108,255,0.25);border-radius:20px;padding:4px 12px;font-size:10px;font-weight:700;color:rgba(160,170,255,0.9);letter-spacing:1.5px;text-transform:uppercase}
+    .dot-live{width:6px;height:6px;border-radius:50%;background:#6366f1;animation:blink 1.8s ease-in-out infinite;box-shadow:0 0 6px #6366f1}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+    label{display:block;font-size:9px;font-weight:700;color:rgba(160,170,255,0.5);text-transform:uppercase;letter-spacing:2px;margin-bottom:5px;font-family:'DM Sans',sans-serif}
+    .field{margin-bottom:12px;position:relative}
+    .field-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);opacity:0.4;pointer-events:none}
+    input[type=text],input[type=password],input[type=email]{width:100%;background:rgba(20,20,50,0.6);border:0.5px solid rgba(100,108,255,0.2);border-radius:12px;padding:11px 14px 11px 38px;color:#e2e8f0;font-size:13px;outline:none;transition:border-color 0.2s,box-shadow 0.2s;font-family:'DM Sans',sans-serif}
+    input:focus{border-color:rgba(100,108,255,0.7);box-shadow:0 0 0 3px rgba(100,108,255,0.1)}
+    input::placeholder{color:rgba(160,170,255,0.25)}
+    .strength-bar{height:2px;border-radius:2px;margin-top:5px;background:rgba(255,255,255,0.05);overflow:hidden}
+    .strength-fill{height:100%;border-radius:2px;transition:width 0.4s,background 0.4s;width:0}
+    .btn{width:100%;padding:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;margin-top:6px;font-family:'DM Sans',sans-serif;position:relative;overflow:hidden}
+    .btn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,0.1);opacity:0;transition:opacity 0.2s}
+    .btn:hover:not(:disabled)::after{opacity:1}
+    .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 25px -5px rgba(99,102,241,0.3)}
+    .btn:disabled{opacity:0.55;cursor:not-allowed}
+    .err{background:rgba(239,68,68,0.1);border:0.5px solid rgba(239,68,68,0.3);border-radius:10px;padding:9px 13px;color:#fca5a5;font-size:12px;margin-bottom:10px;display:none;font-family:'DM Sans',sans-serif}
+    .success-msg{background:rgba(34,197,94,0.1);border:0.5px solid rgba(34,197,94,0.3);border-radius:10px;padding:9px 13px;color:#86efac;font-size:12px;margin-bottom:10px;display:none;font-family:'DM Sans',sans-serif}
+    .scan-bar{height:1px;background:rgba(100,108,255,0.0);position:relative;overflow:hidden;margin:1.2rem 0 0.8rem}
+    .scan-line{position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(100,108,255,0.6),transparent);width:40%;animation:scan 2.5s ease-in-out infinite}
+    @keyframes scan{0%{left:-40%}100%{left:140%}}
+    .status-row{display:flex;align-items:center;gap:8px;margin-top:10px}
+    .status-indicator{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:rgba(160,170,255,0.6);letter-spacing:1px;text-transform:uppercase;font-family:'DM Mono',monospace}
+    .status-dot{width:5px;height:5px;border-radius:50%;background:#6366f1;animation:blink 2s ease-in-out infinite}
+    .traffic-mini{display:flex;gap:3px;align-items:flex-end;height:18px}
+    .bar-mini{width:3px;background:rgba(100,108,255,0.4);border-radius:1px;animation:grow 1.5s ease-in-out infinite}
+    @keyframes grow{0%,100%{transform:scaleY(0.3)}50%{transform:scaleY(1)}}
+    
+    .auth-links{display:flex;justify-content:space-between;margin-top:12px}
+    .auth-link{font-size:11px;color:#818cf8;text-decoration:none;cursor:pointer;transition:color 0.2s}
+    .auth-link:hover{color:#c7d2fe;text-decoration:underline}
+    
+    .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:100;display:none;align-items:center;justify-content:center}
+    .modal-card{background:rgba(10,10,30,0.95);border:1px solid rgba(100,108,255,0.3);border-radius:24px;padding:2rem;width:90%;max-width:380px;position:relative;backdrop-filter:blur(12px)}
+    .modal-card h3{color:#fff;font-size:20px;margin-bottom:1rem;text-align:center}
+    .close-modal{position:absolute;top:15px;right:20px;color:#818cf8;font-size:24px;cursor:pointer;transition:color 0.2s}
+    .close-modal:hover{color:#fff}
+    .modal-btn{width:100%;padding:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px}
+    .modal-btn-secondary{background:rgba(100,108,255,0.2);border:1px solid rgba(100,108,255,0.3);margin-top:8px}
+  </style>
+</head>
+<body>
 <div class="wrap">
   <canvas class="bg-canvas" id="bgCanvas"></canvas>
   <div class="card">
@@ -82,7 +88,6 @@
       <div class="ids-tag"><div class="dot-live"></div>IDS · Surveillance · Réseau</div>
     </div>
 
-    <!-- Panneau Connexion Principal -->
     <div id="loginPanel">
       <div id="errBox" class="err">⚠ Identifiant ou mot de passe incorrect.</div>
       
@@ -104,7 +109,6 @@
 
       <button class="btn" id="loginBtn" onclick="doLogin()">Connexion →</button>
       
-      <!-- Liens sous le bouton -->
       <div class="auth-links">
         <a class="auth-link" onclick="openModal('register')">Créer un compte</a>
         <a class="auth-link" onclick="openModal('forgot')">Mot de passe oublié</a>
@@ -128,7 +132,6 @@
   </div>
 </div>
 
-<!-- Modal Création de compte -->
 <div id="registerModal" class="modal-overlay">
   <div class="modal-card">
     <span class="close-modal" onclick="closeModal('register')">&times;</span>
@@ -171,7 +174,6 @@
   </div>
 </div>
 
-<!-- Modal Mot de passe oublié -->
 <div id="forgotModal" class="modal-overlay">
   <div class="modal-card">
     <span class="close-modal" onclick="closeModal('forgot')">&times;</span>
@@ -193,12 +195,30 @@
 </div>
 
 <script>
-// Stockage utilisateurs
+// Attendre que auth.js soit chargé
+document.addEventListener('DOMContentLoaded', function() {
+  // Vérifier si NetGuardAuth existe
+  if (typeof window.NetGuardAuth !== 'undefined') {
+    console.log('auth.js chargé avec succès');
+    
+    // Vérifier si une session existe déjà
+    const session = NetGuardAuth.getSession();
+    if (session) {
+      // Rediriger vers le tableau de bord approprié
+      window.location.href = NetGuardAuth.getDefaultPage(session.role);
+      return;
+    }
+  } else {
+    console.warn('auth.js non trouvé, utilisation du mode démo');
+  }
+});
+
+// Stockage utilisateurs avec liaison auth.js
 let users = JSON.parse(localStorage.getItem('netguard_users')) || {
   admin: { password: '123', role: 'ADMIN', name: 'Super Admin', email: 'admin@netguard.com' },
-  net: { password: '123', role: 'NETWORK', name: 'Ingénieur Réseau', email: 'net@netguard.com' },
-  sec: { password: '123', role: 'SECURITY', name: 'Analyste SOC', email: 'sec@netguard.com' },
-  audit: { password: '123', role: 'VIEWER', name: 'Auditeur Externe', email: 'audit@netguard.com' }
+  net: { password: '123', role: 'NETWORK_ADMIN', name: 'Ingénieur Réseau', email: 'net@netguard.com' },
+  sec: { password: '123', role: 'SECURITY_ADMIN', name: 'Analyste SOC', email: 'sec@netguard.com' },
+  audit: { password: '123', role: 'AUDITOR', name: 'Auditeur Externe', email: 'audit@netguard.com' }
 };
 
 function saveUsers() {
@@ -209,7 +229,6 @@ function saveUsers() {
 function openModal(type) {
   if (type === 'register') {
     document.getElementById('registerModal').style.display = 'flex';
-    // Réinitialiser le formulaire
     document.getElementById('regUser').value = '';
     document.getElementById('regEmail').value = '';
     document.getElementById('regPass').value = '';
@@ -219,7 +238,6 @@ function openModal(type) {
     document.getElementById('forgotModal').style.display = 'flex';
     document.getElementById('forgotIdentity').value = '';
   }
-  // Cacher les messages d'erreur
   document.querySelectorAll('.err, .success-msg').forEach(el => el.style.display = 'none');
 }
 
@@ -231,7 +249,6 @@ function closeModal(type) {
   }
 }
 
-// Fermer en cliquant à l'extérieur
 window.onclick = function(event) {
   if (event.target.classList.contains('modal-overlay')) {
     event.target.style.display = 'none';
@@ -270,10 +287,43 @@ function doLogin() {
   setTimeout(() => {
     const user = users[u];
     if (user && user.password === p) {
+      // Utiliser auth.js pour stocker la session
+      if (typeof window.NetGuardAuth !== 'undefined') {
+        NetGuardAuth.setSession({
+          username: u,
+          name: user.name,
+          role: user.role,
+          email: user.email
+        });
+      } else {
+        // Fallback si auth.js n'est pas chargé
+        localStorage.setItem('netguard_session', JSON.stringify({
+          username: u,
+          name: user.name,
+          role: user.role,
+          email: user.email,
+          timestamp: Date.now()
+        }));
+      }
+      
       btn.style.background = 'linear-gradient(135deg,#22c55e,#16a34a)';
       btn.textContent = '✓ Accès autorisé — ' + user.name;
+      
       setTimeout(() => {
-        window.location.href = 'dashboard.html';
+        // Redirection basée sur le rôle
+        if (typeof window.NetGuardAuth !== 'undefined') {
+          window.location.href = NetGuardAuth.getDefaultPage(user.role);
+        } else {
+          // Fallback redirection
+          const rolePages = {
+            'ADMIN': 'dashboard.html',
+            'NETWORK_ADMIN': 'network.html',
+            'SECURITY_ADMIN': 'security.html',
+            'AUDITOR': 'audit.html',
+            'USER': 'user-dashboard.html'
+          };
+          window.location.href = rolePages[user.role] || 'dashboard.html';
+        }
       }, 1000);
     } else {
       err.style.display = 'block';
@@ -579,3 +629,5 @@ window.addEventListener('resize', () => {
 
 draw();
 </script>
+</body>
+</html>
