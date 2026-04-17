@@ -12,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="layout.css" />
   <link rel="stylesheet" href="sidebar.css" />
+  <link rel="stylesheet" href="topbar.css" />
   <style>
     body {
       font-family: 'DM Sans', sans-serif;
@@ -98,12 +99,7 @@
     <aside id="sidebar-root" class="sidebar-host" data-page="vlan"></aside>
 
     <main class="main">
-      <header class="topbar">
-        <div>
-          <div class="topbar-title">VLAN Management</div>
-          <div class="topbar-subtitle">Gestion dediee des VLANs et des ports associes.</div>
-        </div>
-      </header>
+      <div id="topbar-root" data-title="VLAN Management" data-subtitle="Gestion dediee des VLANs et des ports associes." data-notifications="3"></div>
 
       <section class="content">
         <div id="vlan-root" class="page-block"></div>
@@ -295,5 +291,6 @@
     root.render(<VLANPage />);
   </script>
   <script src="sidebar.js"></script>
+  <script src="topbar.js"></script>
 </body>
 </html>
