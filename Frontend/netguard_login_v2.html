@@ -195,25 +195,21 @@
 </div>
 
 <script>
-// Attendre que auth.js soit chargé
+// SUPPRESSION de la redirection automatique - La page reste toujours sur la connexion
 document.addEventListener('DOMContentLoaded', function() {
-  // Vérifier si NetGuardAuth existe
+  // On ne fait PLUS de redirection automatique
+  // La page reste toujours sur l'écran de connexion
+  console.log('Page de connexion - aucune redirection automatique');
+  
+  // Optionnel: Effacer toute session existante pour rester sur la page de connexion
   if (typeof window.NetGuardAuth !== 'undefined') {
-    console.log('auth.js chargé avec succès');
-    
-    // Vérifier si une session existe déjà
-    const session = NetGuardAuth.getSession();
-    if (session) {
-      // Rediriger vers le tableau de bord approprié
-      window.location.href = NetGuardAuth.getDefaultPage(session.role);
-      return;
-    }
-  } else {
-    console.warn('auth.js non trouvé, utilisation du mode démo');
+    // On peut optionnellement effacer l'ancienne session
+    // localStorage.removeItem('netguard_session');
+    console.log('auth.js chargé');
   }
 });
 
-// Stockage utilisateurs avec liaison auth.js
+// Stockage utilisateurs
 let users = JSON.parse(localStorage.getItem('netguard_users')) || {
   admin: { password: '123', role: 'ADMIN', name: 'Super Admin', email: 'admin@netguard.com' },
   net: { password: '123', role: 'NETWORK_ADMIN', name: 'Ingénieur Réseau', email: 'net@netguard.com' },
@@ -287,7 +283,7 @@ function doLogin() {
   setTimeout(() => {
     const user = users[u];
     if (user && user.password === p) {
-      // Utiliser auth.js pour stocker la session
+      // Stocker la session
       if (typeof window.NetGuardAuth !== 'undefined') {
         NetGuardAuth.setSession({
           username: u,
@@ -296,7 +292,6 @@ function doLogin() {
           email: user.email
         });
       } else {
-        // Fallback si auth.js n'est pas chargé
         localStorage.setItem('netguard_session', JSON.stringify({
           username: u,
           name: user.name,
@@ -310,11 +305,10 @@ function doLogin() {
       btn.textContent = '✓ Accès autorisé — ' + user.name;
       
       setTimeout(() => {
-        // Redirection basée sur le rôle
+        // Redirection vers le tableau de bord UNIQUEMENT après connexion réussie
         if (typeof window.NetGuardAuth !== 'undefined') {
           window.location.href = NetGuardAuth.getDefaultPage(user.role);
         } else {
-          // Fallback redirection
           const rolePages = {
             'ADMIN': 'dashboard.html',
             'NETWORK_ADMIN': 'network.html',
