@@ -10,6 +10,7 @@
 <script src="auth.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="sidebar.css" />
+<link rel="stylesheet" href="topbar.css" />
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -469,12 +470,7 @@
 <div class="app-shell">
   <aside id="sidebar-root" class="sidebar-host" data-page="configuration"></aside>
   <main class="main">
-    <header class="topbar">
-      <div>
-        <div class="topbar-title">Configuration IDS</div>
-        <div class="topbar-subtitle">Gestion des regles de securite et export Snort</div>
-      </div>
-    </header>
+    <div id="topbar-root" data-title="Configuration IDS" data-subtitle="Gestion des regles de securite et export Snort" data-notifications="2"></div>
 
     <section class="content">
       <div id="root"></div>
@@ -483,6 +479,7 @@
 </div>
 
 <script src="sidebar.js"></script>
+<script src="topbar.js"></script>
 <script type="text/babel">
 const { useState, useEffect } = React;
 

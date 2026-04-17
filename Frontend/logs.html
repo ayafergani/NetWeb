@@ -12,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="layout.css" />
   <link rel="stylesheet" href="sidebar.css" />
+  <link rel="stylesheet" href="topbar.css" />
   <style>
     body { font-family: 'DM Sans', sans-serif; }
     .topbar { animation: slideDown 0.4s ease; }
@@ -36,12 +37,7 @@
     <aside id="sidebar-root" class="sidebar-host" data-page="logs"></aside>
 
     <main class="main">
-      <header class="topbar">
-        <div>
-          <div class="topbar-title">Audit Logs</div>
-          <div class="topbar-subtitle">Consultation en lecture seule des evenements de securite et d'administration.</div>
-        </div>
-      </header>
+      <div id="topbar-root" data-title="Audit Logs" data-subtitle="Consultation en lecture seule des evenements de securite et d'administration." data-notifications="2"></div>
 
       <section class="content">
         <div id="logs-root" class="page-block"></div>
@@ -132,5 +128,6 @@
     ReactDOM.createRoot(document.getElementById('logs-root')).render(<LogsPage />);
   </script>
   <script src="sidebar.js"></script>
+  <script src="topbar.js"></script>
 </body>
 </html>

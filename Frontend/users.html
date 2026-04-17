@@ -12,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="layout.css" />
   <link rel="stylesheet" href="sidebar.css" />
+  <link rel="stylesheet" href="topbar.css" />
   <style>
     body { font-family: 'DM Sans', sans-serif; }
     .topbar { animation: slideDown 0.4s ease; }
@@ -31,12 +32,7 @@
     <aside id="sidebar-root" class="sidebar-host" data-page="users"></aside>
 
     <main class="main relative">
-      <header class="topbar">
-        <div>
-          <div class="topbar-title">User Management</div>
-          <div class="topbar-subtitle">Gérez les accès, les rôles et les permissions.</div>
-        </div>
-      </header>
+      <div id="topbar-root" data-title="User Management" data-subtitle="Gérez les accès, les rôles et les permissions." data-notifications="3"></div>
 
       <section class="content custom-scroll relative">
         <div id="users-root" class="page-block min-h-full flex flex-col"></div>
@@ -318,5 +314,6 @@
   </script>
   
   <script src="sidebar.js"></script>
+  <script src="topbar.js"></script>
 </body>
 </html>
