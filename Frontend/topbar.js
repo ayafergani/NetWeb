@@ -74,8 +74,9 @@
   }
 
   function setTheme(isDark) {
-    const rootElement = document.documentElement;
-    rootElement.classList.toggle('dark-theme', isDark);
+    const bodyElement = document.body;
+    bodyElement.classList.toggle('dark-mode', isDark);
+    bodyElement.classList.toggle('light-mode', !isDark);
     themeToggle.classList.toggle('toggle-active', isDark);
     themeToggle.setAttribute('aria-pressed', String(isDark));
     themeToggle.title = isDark ? 'Activer le thème clair' : 'Activer le thème sombre';
@@ -83,7 +84,7 @@
   }
 
   function toggleTheme() {
-    const isDark = !document.documentElement.classList.contains('dark-theme');
+    const isDark = !document.body.classList.contains('dark-mode');
     setTheme(isDark);
   }
 

@@ -38,7 +38,7 @@
     color: var(--text);
   }
 
-  body { overflow: hidden; }
+  /* body overflow handled by layout.css via body.app-body */
   button, input { font: inherit; }
 
   .app-shell {
@@ -211,7 +211,7 @@
   }
 </style>
 </head>
-<body>
+<body class="bg-slate-50 min-h-screen app-body">
 <div class="app-shell">
   <aside id="sidebar-root" class="sidebar-host" data-page="traffic"></aside>
 

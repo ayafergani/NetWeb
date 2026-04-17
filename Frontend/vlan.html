@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="layout.css" />
   <link rel="stylesheet" href="sidebar.css" />
   <link rel="stylesheet" href="topbar.css" />
+  <link rel="stylesheet" href="dark-mode.css" />
   <style>
     body {
       font-family: 'DM Sans', sans-serif;
@@ -292,5 +293,16 @@
   </script>
   <script src="sidebar.js"></script>
   <script src="topbar.js"></script>
+  <script>
+    (function syncDarkClass() {
+      const root = document.documentElement;
+      function sync() {
+        if (root.classList.contains('dark') && !root.classList.contains('dark-mode')) root.classList.add('dark-mode');
+        if (root.classList.contains('dark-mode') && !root.classList.contains('dark')) root.classList.add('dark');
+      }
+      new MutationObserver(sync).observe(root, { attributes: true, attributeFilter: ['class'] });
+      sync();
+    })();
+  </script>
 </body>
 </html>

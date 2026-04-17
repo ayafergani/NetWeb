@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="layout.css" />
   <link rel="stylesheet" href="sidebar.css" />
   <link rel="stylesheet" href="topbar.css" />
+  <link rel="stylesheet" href="dark-mode.css" />
   <style>
     body { font-family: 'DM Sans', sans-serif; }
     .topbar { animation: slideDown 0.4s ease; }
@@ -85,7 +86,7 @@
       // --- Composants UI ---
     const PhysicalSwitch = () => {
   return (
-    <div className="bg-[#1a1c3a] p-6 rounded-2xl shadow-xl shadow-slate-200/50 mb-8 border border-slate-200 flex flex-col items-center">
+    <div className="bg-[#1a1c3a] p-6 rounded-2xl shadow-xl shadow-indigo-600/20 mb-8 border border-slate-200 flex flex-col items-center">
       <div className="w-full flex justify-between items-center mb-6">
         <span className="text-slate-400 font-mono text-xs tracking-widest font-bold">CISCO CATALYST 9200 SERIES</span>
         <span className="text-emerald-400 font-mono text-xs flex items-center gap-2">
@@ -165,11 +166,11 @@
           {/* Header & Actions */}
           <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-8 gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Interfaces Management</h1>
+              <h1 className="page-title text-3xl font-bold text-slate-800 tracking-tight">Interfaces Management</h1>
               <p className="text-slate-500 mt-1">Supervision physique, configuration des ports et remédiation.</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2">
+              <button className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold shadow-md shadow-indigo-600/15 hover:bg-indigo-700 transition-all flex items-center gap-2">
                 <span className="text-lg">⚡</span> Scan Interfaces
               </button>
             </div>
@@ -181,7 +182,7 @@
           <div className="grid grid-cols-12 gap-8">
             {/* Main Table */}
             <div className={`col-span-12 ${selectedPort ? 'lg:col-span-8' : 'lg:col-span-12'} transition-all duration-300`}>
-              <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+              <div className="table-card bg-white rounded-[2rem] border border-slate-200 shadow-xl shadow-indigo-600/20 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead className="bg-slate-50/80 border-b border-slate-100">
@@ -238,7 +239,7 @@
             {/* Side Panel for Editing */}
             {selectedPort && (
               <div className="col-span-12 lg:col-span-4 slide-in-right">
-                <div className="bg-white rounded-[2rem] border border-slate-200 p-6 shadow-xl shadow-slate-200/30 sticky top-6">
+                <div className="detail-panel bg-white rounded-[2rem] border border-slate-200 p-6 shadow-xl shadow-indigo-600/15 sticky top-6">
                   
                   {/* Panel Header */}
                   <div className="flex justify-between items-start mb-6">
@@ -260,7 +261,7 @@
                       <div className="mt-3 py-2 px-3 bg-white rounded-lg border border-orange-100 text-[11px] font-mono text-orange-600 font-bold">
                         Source IP: {selectedPort.srcIp}
                       </div>
-                      <button onClick={() => isolatePort(selectedPort.id)} className="w-full mt-4 py-2.5 bg-orange-500 text-white text-xs font-bold rounded-xl hover:bg-orange-600 transition-all shadow-md shadow-orange-200 flex items-center justify-center gap-2">
+                      <button onClick={() => isolatePort(selectedPort.id)} className="w-full mt-4 py-2.5 bg-orange-500 text-white text-xs font-bold rounded-xl hover:bg-orange-600 transition-all shadow-md shadow-indigo-600/15 flex items-center justify-center gap-2">
                         Isolate → VLAN 99
                       </button>
                     </div>
@@ -310,7 +311,7 @@
 
                     <div className="pt-4 mt-2 border-t border-slate-100 flex gap-3">
                       <button onClick={() => setSelectedPortId(null)} className="flex-1 py-2.5 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">Cancel</button>
-                      <button className="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all">Apply Changes</button>
+                      <button className="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/15 hover:bg-indigo-700 transition-all">Apply Changes</button>
                     </div>
 
                     {/* Preview CLI Block */}

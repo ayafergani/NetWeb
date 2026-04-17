@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="layout.css" />
   <link rel="stylesheet" href="sidebar.css" />
   <link rel="stylesheet" href="topbar.css" />
+  <link rel="stylesheet" href="dark-mode.css" />
   <style>
     body { font-family: 'DM Sans', sans-serif; }
     .topbar { animation: slideDown 0.4s ease; }
@@ -67,31 +68,31 @@
         <div className="p-2 md:p-4 max-w-[1400px] mx-auto animate-in">
           <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Journal d'audit</h1>
+              <h1 className="page-title text-3xl font-bold text-slate-800 tracking-tight">Journal d'audit</h1>
               <p className="text-slate-500 mt-1">Vue reservee a l'administration et aux auditeurs, sans action d'ecriture.</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div className="panel-card rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Session</div>
               <div className="mt-1 text-sm font-semibold text-slate-700">{session ? `${session.name} (${session.role})` : '--'}</div>
             </div>
           </div>
 
           <div className="mb-6 grid gap-4 md:grid-cols-3">
-            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="stat-mini-card rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total events</div>
               <div className="mt-2 text-3xl font-bold text-slate-800">{auditEvents.length}</div>
             </div>
-            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="stat-mini-card rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">High severity</div>
               <div className="mt-2 text-3xl font-bold text-rose-600">{auditEvents.filter((event) => event.severity === 'High').length}</div>
             </div>
-            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="stat-mini-card rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mode</div>
               <div className="mt-2 text-3xl font-bold text-indigo-600">Read Only</div>
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
+          <div className="table-card overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-indigo-600/20">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-slate-50/80 border-b border-slate-100">
