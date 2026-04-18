@@ -154,3 +154,39 @@
     getAuthHeaders
   };
 })();
+
+// Ajoute cette fonction à ton auth.js
+async function login(username, password) {
+    try {
+        const response = await fetch('http://localhost:5000/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, password }),
+            credentials: 'include'  // Important pour les cookies/sessions
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            // Stocker la session comme avant
+            setSession({
+                username: data.username,
+                name: data.name,
+                role: data.role
+            });
+            return { success: true, role: data.role };
+        } else {
+            const error = await response.json();
+            return { success: false, error: error.error };
+        }
+    } catch (error) {
+        return { success: false, error: 'Erreur réseau' };
+    }
+}
+
+// Exporter la fonction
+window.NetGuardAuth = {
+    ...window.NetGuardAuth,
+    login  // Ajouter la fonction login
+};
