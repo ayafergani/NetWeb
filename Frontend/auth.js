@@ -1,4 +1,9 @@
 (function () {
+  // ========================================================
+  // MODE DESIGN : Mettre à true pour désactiver la sécurité
+  const DEV_MODE = false; 
+  // ========================================================
+
   const STORAGE_KEY = 'netguardSession';
   const ROLES = {
     ADMIN: 'ADMIN',
@@ -26,6 +31,14 @@
   };
 
   function getSession() {
+    if (DEV_MODE) {
+      return { 
+        username: 'dev_design', 
+        name: 'Designer', 
+        role: ROLES.ADMIN, 
+        token: 'dev-token' 
+      };
+    }
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       return raw ? JSON.parse(raw) : null;
@@ -74,7 +87,7 @@
 
   function getDefaultPage(role) {
     const safeRole = String(role || '').toUpperCase(); // Force la lecture en majuscules
-    return DEFAULT_PAGE_BY_ROLE[safeRole] || 'netguard_login_v2.html';
+    return DEFAULT_PAGE_BY_ROLE[safeRole] || 'login.html';
   }
 
   function redirectToDefault(role) {
@@ -82,10 +95,14 @@
   }
 
   function requirePageAccess(pageId) {
+    if (DEV_MODE) {
+      return true; // Désactive le "videur" pour le design
+    }
+
     const session = getSession();
 
     if (!session) {
-      window.location.replace('netguard_login_v2.html');
+      window.location.replace('login.html');
       return false;
     }
 
@@ -130,6 +147,9 @@
   }
 
   function getAuthHeaders() {
+    if (DEV_MODE) {
+      return { 'Content-Type': 'application/json', 'Authorization': 'Bearer dev-token' };
+    }
     const token = localStorage.getItem('jwtToken');
     return {
       'Content-Type': 'application/json',
@@ -154,39 +174,3 @@
     getAuthHeaders
   };
 })();
-
-// Ajoute cette fonction à ton auth.js
-async function login(username, password) {
-    try {
-        const response = await fetch('http://localhost:5000/api/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ username, password }),
-            credentials: 'include'  // Important pour les cookies/sessions
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            // Stocker la session comme avant
-            setSession({
-                username: data.username,
-                name: data.name,
-                role: data.role
-            });
-            return { success: true, role: data.role };
-        } else {
-            const error = await response.json();
-            return { success: false, error: error.error };
-        }
-    } catch (error) {
-        return { success: false, error: 'Erreur réseau' };
-    }
-}
-
-// Exporter la fonction
-window.NetGuardAuth = {
-    ...window.NetGuardAuth,
-    login  // Ajouter la fonction login
-};
