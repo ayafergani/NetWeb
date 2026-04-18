@@ -651,5 +651,41 @@ function App() {
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
+<script>
+  // Script de synchronisation du dark mode entre les pages
+  (function syncDarkMode() {
+    // Appliquer le thème sauvegardé immédiatement
+    const savedTheme = localStorage.getItem('netguard-theme');
+    const htmlElement = document.documentElement;
+    
+    if (savedTheme === 'dark') {
+      htmlElement.classList.add('dark-mode');
+    } else if (savedTheme === 'light') {
+      htmlElement.classList.remove('dark-mode');
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      htmlElement.classList.add('dark-mode');
+    }
+    
+    // Écouter les changements de thème depuis d'autres onglets/fenêtres
+    window.addEventListener('storage', function(e) {
+      if (e.key === 'netguard-theme') {
+        if (e.newValue === 'dark') {
+          htmlElement.classList.add('dark-mode');
+        } else if (e.newValue === 'light') {
+          htmlElement.classList.remove('dark-mode');
+        }
+      }
+    });
+    
+    // Écouter l'événement personnalisé
+    window.addEventListener('themeChanged', function(e) {
+      if (e.detail.isDark) {
+        htmlElement.classList.add('dark-mode');
+      } else {
+        htmlElement.classList.remove('dark-mode');
+      }
+    });
+  })();
+</script>
 </body>
 </html>

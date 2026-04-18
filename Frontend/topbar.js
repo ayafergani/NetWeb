@@ -73,18 +73,73 @@
     countEl.style.display = value > 0 ? 'flex' : 'none';
   }
 
+  // ========== GESTION DU DARK MODE UNIFIÉE ==========
   function setTheme(isDark) {
-    const rootElement = document.documentElement;
-    rootElement.classList.toggle('dark-theme', isDark);
-    themeToggle.classList.toggle('toggle-active', isDark);
-    themeToggle.setAttribute('aria-pressed', String(isDark));
-    themeToggle.title = isDark ? 'Activer le thème clair' : 'Activer le thème sombre';
+    const htmlElement = document.documentElement;
+    const bodyElement = document.body;
+    
+    if (isDark) {
+      htmlElement.classList.add('dark-mode');
+      bodyElement.classList.add('dark-mode');
+      // Pour la compatibilité avec l'ancien système
+      htmlElement.classList.remove('dark-theme');
+      bodyElement.classList.remove('dark-theme');
+    } else {
+      htmlElement.classList.remove('dark-mode');
+      bodyElement.classList.remove('dark-mode');
+      htmlElement.classList.remove('dark-theme');
+      bodyElement.classList.remove('dark-theme');
+    }
+    
+    // Mettre à jour l'icône du toggle
+    if (themeToggle) {
+      themeToggle.classList.toggle('toggle-active', isDark);
+      themeToggle.setAttribute('aria-pressed', String(isDark));
+      themeToggle.title = isDark ? 'Activer le thème clair' : 'Activer le thème sombre';
+      
+      // Changer l'icône (lune -> soleil)
+      const svg = themeToggle.querySelector('svg');
+      if (svg) {
+        if (isDark) {
+          svg.innerHTML = '<path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>';
+        } else {
+          svg.innerHTML = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"></path>';
+        }
+      }
+    }
+    
+    // Sauvegarder dans localStorage
     localStorage.setItem('netguard-theme', isDark ? 'dark' : 'light');
+    
+    // Déclencher un événement personnalisé pour informer les autres composants
+    window.dispatchEvent(new CustomEvent('themeChanged', { detail: { isDark } }));
   }
 
   function toggleTheme() {
-    const isDark = !document.documentElement.classList.contains('dark-theme');
+    const isDark = !document.documentElement.classList.contains('dark-mode') && !document.body.classList.contains('dark-mode');
     setTheme(isDark);
+  }
+
+  // Initialiser le thème au chargement
+  function initTheme() {
+    const savedTheme = localStorage.getItem('netguard-theme');
+    // Vérifier aussi si la classe dark-mode est déjà présente sur l'élément html ou body
+    const hasDarkClass = document.documentElement.classList.contains('dark-mode') || document.body.classList.contains('dark-mode');
+    
+    let shouldBeDark = false;
+    
+    if (savedTheme === 'dark') {
+      shouldBeDark = true;
+    } else if (savedTheme === 'light') {
+      shouldBeDark = false;
+    } else if (hasDarkClass) {
+      shouldBeDark = true;
+    } else {
+      // Vérifier les préférences système
+      shouldBeDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    
+    setTheme(shouldBeDark);
   }
 
   function closeUserMenu() {
@@ -100,10 +155,18 @@
   subtitleEl.style.display = subtitleText ? 'block' : 'none';
   updateNotificationCount(notificationCount);
 
-  const storedTheme = localStorage.getItem('netguard-theme');
-  setTheme(storedTheme === 'dark');
+  // Initialiser le thème
+  initTheme();
 
-  themeToggle.addEventListener('click', toggleTheme);
+  window.addEventListener('storage', function(event) {
+    if (event.key === 'netguard-theme') {
+      setTheme(event.newValue === 'dark');
+    }
+  });
+
+  if (themeToggle) {
+    themeToggle.addEventListener('click', toggleTheme);
+  }
   userButton.addEventListener('click', function (event) {
     event.stopPropagation();
     toggleUserMenu();
@@ -117,7 +180,7 @@
   });
 
   document.addEventListener('click', function (event) {
-    if (!userMenu.contains(event.target) && event.target !== userButton) {
+    if (userMenu && !userMenu.contains(event.target) && event.target !== userButton) {
       closeUserMenu();
     }
   });
@@ -131,4 +194,5 @@
   };
 
   window.toggleTheme = toggleTheme;
+  window.setTheme = setTheme;
 })();
