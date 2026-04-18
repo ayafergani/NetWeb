@@ -375,6 +375,31 @@
 
       <button class="modal-btn modal-btn-secondary" onclick="backToStep1()">← Retour</button>
     </div>
+
+    <!-- ── ÉTAPE 3 : saisie du nouveau mot de passe ── -->
+    <div id="step3Section" style="display:none">
+      <div class="modal-info">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
+        <span id="step3Sub">Entrez votre nouveau mot de passe</span>
+      </div>
+
+      <div class="field">
+        <label>Nouveau mot de passe</label>
+        <input type="password" id="newPassword" placeholder="Nouveau mot de passe" />
+        <div class="strength-bar"><div class="strength-fill" id="newPwdStrength"></div></div>
+      </div>
+
+      <div class="field">
+        <label>Confirmer le mot de passe</label>
+        <input type="password" id="confirmPassword" placeholder="Confirmez le mot de passe" />
+      </div>
+
+      <div id="step3ErrBox" class="err"></div>
+      <div id="step3SuccessBox" class="success-msg"></div>
+
+      <button class="modal-btn" id="step3Btn" onclick="submitNewPassword()">Enregistrer le mot de passe →</button>
+      <button class="modal-btn modal-btn-secondary" onclick="backToStep1()">Annuler</button>
+    </div>
   </div>
 </div>
 
@@ -593,17 +618,34 @@ function doForgotStep1(){
   document.getElementById('forgotErrBox').style.display='none';
   document.getElementById('forgotSuccessBox').style.display='none';
   if(!identity){showForgotErr('⚠ Veuillez entrer votre email ou identifiant.');return;}
-
-  let foundUser=null,foundUsername=null;
-  for(const [username,userData] of Object.entries(users)){
-    if(username===identity||userData.email===identity){foundUser=userData;foundUsername=username;break;}
-  }
-  if(!foundUser){showForgotErr('⚠ Aucun compte trouvé avec ces informations.');return;}
-
   const btn=document.getElementById('step1Btn');
   btn.disabled=true;
-  btn.innerHTML='<span class="spinner"></span>Envoi du code…';
-  sendResetCode(foundUsername,foundUser,btn);
+  btn.innerHTML='<span class="spinner"></span>Vérification…';
+
+  // Appel backend pour vérifier l'email / identifiant dans la table 'utilisateur'
+  fetch('http://127.0.0.1:5000/api/check-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identity })
+  }).then(async resp => {
+    const data = await resp.json().catch(()=>({}));
+    if(!resp.ok){
+      btn.disabled=false; btn.textContent='Envoyer le code →';
+      if(resp.status===404) showForgotErr('⚠ Aucun compte trouvé avec ces informations.');
+      else showForgotErr('⚠ Erreur serveur lors de la vérification.');
+      return;
+    }
+
+    // data doit contenir { username, email }
+    const userData = { name: data.username || data.email, email: data.email };
+    btn.disabled=false; btn.textContent='Envoyer le code →';
+    // Envoi du code via EmailJS vers l'email récupéré depuis la base
+    sendResetCode(data.username, userData, btn);
+  }).catch(err=>{
+    console.error('Erreur check-email:', err);
+    btn.disabled=false; btn.textContent='Envoyer le code →';
+    showForgotErr('⚠ Impossible de contacter le serveur.');
+  });
 }
 
 /* ══════════════════════════════════════════════
@@ -663,26 +705,18 @@ function doForgotStep2(){
   }
 
   clearResetTimer();
+  // Passe à l'étape 3 : saisie du nouveau mot de passe
   setStep(3);
-
-  const tempPwd=Math.random().toString(36).slice(-8)+Math.random().toString(36).slice(-4).toUpperCase();
-  users[resetState.username].password=tempPwd;
-
-  const successBox=document.getElementById('forgotSuccessBox');
-  successBox.innerHTML=`✅ Code validé ! Mot de passe temporaire :<br>
-    <strong style="font-family:'DM Mono',monospace;font-size:15px;letter-spacing:2px;padding:2px 6px;border-radius:6px;background:rgba(100,108,255,0.15)">${tempPwd}</strong><br>
-    <small style="opacity:0.7">Connexion automatique dans 3s…</small>`;
-  successBox.style.display='block';
-  document.getElementById('step2Btn').disabled=true;
-  document.getElementById('step2Btn').textContent='✓ Validé';
-
-  setTimeout(()=>{
-    closeModal('forgot');
-    document.getElementById('uIn').value=resetState.username;
-    document.getElementById('pIn').value=tempPwd;
-    updateStrength(tempPwd);
-    resetState={username:null,code:null,expiry:null,timerInterval:null};
-  },3000);
+  document.getElementById('step2Section').style.display = 'none';
+  document.getElementById('step3Section').style.display = 'block';
+  document.getElementById('modalTitle').textContent = 'Choisissez un nouveau mot de passe';
+  document.getElementById('modalSub').textContent = 'Entrez et confirmez votre nouveau mot de passe';
+  document.getElementById('d0').value='';document.getElementById('d1').value='';document.getElementById('d2').value='';document.getElementById('d3').value='';document.getElementById('d4').value='';document.getElementById('d5').value='';
+  document.getElementById('newPassword').value='';
+  document.getElementById('confirmPassword').value='';
+  document.getElementById('newPwdStrength').style.width='0%';
+  document.getElementById('step3ErrBox').style.display='none';
+  document.getElementById('step3SuccessBox').style.display='none';
 }
 
 /* ══════════════════════════════════════════════
@@ -760,6 +794,52 @@ document.addEventListener('paste',e=>{
 function showForgotErr(msg){
   const box=document.getElementById('forgotErrBox');
   box.textContent=msg;box.style.display='block';
+}
+
+/* Validation et soumission du nouveau mot de passe (étape 3) */
+function updateNewPwdStrength(v){
+  const fill=document.getElementById('newPwdStrength');
+  if(!v){fill.style.width='0';return;}
+  const s=v.length>=12?100:v.length>=8?60:30;
+  fill.style.width=s+'%';
+  fill.style.background=s>=100?'#22c55e':s>=60?'#f59e0b':'#ef4444';
+}
+
+document.getElementById('newPassword')?.addEventListener?.('input', e => updateNewPwdStrength(e.target.value));
+
+async function submitNewPassword(){
+  const np = document.getElementById('newPassword').value;
+  const cp = document.getElementById('confirmPassword').value;
+  const errBox = document.getElementById('step3ErrBox');
+  const successBox = document.getElementById('step3SuccessBox');
+  errBox.style.display='none'; successBox.style.display='none';
+  if(!np || !cp){ errBox.textContent='⚠ Remplissez les deux champs.'; errBox.style.display='block'; return; }
+  if(np !== cp){ errBox.textContent='⚠ Les mots de passe ne correspondent pas.'; errBox.style.display='block'; return; }
+
+  const btn = document.getElementById('step3Btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Enregistrement…';
+
+  // Envoi au backend : username provenant de resetState
+  const username = resetState.username;
+  try{
+    const resp = await fetch('http://127.0.0.1:5000/reset-password-final', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, new_password: np })
+    });
+    const data = await resp.json().catch(()=>({}));
+    if(!resp.ok){ btn.disabled=false; btn.textContent='Enregistrer le mot de passe →'; errBox.textContent = data.error || 'Erreur serveur'; errBox.style.display='block'; return; }
+
+    successBox.textContent = '✅ Mot de passe mis à jour. Vous pouvez vous connecter.'; successBox.style.display='block';
+    btn.textContent = '✓ Enregistré';
+    setTimeout(()=>{
+      closeModal('forgot');
+      document.getElementById('uIn').value = username;
+      document.getElementById('pIn').value = np;
+      updateStrength(np);
+      resetState = { username:null, code:null, expiry:null, timerInterval:null };
+    },1500);
+
+  }catch(err){ console.error('Erreur reset-final:', err); btn.disabled=false; btn.textContent='Enregistrer le mot de passe →'; errBox.textContent='⚠ Impossible de contacter le serveur.'; errBox.style.display='block'; }
 }
 
 /* ══════════════════════════════════════════════

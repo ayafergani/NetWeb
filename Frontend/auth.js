@@ -30,33 +30,7 @@
     [ROLES.AUDITOR]: 'dashboard.html'
   };
 
-  // Base de données des utilisateurs avec emails (Utilisé pour la réinitialisation EmailJS)
-  const USERS_DB = {
-    admin: { 
-      password: '123', 
-      role: ROLES.ADMIN, 
-      name: 'Super Admin', 
-      email: 'benainimeroua@gmail.com' 
-    },
-    net: { 
-      password: '123', 
-      role: ROLES.NETWORK_ADMIN, 
-      name: 'Ingénieur Réseau', 
-      email: 'meloukromaissamalek@gmail.com' 
-    },
-    sec: { 
-      password: '123', 
-      role: ROLES.SECURITY_ADMIN, 
-      name: 'Analyste SOC', 
-      email: 'meloukromaissamalek@gmail.com' 
-    },
-    audit: { 
-      password: '123', 
-      role: ROLES.AUDITOR, 
-      name: 'Auditeur Externe', 
-      email: 'meloukromaissamalek@gmail.com' 
-    }
-  };
+  // NOTE: Removed hardcoded users. Password reset now uses backend endpoints.
 
   function getSession() {
     if (DEV_MODE) {
@@ -146,52 +120,56 @@
     return true;
   }
 
-  // Fonction pour trouver un utilisateur par email
-  function findUserByEmail(email) {
-    const normalizedEmail = email.toLowerCase().trim();
-    for (const [username, userData] of Object.entries(USERS_DB)) {
-      if (userData.email && userData.email.toLowerCase() === normalizedEmail) {
-        return {
-          username: username,
-          ...userData
-        };
+  // Demande de réinitialisation : appelle le backend pour générer et envoyer un token de reset
+  async function requestPasswordReset(email) {
+    if (!email) return { success: false, error: 'Email requis' };
+
+    if (DEV_MODE) {
+      console.log('[DEV] Simuler requestPasswordReset pour', email);
+      return { success: true, message: 'Simulé : si l\'email existe, un lien a été envoyé.' };
+    }
+
+    try {
+      const resp = await fetch('http://127.0.0.1:5000/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await resp.json();
+      if (resp.ok) {
+        return { success: true, message: data.message };
       }
+      return { success: false, error: data.error || 'Erreur lors de la requête' };
+    } catch (err) {
+      console.error('Erreur requestPasswordReset:', err);
+      return { success: false, error: 'Impossible de joindre le serveur' };
     }
-    return null;
   }
 
-  // Fonction pour réinitialiser le mot de passe
-  function resetPassword(email) {
-    const user = findUserByEmail(email);
-    if (!user) {
-      return { success: false, error: 'Aucun compte trouvé avec cet email' };
-    }
-    
-    // Générer un nouveau mot de passe aléatoire
-    const tempPassword = Math.random().toString(36).slice(-8);
-    USERS_DB[user.username].password = tempPassword;
-    
-    return { 
-      success: true, 
-      message: 'Nouveau mot de passe généré',
-      username: user.username,
-      newPassword: tempPassword,
-      email: email
-    };
-  }
+  // Effectuer la réinitialisation finale : envoie le token et le nouveau mot de passe au backend
+  async function performPasswordReset(token, newPassword) {
+    if (!token || !newPassword) return { success: false, error: 'Token et nouveau mot de passe requis' };
 
-  // Fonction pour obtenir les infos d'un utilisateur
-  function getUserInfo(username) {
-    const user = USERS_DB[username.toLowerCase()];
-    if (user) {
-      return {
-        username: username.toLowerCase(),
-        name: user.name,
-        role: user.role,
-        email: user.email
-      };
+    if (DEV_MODE) {
+      console.log('[DEV] Simuler performPasswordReset', token, newPassword);
+      return { success: true, message: 'Mot de passe réinitialisé (simulé).' };
     }
-    return null;
+
+    try {
+      const resp = await fetch('http://127.0.0.1:5000/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, new_password: newPassword })
+      });
+
+      const data = await resp.json();
+      if (resp.ok) return { success: true, message: data.message };
+      return { success: false, error: data.error || 'Erreur lors de la réinitialisation' };
+    } catch (err) {
+      console.error('Erreur performPasswordReset:', err);
+      return { success: false, error: 'Impossible de joindre le serveur' };
+    }
   }
 
   async function authenticate(username, password) {
@@ -240,7 +218,6 @@
   window.NetGuardAuth = {
     ROLES,
     PAGE_ACCESS,
-    USERS_DB,
     getSession,
     setSession,
     clearSession,
@@ -253,8 +230,7 @@
     requirePageAccess,
     authenticate,
     getAuthHeaders,
-    findUserByEmail,
-    resetPassword,
-    getUserInfo
+    requestPasswordReset,
+    performPasswordReset
   };
 })();
