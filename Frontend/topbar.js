@@ -74,9 +74,8 @@
   }
 
   function setTheme(isDark) {
-    const bodyElement = document.body;
-    bodyElement.classList.toggle('dark-mode', isDark);
-    bodyElement.classList.toggle('light-mode', !isDark);
+    const rootElement = document.documentElement;
+    rootElement.classList.toggle('dark-theme', isDark);
     themeToggle.classList.toggle('toggle-active', isDark);
     themeToggle.setAttribute('aria-pressed', String(isDark));
     themeToggle.title = isDark ? 'Activer le thème clair' : 'Activer le thème sombre';
@@ -84,7 +83,7 @@
   }
 
   function toggleTheme() {
-    const isDark = !document.body.classList.contains('dark-mode');
+    const isDark = !document.documentElement.classList.contains('dark-theme');
     setTheme(isDark);
   }
 
@@ -114,7 +113,7 @@
     if (window.NetGuardAuth && typeof window.NetGuardAuth.clearSession === 'function') {
       window.NetGuardAuth.clearSession();
     }
-    window.location.href = 'login.html';
+    window.location.href = 'netguard_login_v2.html';
   });
 
   document.addEventListener('click', function (event) {

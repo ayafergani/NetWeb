@@ -44,13 +44,6 @@
     const { useState, useEffect } = React;
     const { NetGuardAuth } = window;
 
-    const mockUsers = {
-      admin: { password: '123', role: NetGuardAuth.ROLES.ADMIN, name: 'Super Admin' },
-      net: { password: '123', role: NetGuardAuth.ROLES.NETWORK_ADMIN, name: 'Ingenieur Reseau' },
-      sec: { password: '123', role: NetGuardAuth.ROLES.SECURITY_ADMIN, name: 'Analyste SOC' },
-      audit: { password: '123', role: NetGuardAuth.ROLES.AUDITOR, name: 'Auditeur Externe' }
-    };
-
     function LoginPage() {
       const [username, setUsername] = useState('');
       const [password, setPassword] = useState('');
@@ -64,27 +57,19 @@
         }
       }, []);
 
-      const handleLogin = (event) => {
+      const handleLogin = async (event) => {
         event.preventDefault();
         setError('');
         setIsLoading(true);
 
-        setTimeout(() => {
-          const user = mockUsers[username.toLowerCase()];
-
-          if (user && user.password === password) {
-            NetGuardAuth.setSession({
-              username: username.toLowerCase(),
-              name: user.name,
-              role: user.role
-            });
-            window.location.href = NetGuardAuth.getDefaultPage(user.role);
-            return;
-          }
-
-          setError('Identifiant ou mot de passe incorrect.');
+        const result = await NetGuardAuth.authenticate(username, password);
+        if (result.success) {
+          NetGuardAuth.setSession(result.user);
+          window.location.href = NetGuardAuth.getDefaultPage(result.user.role);
+        } else {
+          setError(result.error);
           setIsLoading(false);
-        }, 800);
+        }
       };
 
       return (

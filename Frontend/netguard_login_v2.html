@@ -485,7 +485,7 @@ function updateStrength(v){
   fill.style.background=s>=100?'#22c55e':s>=60?'#f59e0b':'#ef4444';
 }
 
-function doLogin(){
+async function doLogin(){
   const u=document.getElementById('uIn').value.trim().toLowerCase();
   const p=document.getElementById('pIn').value;
   const err=document.getElementById('errBox');
@@ -494,21 +494,50 @@ function doLogin(){
   btn.disabled=true;
   btn.innerHTML='<span class="spinner"></span>Authentification…';
 
-  setTimeout(()=>{
-    const user=users[u];
-    if(user && user.password===p){
-      const sessionData={username:u,name:user.name,role:user.role,email:user.email,timestamp:Date.now()};
-      NetGuardAuth.setSession(sessionData);
+  // Blocage de sécurité : empêche l'utilisation via double-clic (file://)
+  if (window.location.protocol === 'file:') {
+    err.innerHTML = '⚠ <b>Erreur :</b> Vous avez ouvert ce fichier par un double-clic (file://).<br>La mémoire du navigateur est bloquée en mode fichier.<br><br>Tapez <b>http://localhost:8000/netguard_login_v2.html</b> dans la barre d\'adresse de votre navigateur pour que la redirection fonctionne.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Connexion →';
+    btn.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)';
+    return;
+  }
+
+  try {
+    // Vérification anti-cache : on s'assure que la nouvelle version de auth.js est bien chargée
+    if (typeof NetGuardAuth.authenticate !== 'function') {
+      throw new Error("CACHE_ERROR");
+    }
+
+    // On attend (await) la réponse du serveur backend
+    const result = await NetGuardAuth.authenticate(u, p);
+
+    if(result.success){
+      NetGuardAuth.setSession(result.user);
       btn.style.background='linear-gradient(135deg,#22c55e,#16a34a)';
-      btn.textContent='✓ Accès autorisé — '+user.name;
-      setTimeout(()=>{ window.location.href=NetGuardAuth.getDefaultPage(user.role); },1000);
+      const targetPage = NetGuardAuth.getDefaultPage(result.user.role);
+      console.log("Connexion réussie ! Rôle:", result.user.role, "-> Redirection vers:", targetPage);
+      btn.innerHTML='✓ Ouverture de <b>' + targetPage + '</b>';
+      setTimeout(()=>{ window.location.href = targetPage; }, 1500);
     } else {
+      err.innerHTML = '⚠ ' + result.error;
       err.style.display='block';
       btn.disabled=false;
       btn.textContent='Connexion →';
       btn.style.background='linear-gradient(135deg,#6366f1,#8b5cf6)';
     }
-  },900);
+  } catch (error) {
+    if (error.message === "CACHE_ERROR") {
+      err.innerHTML = '⚠ <b>Erreur :</b> Votre navigateur a gardé l\'ancienne version en mémoire.<br>Appuyez sur <b>Ctrl + F5</b> pour mettre à jour.';
+    } else {
+      err.innerHTML = '⚠ <b>Erreur Serveur :</b> Impossible de joindre Flask.<br>Vérifiez que le backend tourne bien.';
+    }
+    err.style.display='block';
+    btn.disabled=false;
+    btn.textContent='Connexion →';
+    btn.style.background='linear-gradient(135deg,#6366f1,#8b5cf6)';
+  }
 }
 
 /* ══════════════════════════════════════════════
@@ -740,6 +769,18 @@ document.addEventListener('DOMContentLoaded',()=>{
   loadTheme();
   if(typeof window.NetGuardAuth!=='undefined'){
     console.log('auth.js chargé ✓');
+    
+    // Si l'utilisateur a déjà une session valide, on le redirige tout de suite
+    const session = NetGuardAuth.getSession();
+    if (session && session.role) {
+      const targetPage = NetGuardAuth.getDefaultPage(session.role);
+      // On empêche la page de se recharger sur elle-même (boucle infinie)
+      if (targetPage !== 'netguard_login_v2.html' && targetPage !== 'login.html') {
+        window.location.replace(targetPage);
+      } else {
+        NetGuardAuth.clearSession(); // La session est corrompue, on la nettoie
+      }
+    }
   } else {
     console.log('auth.js non trouvé — mode standalone actif');
   }

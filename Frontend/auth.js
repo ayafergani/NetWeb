@@ -19,10 +19,10 @@
   };
 
   const DEFAULT_PAGE_BY_ROLE = {
-    [ROLES.ADMIN]: 'network-dashboard%20(1).html',
-    [ROLES.NETWORK_ADMIN]: 'network-dashboard%20(1).html',
-    [ROLES.SECURITY_ADMIN]: 'network-dashboard%20(1).html',
-    [ROLES.AUDITOR]: 'network-dashboard%20(1).html'
+    [ROLES.ADMIN]: 'dashboard.html',
+    [ROLES.NETWORK_ADMIN]: 'dashboard.html',
+    [ROLES.SECURITY_ADMIN]: 'dashboard.html',
+    [ROLES.AUDITOR]: 'dashboard.html'
   };
 
   function getSession() {
@@ -39,6 +39,9 @@
     localStorage.setItem('userRole', session.role);
     localStorage.setItem('userName', session.name);
     localStorage.setItem('userId', session.username);
+    if (session.token) {
+      localStorage.setItem('jwtToken', session.token);
+    }
   }
 
   function clearSession() {
@@ -46,6 +49,7 @@
     localStorage.removeItem('userRole');
     localStorage.removeItem('userName');
     localStorage.removeItem('userId');
+    localStorage.removeItem('jwtToken');
   }
 
   function getRole() {
@@ -69,7 +73,8 @@
   }
 
   function getDefaultPage(role) {
-    return DEFAULT_PAGE_BY_ROLE[role] || 'login.html';
+    const safeRole = String(role || '').toUpperCase(); // Force la lecture en majuscules
+    return DEFAULT_PAGE_BY_ROLE[safeRole] || 'netguard_login_v2.html';
   }
 
   function redirectToDefault(role) {
@@ -80,7 +85,7 @@
     const session = getSession();
 
     if (!session) {
-      window.location.replace('login.html');
+      window.location.replace('netguard_login_v2.html');
       return false;
     }
 
@@ -90,6 +95,46 @@
     }
 
     return true;
+  }
+
+  async function authenticate(username, password) {
+    try {
+      const response = await fetch('http://127.0.0.1:5000/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        // On s'assure que le rôle est bien en majuscules et sans espaces (ex: "admin" -> "ADMIN")
+        const safeRole = (data.role || '').trim().toUpperCase();
+        
+        return {
+          success: true,
+          user: {
+            username: username.toLowerCase(),
+            name: username.toLowerCase(),
+            role: safeRole,
+            token: data.access_token
+          }
+        };
+      } else {
+        return { success: false, error: data.error || 'Identifiant ou mot de passe incorrect' };
+      }
+    } catch (error) {
+      console.error("Erreur backend:", error);
+      return { success: false, error: 'Impossible de se connecter au serveur' };
+    }
+  }
+
+  function getAuthHeaders() {
+    const token = localStorage.getItem('jwtToken');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': token ? `Bearer ${token}` : ''
+    };
   }
 
   window.NetGuardAuth = {
@@ -104,6 +149,8 @@
     getAllowedPages,
     getDefaultPage,
     redirectToDefault,
-    requirePageAccess
+    requirePageAccess,
+    authenticate,
+    getAuthHeaders
   };
 })();

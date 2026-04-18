@@ -42,22 +42,15 @@
   </div>
 
   <script type="text/babel">
-    const { useState } = React;
+    const { useState, useEffect } = React;
 
     const currentSession = window.NetGuardAuth.getSession();
     const currentUser = currentSession
       ? { id: currentSession.username, username: currentSession.username, role: currentSession.role }
       : null;
 
-    const initialUsers = [
-      { id: 1, username: "admin", email: "admin@netguard.local", role: "ADMIN", status: "Active", lastLogin: "Il y a 5 min" },
-      { id: 2, username: "yassine_net", email: "yassine@netguard.local", role: "NETWORK_ADMIN", status: "Active", lastLogin: "Aujourd'hui 08:45" },
-      { id: 3, username: "sara_sec", email: "sara@netguard.local", role: "SECURITY_ADMIN", status: "Active", lastLogin: "Hier 16:30" },
-      { id: 4, username: "audit_ext", email: "auditor@external.com", role: "AUDITOR", status: "Disabled", lastLogin: "01/04/2026" }
-    ];
-
     const UsersPage = () => {
-      const [users, setUsers] = useState(initialUsers);
+      const [users, setUsers] = useState([]);
       const [searchQuery, setSearchQuery] = useState('');
       const [toast, setToast] = useState(null);
 
@@ -71,6 +64,26 @@
       const showToast = (message, type = 'success') => {
         setToast({ message, type });
         setTimeout(() => setToast(null), 3000);
+      };
+
+      // Charger les utilisateurs depuis Flask au démarrage
+      useEffect(() => {
+        if (currentUser && currentUser.role === window.NetGuardAuth.ROLES.ADMIN) {
+          fetchUsers();
+        }
+      }, []);
+
+      const fetchUsers = async () => {
+        try {
+          const response = await fetch('http://127.0.0.1:5000/users', { headers: window.NetGuardAuth.getAuthHeaders() });
+          if (response.ok) {
+            const data = await response.json();
+            // Ajout de statuts virtuels pour l'UI car Postgres ne les gère pas encore
+            setUsers(data.users.map(u => ({...u, status: "Active", lastLogin: "N/A"})));
+          }
+        } catch (error) {
+          showToast('Erreur réseau', 'error');
+        }
       };
 
       // --- LOGIQUE DE VÉRIFICATION DES RÔLES (RBAC) ---
@@ -217,30 +230,53 @@
           {isFormModalOpen && (
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
               <div className="modal-card bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl modal-enter">
-                <h2 className="text-2xl font-bold text-slate-800 mb-6">{editingUser ? 'Modifier Utilisateur' : 'Créer un Utilisateur'}</h2>
-                <form className="space-y-4" onSubmit={(e) => {
+                <h2 className="text-2xl font-bold text-slate-800 mb-6">Créer un Utilisateur</h2>
+                <form className="space-y-4" onSubmit={async (e) => {
                   e.preventDefault();
-                  setIsFormModalOpen(false);
-                  showToast(editingUser ? 'Utilisateur mis à jour' : 'Utilisateur créé avec succès');
+                  const userData = {
+                    username: e.target.username.value,
+                    email: e.target.email.value,
+                    password: e.target.password.value,
+                    role: e.target.role.value
+                  };
+                  
+                  try {
+                    const response = await fetch('http://127.0.0.1:5000/users', {
+                      method: 'POST',
+                      headers: window.NetGuardAuth.getAuthHeaders(),
+                      body: JSON.stringify(userData)
+                    });
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                      setIsFormModalOpen(false);
+                      showToast('Utilisateur créé avec succès');
+                      fetchUsers(); // Recharger la liste
+                    } else {
+                      showToast(result.error || 'Erreur', 'error');
+                    }
+                  } catch (err) {
+                    showToast('Erreur serveur', 'error');
+                  }
                 }}>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Nom d'utilisateur</label>
-                    <input type="text" defaultValue={editingUser?.username} required className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 bg-slate-50 font-medium" />
+                    <input type="text" name="username" defaultValue={editingUser?.username} required className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 bg-slate-50 font-medium" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Email</label>
-                    <input type="email" defaultValue={editingUser?.email} required className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 bg-slate-50 font-medium" />
+                    <input type="email" name="email" defaultValue={editingUser?.email} required className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 bg-slate-50 font-medium" />
                   </div>
                   {!editingUser && (
                     <div>
                       <label className="block text-xs font-bold text-slate-500 mb-1">Mot de passe</label>
-                      <input type="password" required className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 bg-slate-50" />
+                      <input type="password" name="password" required className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 bg-slate-50" />
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-500 mb-1">Rôle</label>
-                      <select defaultValue={editingUser?.role || 'AUDITOR'} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 font-bold text-slate-700 bg-slate-50">
+                      <select name="role" defaultValue={editingUser?.role || 'AUDITOR'} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 font-bold text-slate-700 bg-slate-50">
                         <option value="ADMIN">ADMIN</option>
                         <option value="NETWORK_ADMIN">NETWORK_ADMIN</option>
                         <option value="SECURITY_ADMIN">SECURITY_ADMIN</option>
@@ -264,7 +300,7 @@
                   <div className="flex gap-3 mt-8 pt-4 border-t border-slate-100">
                     <button type="button" onClick={() => setIsFormModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all">Annuler</button>
                     <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/15 hover:bg-indigo-700 transition-all">
-                      {editingUser ? 'Enregistrer' : 'Créer'}
+                      Créer
                     </button>
                   </div>
                 </form>
@@ -284,10 +320,15 @@
                 <div className="flex gap-3">
                   <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-2.5 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all">Annuler</button>
                   <button 
-                    onClick={() => {
-                      setUsers(users.filter(u => u.id !== targetUser.id));
-                      setIsDeleteModalOpen(false);
-                      showToast('Utilisateur supprimé', 'error');
+                    onClick={async () => {
+                      try {
+                        await fetch(`http://127.0.0.1:5000/users/${targetUser.id}`, {
+                          method: 'DELETE', headers: window.NetGuardAuth.getAuthHeaders()
+                        });
+                        setUsers(users.filter(u => u.id !== targetUser.id));
+                        setIsDeleteModalOpen(false);
+                        showToast('Utilisateur supprimé', 'error');
+                      } catch(e) { showToast('Erreur réseau', 'error'); }
                     }} 
                     className="flex-1 py-2.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 transition-all"
                   >
