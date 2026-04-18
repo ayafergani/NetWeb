@@ -196,18 +196,35 @@
       const [showCreateModal, setShowCreateModal] = useState(false);
       const [isDarkMode, setIsDarkMode] = useState(false);
 
-      // Check for saved theme preference or system preference
+      // Synchronize with the shared theme state used by the topbar
       useEffect(() => {
-        const savedTheme = localStorage.getItem('theme');
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
-        if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
-          setIsDarkMode(true);
-          document.documentElement.classList.add('dark-mode');
-        } else {
-          setIsDarkMode(false);
-          document.documentElement.classList.remove('dark-mode');
-        }
+        const applyTheme = (event) => {
+          const savedTheme = localStorage.getItem('netguard-theme');
+          const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const isDark = event?.detail?.isDark !== undefined
+            ? event.detail.isDark
+            : savedTheme === 'dark' || (!savedTheme && systemPrefersDark);
+
+          setIsDarkMode(isDark);
+
+          document.documentElement.classList.toggle('dark-mode', isDark);
+          document.body.classList.toggle('dark-mode', isDark);
+        };
+
+        const handleStorage = (e) => {
+          if (e.key === 'netguard-theme') {
+            applyTheme({ detail: { isDark: e.newValue === 'dark' } });
+          }
+        };
+
+        applyTheme();
+        window.addEventListener('themeChanged', applyTheme);
+        window.addEventListener('storage', handleStorage);
+
+        return () => {
+          window.removeEventListener('themeChanged', applyTheme);
+          window.removeEventListener('storage', handleStorage);
+        };
       }, []);
 
       const [vlans] = useState([
@@ -423,16 +440,5 @@
   </script>
   <script src="sidebar.js"></script>
   <script src="topbar.js"></script>
-  <script>
-    (function syncDarkClass() {
-      const root = document.documentElement;
-      function sync() {
-        if (root.classList.contains('dark') && !root.classList.contains('dark-mode')) root.classList.add('dark-mode');
-        if (root.classList.contains('dark-mode') && !root.classList.contains('dark')) root.classList.add('dark');
-      }
-      new MutationObserver(sync).observe(root, { attributes: true, attributeFilter: ['class'] });
-      sync();
-    })();
-  </script>
 </body>
 </html>

@@ -77,19 +77,13 @@
   function setTheme(isDark) {
     const htmlElement = document.documentElement;
     const bodyElement = document.body;
-    
-    if (isDark) {
-      htmlElement.classList.add('dark-mode');
-      bodyElement.classList.add('dark-mode');
-      // Pour la compatibilité avec l'ancien système
-      htmlElement.classList.remove('dark-theme');
-      bodyElement.classList.remove('dark-theme');
-    } else {
-      htmlElement.classList.remove('dark-mode');
-      bodyElement.classList.remove('dark-mode');
-      htmlElement.classList.remove('dark-theme');
-      bodyElement.classList.remove('dark-theme');
-    }
+
+    htmlElement.classList.toggle('dark-mode', isDark);
+    bodyElement.classList.toggle('dark-mode', isDark);
+    htmlElement.classList.toggle('dark', isDark);
+    bodyElement.classList.toggle('dark', isDark);
+    htmlElement.classList.toggle('dark-theme', false);
+    bodyElement.classList.toggle('dark-theme', false);
     
     // Mettre à jour l'icône du toggle
     if (themeToggle) {
@@ -116,29 +110,14 @@
   }
 
   function toggleTheme() {
-    const isDark = !document.documentElement.classList.contains('dark-mode') && !document.body.classList.contains('dark-mode');
-    setTheme(isDark);
+    const isDark = document.documentElement.classList.contains('dark-mode') || document.body.classList.contains('dark-mode');
+    setTheme(!isDark);
   }
 
   // Initialiser le thème au chargement
   function initTheme() {
     const savedTheme = localStorage.getItem('netguard-theme');
-    // Vérifier aussi si la classe dark-mode est déjà présente sur l'élément html ou body
-    const hasDarkClass = document.documentElement.classList.contains('dark-mode') || document.body.classList.contains('dark-mode');
-    
-    let shouldBeDark = false;
-    
-    if (savedTheme === 'dark') {
-      shouldBeDark = true;
-    } else if (savedTheme === 'light') {
-      shouldBeDark = false;
-    } else if (hasDarkClass) {
-      shouldBeDark = true;
-    } else {
-      // Vérifier les préférences système
-      shouldBeDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    
+    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
     setTheme(shouldBeDark);
   }
 
