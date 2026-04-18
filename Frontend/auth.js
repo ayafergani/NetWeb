@@ -30,6 +30,34 @@
     [ROLES.AUDITOR]: 'dashboard.html'
   };
 
+  // Base de données des utilisateurs avec emails (Utilisé pour la réinitialisation EmailJS)
+  const USERS_DB = {
+    admin: { 
+      password: '123', 
+      role: ROLES.ADMIN, 
+      name: 'Super Admin', 
+      email: 'benainimeroua@gmail.com' 
+    },
+    net: { 
+      password: '123', 
+      role: ROLES.NETWORK_ADMIN, 
+      name: 'Ingénieur Réseau', 
+      email: 'meloukromaissamalek@gmail.com' 
+    },
+    sec: { 
+      password: '123', 
+      role: ROLES.SECURITY_ADMIN, 
+      name: 'Analyste SOC', 
+      email: 'meloukromaissamalek@gmail.com' 
+    },
+    audit: { 
+      password: '123', 
+      role: ROLES.AUDITOR, 
+      name: 'Auditeur Externe', 
+      email: 'meloukromaissamalek@gmail.com' 
+    }
+  };
+
   function getSession() {
     if (DEV_MODE) {
       return { 
@@ -52,6 +80,9 @@
     localStorage.setItem('userRole', session.role);
     localStorage.setItem('userName', session.name);
     localStorage.setItem('userId', session.username);
+    if (session.email) {
+      localStorage.setItem('userEmail', session.email);
+    }
     if (session.token) {
       localStorage.setItem('jwtToken', session.token);
     }
@@ -62,6 +93,7 @@
     localStorage.removeItem('userRole');
     localStorage.removeItem('userName');
     localStorage.removeItem('userId');
+    localStorage.removeItem('userEmail');
     localStorage.removeItem('jwtToken');
   }
 
@@ -114,6 +146,54 @@
     return true;
   }
 
+  // Fonction pour trouver un utilisateur par email
+  function findUserByEmail(email) {
+    const normalizedEmail = email.toLowerCase().trim();
+    for (const [username, userData] of Object.entries(USERS_DB)) {
+      if (userData.email && userData.email.toLowerCase() === normalizedEmail) {
+        return {
+          username: username,
+          ...userData
+        };
+      }
+    }
+    return null;
+  }
+
+  // Fonction pour réinitialiser le mot de passe
+  function resetPassword(email) {
+    const user = findUserByEmail(email);
+    if (!user) {
+      return { success: false, error: 'Aucun compte trouvé avec cet email' };
+    }
+    
+    // Générer un nouveau mot de passe aléatoire
+    const tempPassword = Math.random().toString(36).slice(-8);
+    USERS_DB[user.username].password = tempPassword;
+    
+    return { 
+      success: true, 
+      message: 'Nouveau mot de passe généré',
+      username: user.username,
+      newPassword: tempPassword,
+      email: email
+    };
+  }
+
+  // Fonction pour obtenir les infos d'un utilisateur
+  function getUserInfo(username) {
+    const user = USERS_DB[username.toLowerCase()];
+    if (user) {
+      return {
+        username: username.toLowerCase(),
+        name: user.name,
+        role: user.role,
+        email: user.email
+      };
+    }
+    return null;
+  }
+
   async function authenticate(username, password) {
     try {
       const response = await fetch('http://127.0.0.1:5000/login', {
@@ -160,6 +240,7 @@
   window.NetGuardAuth = {
     ROLES,
     PAGE_ACCESS,
+    USERS_DB,
     getSession,
     setSession,
     clearSession,
@@ -171,6 +252,9 @@
     redirectToDefault,
     requirePageAccess,
     authenticate,
-    getAuthHeaders
+    getAuthHeaders,
+    findUserByEmail,
+    resetPassword,
+    getUserInfo
   };
 })();
