@@ -483,16 +483,20 @@ function toggleTheme(){
   if(body.classList.contains('dark-mode')){
     body.classList.replace('dark-mode','light-mode');
     icon.textContent='☀️'; text.textContent='Mode clair';
-    localStorage.setItem('theme','light');
+    localStorage.setItem('netguard-theme','light');
   } else {
     body.classList.replace('light-mode','dark-mode');
     icon.textContent='🌙'; text.textContent='Mode sombre';
-    localStorage.setItem('theme','dark');
+    localStorage.setItem('netguard-theme','dark');
   }
+  // Propager aux autres pages ouvertes
+  window.dispatchEvent(new CustomEvent('themeChanged', {
+    detail: { isDark: document.body.classList.contains('dark-mode') }
+  }));
 }
 
 function loadTheme(){
-  if(localStorage.getItem('theme')==='light'){
+  if(localStorage.getItem('netguard-theme')==='light'){
     document.body.classList.replace('dark-mode','light-mode');
     document.getElementById('themeIcon').textContent='☀️';
     document.getElementById('themeText').textContent='Mode clair';
@@ -847,6 +851,24 @@ async function submitNewPassword(){
 ══════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded',()=>{
   loadTheme();
+  // Écouter les changements de thème depuis topbar.js dans d'autres onglets
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'netguard-theme') {
+      if (e.newValue === 'light') {
+        document.body.classList.replace('dark-mode', 'light-mode');
+        var icon = document.getElementById('themeIcon');
+        var text = document.getElementById('themeText');
+        if (icon) icon.textContent = '☀️';
+        if (text) text.textContent = 'Mode clair';
+      } else {
+        document.body.classList.replace('light-mode', 'dark-mode');
+        var icon = document.getElementById('themeIcon');
+        var text = document.getElementById('themeText');
+        if (icon) icon.textContent = '🌙';
+        if (text) text.textContent = 'Mode sombre';
+      }
+    }
+  });
   if(typeof window.NetGuardAuth!=='undefined'){
     console.log('auth.js chargé ✓');
     
