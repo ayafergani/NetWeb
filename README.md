@@ -1,2 +1,1 @@
-<<<<<<< HEAD
-# NetWeb projet ids et segmentation. y x f
+NetWeb projet ids et segmentation. 

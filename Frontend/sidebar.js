@@ -12,7 +12,7 @@
   }
 
   const links = [
-    { id: 'dashboard', label: 'Dashboard', href: 'network-dashboard%20(1).html', icon: 'monitor' },
+    { id: 'dashboard', label: 'Dashboard', href: 'dashboard.html', icon: 'monitor' },
     { id: 'vlan', label: 'VLAN', href: 'vlan.html', icon: 'vlan' },
     { id: 'interfaces', label: 'Interfaces', href: 'interfaces.html', icon: 'ports' },
     { id: 'alerts', label: 'Alerts', href: 'snort_alerts_dashboard.html', icon: 'alert' },
