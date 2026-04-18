@@ -5,8 +5,3 @@ def hash_password(password):
 
 def check_password(password, hashed):
     return bcrypt.checkpw(password.encode(), hashed)
-
-password = b"123"
-hashed = bcrypt.hashpw(password, bcrypt.gensalt())
-
-print(hashed.decode())
