@@ -318,60 +318,24 @@
 </div>
 
 <script type="text/babel">
-const { useMemo, useState } = React;
+const { useMemo, useState, useEffect } = React;
 
-const overviewStats = [
-  { label: 'Total Alertes', value: '27', badge: '3 critiques', tone: 'bg-red', icon: 'alert' },
-  { label: 'Taux de Perte', value: '0.8%', badge: 'Stable', tone: 'bg-green', icon: 'loss' },
-  { label: 'Sessions TCP', value: '1,284', badge: 'Pic +12%', tone: 'bg-blue', icon: 'tcp' },
-  { label: 'Latence Moyenne', value: '18 ms', badge: 'Lien WAN', tone: 'bg-amber', icon: 'latency' }
-];
+const API_URL = "http://127.0.0.1:5000";
 
-const protocolData = [
-  { name: 'TCP', value: 68, color: '#6366f1' },
-  { name: 'UDP', value: 21, color: '#22c55e' },
-  { name: 'ICMP', value: 11, color: '#f59e0b' }
-];
-
-const topIps = [
-  { ip: '192.168.1.12', volume: '842 MB', packets: '124,220', protocol: 'TCP', share: '24%' },
-  { ip: '192.168.1.10', volume: '611 MB', packets: '88,941', protocol: 'UDP', share: '17%' },
-  { ip: '10.0.0.44', volume: '575 MB', packets: '76,120', protocol: 'TCP', share: '15%' },
-  { ip: '172.16.0.8', volume: '361 MB', packets: '34,220', protocol: 'ICMP', share: '10%' },
-  { ip: '192.168.1.45', volume: '330 MB', packets: '31,804', protocol: 'TCP', share: '9%' }
-];
-
-const ipRows = [
-  { ip: '192.168.1.12', tcp: 85210, udp: 23301, icmp: 1220, volume: '842 MB', lastActivity: '16:42:18' },
-  { ip: '192.168.1.10', tcp: 21114, udp: 62320, icmp: 5507, volume: '611 MB', lastActivity: '16:41:03' },
-  { ip: '10.0.0.44', tcp: 76120, udp: 0, icmp: 0, volume: '575 MB', lastActivity: '16:39:55' },
-  { ip: '172.16.0.8', tcp: 4810, udp: 2140, icmp: 27270, volume: '361 MB', lastActivity: '16:37:14' },
-  { ip: '192.168.1.45', tcp: 28144, udp: 3330, icmp: 330, volume: '330 MB', lastActivity: '16:34:08' },
-  { ip: '10.10.20.16', tcp: 19420, udp: 8420, icmp: 840, volume: '229 MB', lastActivity: '16:28:51' },
-  { ip: '192.168.20.7', tcp: 11488, udp: 6911, icmp: 140, volume: '188 MB', lastActivity: '16:24:30' }
-];
-
-const tcpPorts = [
-  { port: 443, service: 'HTTPS', count: '18,420' },
-  { port: 80, service: 'HTTP', count: '12,882' },
-  { port: 22, service: 'SSH', count: '3,410' },
-  { port: 445, service: 'SMB', count: '2,194' },
-  { port: 3389, service: 'RDP', count: '1,406' }
-];
-
-const udpPorts = [
-  { port: 53, service: 'DNS', count: '21,170' },
-  { port: 123, service: 'NTP', count: '6,248' },
-  { port: 161, service: 'SNMP', count: '1,986' },
-  { port: 500, service: 'IKE', count: '1,204' },
-  { port: 514, service: 'Syslog', count: '990' }
-];
-
-const portActivity = [
-  { label: '22 - SSH', value: 62, count: '3,410 connexions', color: '#6366f1' },
-  { label: '53 - DNS', value: 84, count: '21,170 datagrammes', color: '#22c55e' },
-  { label: '80 - HTTP', value: 48, count: '12,882 connexions', color: '#f59e0b' }
-];
+/* ── Hook générique fetch ── */
+function useApi(endpoint) {
+  const [data, setData]     = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]   = useState(null);
+  useEffect(() => {
+    setLoading(true);
+    fetch(API_URL + endpoint)
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, [endpoint]);
+  return { data, loading, error };
+}
 
 const Icon = ({ type }) => {
   const icons = {
@@ -408,75 +372,99 @@ const TableCard = ({ title, meta, children }) => (
   </div>
 );
 
-const OverviewPage = () => (
+const Spinner = () => (
+  <div style={{padding:'28px',textAlign:'center',color:'#6366f1',fontSize:'13px'}}>Chargement…</div>
+);
+const ErrMsg = ({msg}) => (
+  <div style={{padding:'28px',textAlign:'center',color:'#ef4444',fontSize:'13px'}}>⚠ {msg}</div>
+);
+
+const OverviewPage = () => {
+  const { data: statsData, loading: statsLoading, error: statsError } = useApi("/api/traffic/stats");
+  const { data: ipsData,   loading: ipsLoading,   error: ipsError   } = useApi("/api/traffic/top-ips?limit=5");
+
+  const s = statsData?.stats;
+  const overviewStats = s ? [
+    { label: 'Total Alertes',  value: String(s.total_alerts),  badge: `${s.critical_count} critiques`, tone: 'bg-red',   icon: 'alert'   },
+    { label: 'Taux de Perte',  value: s.avg_loss,              badge: 'Depuis DB',                     tone: 'bg-green', icon: 'loss'    },
+    { label: 'Sessions TCP',   value: String(s.tcp_sessions),  badge: `UDP: ${s.udp_sessions}`,        tone: 'bg-blue',  icon: 'tcp'     },
+    { label: 'IPs uniques',    value: String(s.unique_ips),    badge: 'Sources actives',               tone: 'bg-amber', icon: 'latency' },
+  ] : [];
+
+  return (
   <>
     <div className="stats-header-grid">
-      {overviewStats.map((stat) => <StatCard key={stat.label} stat={stat} />)}
+      {statsLoading ? <Spinner /> : statsError ? <ErrMsg msg={statsError} /> :
+        overviewStats.map((stat) => <StatCard key={stat.label} stat={stat} />)
+      }
     </div>
 
     <div className="dashboard-grid">
       <div className="panel-card">
         <div className="section-header">
           <span className="section-title">Répartition des protocoles</span>
-          <span className="section-meta">Capture de démonstration sur 15 min</span>
+          <span className="section-meta">Données réelles depuis la DB</span>
         </div>
         <div className="metrics-stack">
-          {protocolData.map((item) => (
-            <div className="metric-line" key={item.name}>
-              <span className="metric-label">{item.name}</span>
-              <div className="progress-track">
-                <div className="progress-bar" style={{ width: `${item.value}%`, background: item.color }}></div>
+          {statsLoading ? <Spinner /> : statsError ? <ErrMsg msg={statsError} /> :
+            (s?.protocol_distribution || []).map((item) => (
+              <div className="metric-line" key={item.name}>
+                <span className="metric-label">{item.name}</span>
+                <div className="progress-track">
+                  <div className="progress-bar" style={{ width: `${item.value}%`, background: item.color }}></div>
+                </div>
+                <span className="metric-value">{item.value}%</span>
               </div>
-              <span className="metric-value">{item.value}%</span>
-            </div>
-          ))}
+            ))
+          }
         </div>
       </div>
 
       <div className="panel-card">
         <div className="section-header">
           <span className="section-title">Volume de données</span>
-          <span className="section-meta">Flux agrégé</span>
+          <span className="section-meta">Flux agrégé depuis DB</span>
         </div>
         <div className="mini-stats-grid">
           <div className="mini-stat">
             <div className="mini-stat-label">RX Total</div>
-            <div className="mini-stat-value">4.8 GB</div>
-            <div className="mini-stat-note mono">Entrant sur interfaces LAN</div>
+            <div className="mini-stat-value">{statsLoading ? '…' : s?.rx_total ?? '--'}</div>
+            <div className="mini-stat-note mono">Σ volume entrant / total</div>
           </div>
           <div className="mini-stat">
             <div className="mini-stat-label">TX Total</div>
-            <div className="mini-stat-value">3.1 GB</div>
-            <div className="mini-stat-note mono">Sortant vers WAN</div>
+            <div className="mini-stat-value">{statsLoading ? '…' : s?.tx_total ?? '--'}</div>
+            <div className="mini-stat-note mono">Σ volume sortant / total</div>
           </div>
           <div className="mini-stat">
-            <div className="mini-stat-label">Paquets totaux</div>
-            <div className="mini-stat-value">486,209</div>
-            <div className="mini-stat-note mono">Fenêtre glissante 15 min</div>
+            <div className="mini-stat-label">Volume Total</div>
+            <div className="mini-stat-value">{statsLoading ? '…' : s?.volume_total ?? '--'}</div>
+            <div className="mini-stat-note mono">(RX + TX) / 2</div>
           </div>
           <div className="mini-stat">
-            <div className="mini-stat-label">Débit instantané</div>
-            <div className="mini-stat-value">214 Mbps</div>
-            <div className="mini-stat-note mono">Variation faible</div>
+            <div className="mini-stat-label">Taux de Perte</div>
+            <div className="mini-stat-value">{statsLoading ? '…' : s?.avg_loss ?? '--'}</div>
+            <div className="mini-stat-note mono">Σ loss / total alertes</div>
           </div>
         </div>
       </div>
     </div>
 
     <TableCard title="Top 5 IP" meta="Répartition du trafic réseau">
+      {ipsLoading ? <Spinner /> : ipsError ? <ErrMsg msg={ipsError} /> : (
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
               <th>Adresse IP</th>
-              <th>Volume (MB)</th>
+              <th>Volume</th>
               <th>Paquets</th>
-              <th>TCP/UDP/ICMP</th>
+              <th>Protocole</th>
               <th>% Trafic</th>
             </tr>
           </thead>
           <tbody>
-            {topIps.map((row, idx) => (
+            {(ipsData?.ips || []).map((row, idx) => (
               <tr key={row.ip} className="table-row" style={{ animationDelay: `${0.2 + idx * 0.05}s` }}>
                 <td className="mono">{row.ip}</td>
                 <td>{row.volume}</td>
@@ -492,19 +480,27 @@ const OverviewPage = () => (
           </tbody>
         </table>
       </div>
+      )}
     </TableCard>
   </>
-);
+  );
+};
 
 const IpPage = ({ search, setSearch, filter, setFilter }) => {
+  const { data, loading, error } = useApi("/api/traffic/ip-details");
+  const ipRows = data?.ips || [];
+
   const filteredRows = useMemo(() => {
     return ipRows.filter((row) => {
       const bySearch = row.ip.toLowerCase().includes(search.toLowerCase());
       if (filter === 'all') return bySearch;
-      if (filter === 'active') return bySearch && (row.tcp + row.udp + row.icmp) > 30000;
-      return bySearch && row.icmp > 1000;
+      if (filter === 'active') return bySearch && (row.tcp + row.udp + row.icmp) > 30;
+      return bySearch && row.icmp > 5;
     });
-  }, [search, filter]);
+  }, [ipRows, search, filter]);
+
+  if (loading) return <Spinner />;
+  if (error)   return <ErrMsg msg={error} />;
 
   return (
     <TableCard title="Adresses IP observées" meta={`${filteredRows.length} résultats`}>
@@ -559,7 +555,16 @@ const IpPage = ({ search, setSearch, filter, setFilter }) => {
   );
 };
 
-const PortsPage = () => (
+const PortsPage = () => {
+  const { data, loading, error } = useApi("/api/traffic/ports");
+  if (loading) return <Spinner />;
+  if (error)   return <ErrMsg msg={error} />;
+
+  const tcpPorts   = data?.tcp_ports    || [];
+  const udpPorts   = data?.udp_ports    || [];
+  const portActivity = data?.port_activity || [];
+
+  return (
   <>
     <div className="ports-grid">
       <TableCard title="Top ports TCP" meta="Connexions observées">
@@ -627,7 +632,8 @@ const PortsPage = () => (
       </div>
     </div>
   </>
-);
+  );
+};
 
 function App() {
   const [page, setPage] = useState('overview');
