@@ -5,6 +5,7 @@ from auth import auth_bp
 from Database.alerts import alerts_bp
 import os
 from flask_cors import CORS
+from Database.regles import regles_bp
 
 app = Flask(__name__)
 
@@ -19,6 +20,7 @@ jwt = JWTManager(app)
 app.register_blueprint(users_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(alerts_bp)   # ← routes /api/alerts ajoutées
+app.register_blueprint(regles_bp)
 
 if __name__ == "__main__":
     app.run(debug=True)

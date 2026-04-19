@@ -16,7 +16,7 @@
     { id: 'vlan', label: 'VLAN', href: 'vlan.html', icon: 'vlan' },
     { id: 'interfaces', label: 'Interfaces', href: 'interfaces.html', icon: 'ports' },
     { id: 'alerts', label: 'Alerts', href: 'alerts.html', icon: 'alert' },
-    { id: 'traffic', label: 'Traffic', href: 'nettraffic-analyzer.html', icon: 'traffic' },
+    { id: 'traffic', label: 'Traffic', href: 'traffic.html', icon: 'traffic' },
     { id: 'configuration', label: 'Configuration', href: 'Configuration.html', icon: 'config' },
     { id: 'users', label: 'Users', href: 'users.html', icon: 'users' },
     { id: 'logs', label: 'Logs', href: 'logs.html', icon: 'logs' }
