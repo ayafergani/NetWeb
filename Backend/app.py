@@ -2,6 +2,7 @@ from flask import Flask
 from flask_jwt_extended import JWTManager
 from users import users_bp
 from auth import auth_bp
+from Database.alerts import alerts_bp
 import os
 from flask_cors import CORS
 
@@ -17,6 +18,7 @@ jwt = JWTManager(app)
 # Enregistrement des routes modulaires (Blueprints)
 app.register_blueprint(users_bp)
 app.register_blueprint(auth_bp)
+app.register_blueprint(alerts_bp)   # ← routes /api/alerts ajoutées
 
 if __name__ == "__main__":
     app.run(debug=True)
