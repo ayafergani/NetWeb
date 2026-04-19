@@ -23,7 +23,8 @@ def login():
         conn = get_db_connection()
         cursor = conn.cursor()
         # Utiliser LOWER() pour une recherche insensible à la casse
-        cursor.execute("SELECT id_user, username, password, role FROM utilisateur WHERE LOWER(username) = LOWER(%s)", (username,))
+        # Récupérer aussi email depuis la table
+        cursor.execute("SELECT id_user, username, password, role, email FROM utilisateur WHERE LOWER(username) = LOWER(%s)", (username,))
         user = cursor.fetchone()
         cursor.close()
         conn.close()
@@ -45,12 +46,14 @@ def login():
     # Vérification du mot de passe
     if check_password(password, stored_hash):
         # Création du token
-        access_token = create_access_token(identity=username, additional_claims={"role": user[3]})
+        access_token = create_access_token(identity=user[1], additional_claims={"role": user[3]})
         
         return jsonify({
             "message": "login success",
             "access_token": access_token,
-            "role": user[3]
+            "username": user[1],        # ← username réel depuis la BDD
+            "email":    user[4] or "",  # ← email réel depuis la BDD
+            "role":     user[3]
         }), 200
     else:
         return jsonify({"error": "Identifiants incorrects"}), 401

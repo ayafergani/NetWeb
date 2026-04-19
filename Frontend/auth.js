@@ -189,10 +189,11 @@
         return {
           success: true,
           user: {
-            username: username.toLowerCase(),
-            name: username.toLowerCase(),
-            role: safeRole,
-            token: data.access_token
+            username: data.username || username,  // ← username réel depuis la BDD
+            name:     data.username || username,  // ← idem
+            email:    data.email    || '',        // ← email réel depuis la BDD
+            role:     safeRole,
+            token:    data.access_token
           }
         };
       } else {
