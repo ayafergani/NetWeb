@@ -194,6 +194,9 @@
     const VLANPage = () => {
       const [selectedVlan, setSelectedVlan] = useState(null);
       const [showCreateModal, setShowCreateModal] = useState(false);
+     const [isCreating, setIsCreating] = useState(false);
+      const [newVlan, setNewVlan] = useState({ id: '', name: '', type: 'Data', ports: '', switchIp: '', switchUser: '', switchPass: '' });
+      const [toastMsg, setToastMsg] = useState(null);
       const [isDarkMode, setIsDarkMode] = useState(false);
 
       // Synchronize with the shared theme state used by the topbar
@@ -227,11 +230,43 @@
         };
       }, []);
 
-      const [vlans] = useState([
+      const [vlans, setVlans] = useState([
         { id: 10, name: 'Finance', type: 'Data', ports: 'fa0/1, fa0/2', devices: 2, status: 'Active' },
         { id: 20, name: 'IT', type: 'Data', ports: 'fa0/3', devices: 1, status: 'Active' },
         { id: 99, name: 'Quarantine', type: 'Security', ports: 'fa0/4', devices: 1, status: 'Alert', reason: 'Intrusion detected (Snort)', srcIp: '192.168.1.10' }
       ]);
+
+      // Fonction pour envoyer l'ordre de création à Flask via Nornir
+      const handleCreateVlan = async () => {
+        if (!newVlan.id || !newVlan.name || !newVlan.switchIp || !newVlan.switchUser || !newVlan.switchPass) {
+          return alert("Veuillez remplir tous les champs (VLAN et Switch).");
+        }
+        setIsCreating(true);
+        
+        try {
+          const response = await fetch('http://127.0.0.1:5000/api/vlans', {
+            method: 'POST',
+            headers: window.NetGuardAuth.getAuthHeaders(),
+            body: JSON.stringify(newVlan)
+          });
+          
+          const data = await response.json();
+          if (response.ok) {
+            setVlans([...vlans, { ...newVlan, devices: 0, status: 'Active' }]);
+            setShowCreateModal(false);
+            // On garde les identifiants pour les prochains VLANs
+            setNewVlan({ id: '', name: '', type: 'Data', ports: '', switchIp: newVlan.switchIp, switchUser: newVlan.switchUser, switchPass: newVlan.switchPass });
+            setToastMsg("VLAN créé avec succès sur " + newVlan.switchIp + " (Nornir) !");
+            setTimeout(() => setToastMsg(null), 4000);
+          } else {
+            alert("Erreur: " + data.error);
+          }
+        } catch (error) {
+          alert("Erreur réseau: Impossible de joindre Flask.");
+        } finally {
+          setIsCreating(false);
+        }
+      };
 
       return (
         <div className="p-2 md:p-4 max-w-[1600px] mx-auto animate-in fade-in duration-500">
@@ -397,38 +432,65 @@
               }}>
                 <h2 className="text-2xl font-bold text-slate-800 mb-6 dark-mode:text-slate-100">Create New VLAN</h2>
                 <div className="space-y-5">
+                  {/* --- Paramètres de Connexion Nornir --- */}
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 dark-mode:bg-slate-700/30 dark-mode:border-slate-600 mb-4">
+                    <h3 className="text-xs font-bold text-indigo-600 mb-3 uppercase tracking-wider dark-mode:text-indigo-400">Connexion au Switch Cible</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">IP du Switch</label>
+                        <input type="text" value={newVlan.switchIp} onChange={(e) => setNewVlan({...newVlan, switchIp: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="192.168.1.200" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Utilisateur SSH</label>
+                        <input type="text" value={newVlan.switchUser} onChange={(e) => setNewVlan({...newVlan, switchUser: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="admin" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Mot de passe</label>
+                        <input type="password" value={newVlan.switchPass} onChange={(e) => setNewVlan({...newVlan, switchPass: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="••••" />
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">VLAN ID</label>
-                      <input type="number" className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="30" />
+                      <input type="number" value={newVlan.id} onChange={(e) => setNewVlan({...newVlan, id: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="30" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">VLAN Name</label>
-                      <input type="text" className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="Voice_VOIP" />
+                      <input type="text" value={newVlan.name} onChange={(e) => setNewVlan({...newVlan, name: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="Voice_VOIP" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">Traffic Type</label>
-                    <select className="w-full border border-slate-200 rounded-xl p-3 outline-none dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100">
-                      <option>Data</option>
-                      <option>Voice</option>
-                      <option>Security / Isolation</option>
+                    <select value={newVlan.type} onChange={(e) => setNewVlan({...newVlan, type: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100">
+                      <option value="Data">Data</option>
+                      <option value="Voice">Voice</option>
+                      <option value="Security">Security / Isolation</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">Initial Port Assignment</label>
-                    <input type="text" className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="fa0/10, fa0/11" />
+                    <input type="text" value={newVlan.ports} onChange={(e) => setNewVlan({...newVlan, ports: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="fa0/10, fa0/11" />
                   </div>
                   <div className="flex gap-4 mt-8">
                     <button onClick={() => setShowCreateModal(false)} className="flex-1 py-3 font-bold text-slate-400 hover:bg-slate-50 rounded-xl transition-all dark-mode:hover:bg-slate-700 dark-mode:text-slate-500">Cancel</button>
-                    <button className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl transition-all" style={{
+                    <button onClick={handleCreateVlan} disabled={isCreating} className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl transition-all disabled:opacity-50" style={{
                       boxShadow: isDarkMode
                         ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
                         : '0 4px 6px -1px rgba(99, 102, 241, 0.2), 0 2px 4px -1px rgba(99, 102, 241, 0.1)'
-                    }}>Create</button>
+                    }}>{isCreating ? 'Création...' : 'Create'}</button>
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Message de succès stylisé (Toast) */}
+          {toastMsg && (
+            <div className="fixed bottom-6 right-6 px-6 py-4 bg-emerald-600 rounded-xl shadow-2xl font-bold text-sm text-white z-50 flex items-center gap-3 animate-in">
+              <span>✅</span>
+              {toastMsg}
             </div>
           )}
         </div>
