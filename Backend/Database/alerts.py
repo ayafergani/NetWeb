@@ -172,4 +172,76 @@ def get_stats():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
+        conn.close
+        
+@alerts_bp.route("/api/last-triggered-rule", methods=["GET"])
+def get_last_triggered_rule():
+    """Récupère la dernière alerte et retourne les infos de la règle Snort correspondante"""
+    import re
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Récupérer la dernière alerte
+        cur.execute("""
+            SELECT 
+                id, 
+                timestamp,
+                attack_type,
+                details,
+                protocol,
+                severity
+            FROM alertes 
+            ORDER BY timestamp DESC 
+            LIMIT 1
+        """)
+        last_alert = cur.fetchone()
+        
+        if not last_alert:
+            return jsonify({
+                "success": True,
+                "has_alert": False,
+                "rule": None,
+                "message": "Aucune alerte détectée"
+            })
+        
+        # Extraire le SID depuis details ou attack_type
+        details = last_alert.get('details', '')
+        sid_match = re.search(r'sid:(\d+)', details)
+        
+        rule_info = {
+            "name": last_alert.get('attack_type', 'Attaque détectée'),
+            "action": "ALERT",
+            "description": f"Protocole: {last_alert.get('protocol', 'N/A')}",
+            "sid": None
+        }
+        
+        if sid_match:
+            sid = int(sid_match.group(1))
+            rule_info["sid"] = sid
+            
+            # Chercher la règle correspondante
+            cur.execute("""
+                SELECT sid, rule, action, protocol, src_ip, dst_ip
+                FROM regles 
+                WHERE sid = %s
+            """, (sid,))
+            db_rule = cur.fetchone()
+            
+            if db_rule:
+                msg_match = re.search(r'msg:"(.*?)"', db_rule['rule'] or '')
+                rule_info["name"] = msg_match.group(1) if msg_match else f"Règle SID {sid}"
+                rule_info["action"] = db_rule.get('action', 'alert').upper()
+                rule_info["description"] = f"{db_rule.get('protocol', 'TCP').upper()} {db_rule.get('src_ip', 'any')} → {db_rule.get('dst_ip', 'any')}"
+        
+        return jsonify({
+            "success": True,
+            "has_alert": True,
+            "rule": rule_info,
+            "alert_timestamp": last_alert['timestamp'].isoformat() if last_alert['timestamp'] else None
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
         conn.close()

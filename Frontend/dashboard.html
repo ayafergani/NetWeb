@@ -180,7 +180,7 @@
     .log-time {
       color: #94a3b8;
       font-family: 'DM Mono', monospace;
-      min-width: 80px;
+      min-width: 130px;
     }
 
     .log-msg {
@@ -237,14 +237,8 @@
       }
     }
 
-    /* Animations */
     .topbar { animation: slideDown 0.4s ease; }
     .stats-header-grid { animation: fadeInUp 0.4s ease backwards; animation-delay: 0.1s; }
-    .stat-mini-card { animation: fadeInUp 0.4s ease backwards; }
-    .stat-mini-card:nth-child(1) { animation-delay: 0.2s; }
-    .stat-mini-card:nth-child(2) { animation-delay: 0.25s; }
-    .stat-mini-card:nth-child(3) { animation-delay: 0.3s; }
-    .stat-mini-card:nth-child(4) { animation-delay: 0.35s; }
     .management-grid { animation: fadeInUp 0.4s ease backwards; animation-delay: 0.4s; }
     .logs-section { animation: fadeInUp 0.4s ease backwards; animation-delay: 0.5s; }
 
@@ -326,20 +320,13 @@
       );
     };
 
-    // API base URL
     const API_BASE_URL = window.location.port === '5000' ? '' : 'http://127.0.0.1:5000';
 
-    // ============================================
-    // FONCTION D'ANALYSE DU TRAFIC (UNIQUEMENT)
-    // ============================================
-
-    // Analyser le statut du trafic en fonction des alertes
     const analyzeTrafficStatus = (alerts) => {
       if (!alerts || alerts.length === 0) {
         return { status: 'Normal', color: '#22c55e', bg: 'bg-green' };
       }
       
-      // Compter les alertes critiques des dernières 24h
       const oneDayAgo = new Date();
       oneDayAgo.setHours(oneDayAgo.getHours() - 24);
       
@@ -370,17 +357,14 @@
       const [allAlerts, setAllAlerts] = useState([]);
       const [rulesCount, setRulesCount] = useState(0);
       const [loading, setLoading] = useState(true);
-      
-      // State pour le statut du trafic
       const [trafficStatus, setTrafficStatus] = useState({ status: 'Normal', color: '#22c55e', bg: 'bg-green' });
+      const [lastTriggeredRule, setLastTriggeredRule] = useState(null);
+      const [userActivities, setUserActivities] = useState([]);
 
-      // Charger les statistiques depuis l'API
       const loadStats = async () => {
         try {
-          console.log("📡 Chargement des stats...");
           const response = await fetch(`${API_BASE_URL}/api/stats`);
           const data = await response.json();
-          console.log("📊 Stats reçues:", data);
           if (data.success && data.stats) {
             setStats(data.stats);
           }
@@ -389,13 +373,10 @@
         }
       };
 
-      // Charger les alertes récentes
       const loadRecentAlerts = async () => {
         try {
-          console.log("📡 Chargement des alertes récentes...");
           const response = await fetch(`${API_BASE_URL}/api/alerts?limit=5&sort=newest`);
           const data = await response.json();
-          console.log("🚨 Alertes reçues:", data);
           if (data.success && data.alerts) {
             setRecentAlerts(data.alerts.slice(0, 5));
           }
@@ -404,17 +385,12 @@
         }
       };
 
-      // Charger TOUTES les alertes pour analyse du trafic
       const loadAllAlerts = async () => {
         try {
-          console.log("📡 Chargement de toutes les alertes pour analyse...");
           const response = await fetch(`${API_BASE_URL}/api/alerts?limit=200&sort=newest`);
           const data = await response.json();
-          console.log("📦 Total alertes chargées:", data.alerts?.length || 0);
-          
           if (data.success && data.alerts) {
             setAllAlerts(data.alerts);
-            // Mettre à jour le statut du trafic
             const status = analyzeTrafficStatus(data.alerts);
             setTrafficStatus(status);
           }
@@ -423,13 +399,10 @@
         }
       };
 
-      // Charger le nombre de règles
       const loadRulesCount = async () => {
         try {
-          console.log("📡 Chargement du nombre de règles...");
           const response = await fetch(`${API_BASE_URL}/api/regles`);
           const data = await response.json();
-          console.log("📋 Règles reçues:", data);
           if (data.success) {
             setRulesCount(data.count || 0);
           }
@@ -438,13 +411,81 @@
         }
       };
 
-      // Charger toutes les données
+      const loadLastTriggeredRule = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/last-triggered-rule`);
+          const data = await response.json();
+          if (data.success && data.has_alert && data.rule) {
+            setLastTriggeredRule(data.rule);
+          } else {
+            setLastTriggeredRule(null);
+          }
+        } catch (error) {
+          console.error('Erreur chargement dernière règle:', error);
+          setLastTriggeredRule(null);
+        }
+      };
+
+      const loadUserActivities = async () => {
+        try {
+          const token = localStorage.getItem('jwtToken');
+          console.log("🔑 Token pour activités:", token ? "Présent" : "Absent");
+          
+          const response = await fetch(`${API_BASE_URL}/api/users/activity`, {
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : '',
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          console.log("📡 Réponse activités status:", response.status);
+          const data = await response.json();
+          console.log("📦 Données activités reçues:", data);
+          
+          if (data.success && data.logs) {
+            setUserActivities(data.logs);
+          } else {
+            console.log("❌ Aucune activité ou erreur:", data.error);
+          }
+        } catch (error) {
+          console.error('Erreur chargement activités:', error);
+        }
+      };
+
+      const formatActivityDate = (timestamp) => {
+        if (!timestamp) return '--/--/---- --:--';
+        const date = new Date(timestamp);
+        return date.toLocaleDateString('fr-FR', { 
+          day: '2-digit', 
+          month: 'short', 
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }).replace('.', '');
+      };
+
+      const formatAlertDate = (timestamp) => {
+        if (!timestamp) return '--/--/---- --:--';
+        const date = new Date(timestamp);
+        return date.toLocaleDateString('fr-FR', { 
+          day: '2-digit', 
+          month: 'short', 
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }).replace('.', '');
+      };
+
       const loadAllData = async () => {
         setLoading(true);
-        await loadStats();
-        await loadRecentAlerts();
-        await loadRulesCount();
-        await loadAllAlerts();
+        await Promise.all([
+          loadStats(),
+          loadRecentAlerts(),
+          loadRulesCount(),
+          loadAllAlerts(),
+          loadLastTriggeredRule(),
+          loadUserActivities()  // ← Bien présente !
+        ]);
         setLoading(false);
       };
 
@@ -452,14 +493,6 @@
         loadAllData();
       }, []);
 
-      // Formater la date
-      const formatTime = (timestamp) => {
-        if (!timestamp) return '';
-        const date = new Date(timestamp);
-        return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      };
-
-      // Obtenir la classe de sévérité
       const getSeverityClass = (severity) => {
         switch(severity) {
           case 'critical': return 'bg-red';
@@ -550,7 +583,6 @@
               </div>
             </div>
 
-            {/* ✅ Carte Network Monitoring avec statut du trafic DYNAMIQUE */}
             <div className="manage-section">
               <div className="section-header">
                 <span className="section-title">Network Monitoring</span>
@@ -593,9 +625,34 @@
                 <span className="section-title">Automation</span>
                 <div className="status-indicator" style={{ background: '#3b82f6' }}></div>
               </div>
-              <div className="data-row"><span className="data-label">Auto-isolate threats</span><span className="data-value">ON</span></div>
-              <div className="data-row"><span className="data-label">Active rules</span><span className="data-value" style={{ color: '#6366f1' }}>{rulesCount} rules</span></div>
-              <div className="data-row"><span className="data-label">Last triggered</span><span className="data-value">{recentAlerts[0]?.name?.substring(0, 30) || 'No alerts'}</span></div>
+              <div className="data-row">
+                <span className="data-label">Auto-isolate threats</span>
+                <span className="data-value">ON</span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Active rules</span>
+                <span className="data-value" style={{ color: '#6366f1' }}>{rulesCount} rules</span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Last triggered</span>
+                <span className="data-value" style={{ fontSize: '13px', textAlign: 'right', maxWidth: '180px' }}>
+                  {lastTriggeredRule ? (
+                    <div style={{ textAlign: 'right' }}>
+                      <strong style={{ color: '#ef4444' }}>{lastTriggeredRule.name}</strong>
+                      <br />
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>
+                        Action: {lastTriggeredRule.action}
+                      </span>
+                      <br />
+                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                        {lastTriggeredRule.description}
+                      </span>
+                    </div>
+                  ) : (
+                    <span style={{ color: '#94a3b8' }}>Aucune alerte</span>
+                  )}
+                </span>
+              </div>
               <div style={{ marginTop: '5px' }}>
                 {renderActionButton('configuration', 'Configure Rules')}
               </div>
@@ -616,16 +673,61 @@
             </div>
           </div>
 
+          {/* ✅ Section des logs récents (User Activities + Alerts) */}
           <div className="logs-section">
             <div className="section-header">
-              <span className="section-title">{canAccess('logs') ? 'Recent Audit Logs' : 'Recent Activity Logs'}</span>
+              <span className="section-title">Logs Récents</span>
             </div>
+            
+            {/* Titre des activités utilisateur */}
+            <div style={{ marginBottom: '8px', marginTop: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                🧑‍💻 Activités utilisateur ({userActivities.length})
+              </span>
+            </div>
+            
+            {/* Activités utilisateur (connexions/déconnexions) */}
+            {userActivities.length > 0 ? (
+              userActivities.map((activity, index) => (
+                <div className="log-row" key={`user-${index}`}>
+                  <span className="log-time">{formatActivityDate(activity.timestamp)}</span>
+                  <span className="log-msg">
+                    <strong>{activity.username}</strong> - {activity.action === 'login' ? 'connexion' : 'déconnexion'}
+                  </span>
+                  <span className={`log-tag ${activity.action === 'login' ? 'bg-green' : 'bg-red'}`}>
+                    {activity.action === 'login' ? 'Connexion' : 'Déconnexion'}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="log-row">
+                <span className="log-time">--/--/---- --:--</span>
+                <span className="log-msg">Aucune activité utilisateur récente</span>
+                <span className="log-tag bg-blue">Inactif</span>
+              </div>
+            )}
+
+            {/* Séparateur */}
+            <div style={{ 
+              margin: '12px 0 8px 0', 
+              height: '1px', 
+              background: 'linear-gradient(90deg, transparent, var(--border), transparent)' 
+            }}></div>
+
+            {/* Titre des alertes récentes */}
+            <div style={{ marginBottom: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                🚨 Alertes récentes ({recentAlerts.length})
+              </span>
+            </div>
+
+            {/* Alertes récentes AVEC DATE COMPLÈTE */}
             {recentAlerts.length > 0 ? (
               recentAlerts.map((alert, index) => (
-                <div className="log-row" key={alert.id || index}>
-                  <span className="log-time">{formatTime(alert.timestamp)}</span>
+                <div className="log-row" key={`alert-${index}`}>
+                  <span className="log-time">{formatAlertDate(alert.timestamp)}</span>
                   <span className="log-msg">
-                    {alert.name} - {alert.src} → {alert.dst}
+                    <strong>{alert.name}</strong> - {alert.src} → {alert.dst}
                   </span>
                   <span className={`log-tag ${getSeverityClass(alert.severity)}`}>
                     {getSeverityLabel(alert.severity)}
@@ -634,7 +736,7 @@
               ))
             ) : (
               <div className="log-row">
-                <span className="log-time">--:--:--</span>
+                <span className="log-time">--/--/---- --:--</span>
                 <span className="log-msg">Aucune alerte récente</span>
                 <span className="log-tag bg-blue">Inactif</span>
               </div>
