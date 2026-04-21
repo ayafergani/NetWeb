@@ -303,12 +303,29 @@ function updatePrintData(){
 
 const origPrint=window.print.bind(window);
 window.print=function(){updatePrintData();origPrint();};
-
-function loadRealAlerts(){
-  REAL_ALERTS_DATA.forEach((d)=>{alerts.push({id:++alertId,ts:new Date(d.date),src:d.src,dst:d.dst,name:d.name,proto:d.proto,sid:d.sid,rule:d.rule,payload:randHex(24),sev:"critical",isNew:false});});
-  updateStats();applyFilters();if(alerts.length>0) showDetail(alerts[0].id);showCritBanner(alerts[0]);critNotifCount=alerts.filter(a=>a.sev==="critical").length;const n=document.getElementById("notif-count");if(n){n.textContent=critNotifCount;n.style.display="flex"};}
-
+async function loadRealAlerts() {
+  const res = await fetch("http://localhost:5000/api/alerts");
+  const data = await res.json();
+  data.alerts.forEach(a => {
+    alerts.push({
+      id: a.id,
+      ts: new Date(a.timestamp),
+      src: a.src,
+      dst: a.dst,
+      name: a.name,
+      proto: a.proto,
+      sid: a.sid,
+      rule: a.rule,
+      payload: a.details || "",
+      sev: a.severity,
+      isNew: false
+    });
+  });
+  updateStats(); applyFilters();
+  if (alerts.length > 0) showDetail(alerts[0].id);
+}
 loadRealAlerts();
+
 </script>
 <script src="sidebar.js"></script>
 <script src="topbar.js"></script>

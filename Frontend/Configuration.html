@@ -55,7 +55,6 @@
     overflow-y: auto;
   }
 
-  /* Stats bar */
   .stats-header-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -72,6 +71,7 @@
     gap: 15px;
     box-shadow: var(--shadow);
     border: 1px solid var(--border);
+    transition: all 0.2s ease;
   }
 
   .stat-icon {
@@ -108,7 +108,6 @@
     font-weight: 600;
   }
 
-  /* Card regles */
   .manage-section {
     background: white;
     padding: 20px;
@@ -139,22 +138,67 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
+    transition: background 0.2s ease;
   }
 
-  /* Tableau - regles affichees entierement */
-  .table-wrap {
+  /* Conteneur scrollable pour la table */
+  .table-scroll-container {
+    max-height: 520px;
+    overflow-y: auto;
     overflow-x: auto;
-    margin-top: 5px;
+    border-radius: 12px;
+    scrollbar-width: thin;
   }
 
-  table {
+  /* Style du scrollbar */
+  .table-scroll-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .table-scroll-container::-webkit-scrollbar-track {
+    background: var(--border);
+    border-radius: 10px;
+  }
+
+  .table-scroll-container::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
+  }
+
+  .table-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #4f46e5;
+  }
+
+  /* Mode sombre scrollbar */
+  .dark-mode .table-scroll-container::-webkit-scrollbar-track {
+    background: #1e293b;
+  }
+
+  .dark-mode .table-scroll-container::-webkit-scrollbar-thumb {
+    background: #475569;
+  }
+
+  .dark-mode .table-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #6366f1;
+  }
+
+  /* En-tête de table sticky */
+  .table-scroll-container thead tr {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .table-scroll-container table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
   }
 
-  th {
-    text-align: left;
+  .table-scroll-container th {
+    background: #f8fafc;
+    box-shadow: 0 1px 0 var(--border);
     padding: 12px 12px;
     font-size: 11px;
     color: #64748b;
@@ -162,15 +206,13 @@
     letter-spacing: 0.08em;
     font-weight: 700;
     border-bottom: 1px solid var(--border);
-    background: #f8fafc;
   }
 
-  th:nth-child(1) { width: 90px; }
-  th:nth-child(2) { width: 100px; }
-  th:nth-child(3) { width: auto; }
+  .table-scroll-container th:nth-child(1) { width: 90px; }
+  .table-scroll-container th:nth-child(2) { width: 100px; }
+  .table-scroll-container th:nth-child(3) { width: auto; }
 
-  td {
-    text-align: left;
+  .table-scroll-container td {
     padding: 14px 12px;
     border-bottom: 1px solid #f1f5f9;
     font-size: 13px;
@@ -180,7 +222,7 @@
     word-wrap: break-word;
   }
 
-  td:nth-child(3) {
+  .table-scroll-container td:nth-child(3) {
     font-family: 'DM Mono', monospace;
     font-size: 12px;
     white-space: normal;
@@ -188,26 +230,22 @@
     line-height: 1.5;
   }
 
-  tbody tr {
+  .table-scroll-container tbody tr {
     transition: all 0.2s ease;
     cursor: pointer;
   }
 
-  tbody tr:hover {
+  .table-scroll-container tbody tr:hover {
     background: #f8fafc;
   }
 
-  tbody tr.selected {
+  .table-scroll-container tbody tr.selected {
     background: var(--primary-soft);
   }
 
-  tbody tr.selected td:first-child {
+  .table-scroll-container tbody tr.selected td:first-child {
     border-left: 3px solid var(--primary);
     padding-left: 9px;
-  }
-
-  tbody tr:last-child td {
-    border-bottom: none;
   }
 
   .mono {
@@ -235,7 +273,6 @@
     color: #92400e;
   }
 
-  /* Zone d'edition - police plus grande et plus lisible */
   .editor-area {
     width: 100%;
     min-height: 120px;
@@ -250,6 +287,7 @@
     font-size: 14px;
     line-height: 1.6;
     margin-top: 16px;
+    transition: all 0.2s ease;
   }
 
   .editor-area:focus {
@@ -257,7 +295,6 @@
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
   }
 
-  /* Label editeur */
   .editor-label {
     font-size: 13px;
     font-weight: 600;
@@ -267,7 +304,6 @@
     display: block;
   }
 
-  /* Boutons */
   .button-row {
     display: flex;
     gap: 12px;
@@ -282,51 +318,20 @@
     font-weight: 600;
     border: none;
     cursor: pointer;
-    transition: 0.2s;
+    transition: all 0.2s ease;
   }
 
-  .btn-primary {
-    background: #6366f1;
-    color: white;
-  }
-
-  .btn-primary:hover {
-    background: #4f46e5;
-  }
-
-  .btn-outline {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: #64748b;
-  }
-
-  .btn-outline:hover {
-    background: rgba(99, 102, 241, 0.08);
-    border-color: var(--primary);
-    color: var(--primary);
-  }
-
-  .btn-danger {
-    background: #ef4444;
-    color: white;
-  }
-
-  .btn-danger:hover {
-    background: #dc2626;
-  }
-
-  .btn-success {
-    background: #22c55e;
-    color: white;
-  }
-
-  .btn-success:hover {
-    background: #16a34a;
-  }
+  .btn-primary { background: #6366f1; color: white; }
+  .btn-primary:hover { background: #4f46e5; transform: translateY(-1px); }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: #64748b; }
+  .btn-outline:hover { background: rgba(99, 102, 241, 0.08); border-color: var(--primary); color: var(--primary); }
+  .btn-danger { background: #ef4444; color: white; }
+  .btn-danger:hover { background: #dc2626; transform: translateY(-1px); }
+  .btn-success { background: #22c55e; color: white; }
+  .btn-success:hover { background: #16a34a; transform: translateY(-1px); }
 
   .bg-blue { background: #eff6ff; color: #1d4ed8; }
   .bg-green { background: #f0fdf4; color: #166534; }
-  .bg-red { background: #fef2f2; color: #991b1b; }
   .bg-amber { background: #fffbeb; color: #92400e; }
 
   .toast {
@@ -342,10 +347,28 @@
     z-index: 1000;
     animation: slideIn 0.3s ease;
   }
+  .toast-error { background: #dc2626; }
+  .toast-success { background: #16a34a; }
 
   @keyframes slideIn {
     from { opacity: 0; transform: translateX(100%); }
     to { opacity: 1; transform: translateX(0); }
+  }
+
+  .loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #6366f1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
 
   @media (max-width: 860px) {
@@ -355,94 +378,8 @@
     .content { padding: 18px; }
     .button-row { flex-direction: column; }
     .btn { width: 100%; }
-    th:nth-child(1) { width: 70px; }
-    th:nth-child(2) { width: 85px; }
-  }
-
-  /* Animations d'entrée inspirées de snort_alerts_dashboard */
-  .topbar {
-    animation: slideDown 0.4s ease;
-  }
-
-  .stats-header-grid {
-    animation: fadeInUp 0.4s ease backwards;
-    animation-delay: 0.1s;
-  }
-
-  .stat-mini-card {
-    animation: fadeInUp 0.4s ease backwards;
-  }
-
-  .stat-mini-card:nth-child(1) { animation-delay: 0.2s; }
-  .stat-mini-card:nth-child(2) { animation-delay: 0.25s; }
-  .stat-mini-card:nth-child(3) { animation-delay: 0.3s; }
-
-  .manage-section {
-    animation: fadeInUp 0.4s ease backwards;
-    animation-delay: 0.4s;
-  }
-
-  .table-row {
-    animation: rowSlideIn 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1) both;
-  }
-
-  .table-row:nth-child(1) { animation-delay: 0.2s; }
-  .table-row:nth-child(2) { animation-delay: 0.25s; }
-  .table-row:nth-child(3) { animation-delay: 0.3s; }
-  .table-row:nth-child(4) { animation-delay: 0.35s; }
-
-  .button-row {
-    animation: fadeInUp 0.4s ease backwards;
-    animation-delay: 0.4s;
-  }
-
-  .editor-container {
-    animation: fadeInRight 0.4s ease backwards;
-    animation-delay: 0.5s;
-  }
-
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes rowSlideIn {
-    from {
-      opacity: 0;
-      transform: translateX(-12px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes fadeInRight {
-    from {
-      opacity: 0;
-      transform: translateX(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
+    .table-scroll-container th:nth-child(1) { width: 70px; }
+    .table-scroll-container th:nth-child(2) { width: 85px; }
   }
 </style>
 </head>
@@ -451,7 +388,6 @@
   <aside id="sidebar-root" class="sidebar-host" data-page="configuration"></aside>
   <main class="main">
     <div id="topbar-root" data-title="Configuration IDS" data-subtitle="Gestion des regles de securite et export Snort" data-notifications="2"></div>
-
     <section class="content">
       <div id="root"></div>
     </section>
@@ -461,14 +397,77 @@
 <script src="sidebar.js"></script>
 <script src="topbar.js"></script>
 <script type="text/babel">
-const { useState, useEffect } = React;
+const { useState, useEffect, useCallback } = React;
 
-const initialRules = [
-  { sid: '1000001', definition: 'alert tcp any any -> any 22 (msg:"SSH brute force suspect"; flow:to_server,established; sid:1000001; rev:1;)', type: 'tcp' },
-  { sid: '1000002', definition: 'alert udp any any -> any 53 (msg:"DNS tunnel activity detected"; content:"|01 00 00 00|"; sid:1000002; rev:1;)', type: 'udp' },
-  { sid: '1000003', definition: 'alert icmp any any -> any any (msg:"ICMP sweep detected"; itype:8; icode:0; sid:1000003; rev:1;)', type: 'icmp' },
-  { sid: '1000004', definition: 'alert tcp any any -> any 80 (msg:"Suspicious HTTP request"; content:"GET"; http_method; sid:1000004; rev:1;)', type: 'tcp' }
-];
+// API base URL
+const API_BASE_URL = window.location.port === '5000' ? '' : 'http://127.0.0.1:5000';
+
+// API functions
+const api = {
+  async getRules() {
+    const url = `${API_BASE_URL}/api/regles`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || "Erreur inconnue");
+    const rulesArray = data.regles || data.rules || [];
+    if (!Array.isArray(rulesArray)) throw new Error("La réponse ne contient pas un tableau de règles");
+    return rulesArray;
+  },
+
+  async addRule(rule) {
+    const response = await fetch(`${API_BASE_URL}/api/regles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rule })
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error);
+    return data;
+  },
+
+  async updateRule(sid, rule) {
+    const response = await fetch(`${API_BASE_URL}/api/regles/${sid}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rule })
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error);
+    return data;
+  },
+
+  async deleteRule(sid) {
+    const response = await fetch(`${API_BASE_URL}/api/regles/${sid}`, {
+      method: 'DELETE'
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error);
+    return data;
+  },
+
+  async resetRules() {
+    const response = await fetch(`${API_BASE_URL}/api/regles/reset`, {
+      method: 'POST'
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error);
+    return data;
+  }
+};
+
+function extractProtocol(rule) {
+  try {
+    const parts = rule.split(/\s+/);
+    if (parts.length > 1) {
+      const protocol = parts[1].toLowerCase();
+      if (['tcp', 'udp', 'icmp'].includes(protocol)) return protocol;
+    }
+    return 'tcp';
+  } catch (e) {
+    return 'tcp';
+  }
+}
 
 const StatCard = ({ icon, label, value, badge, tone }) => {
   const getIcon = () => {
@@ -479,11 +478,10 @@ const StatCard = ({ icon, label, value, badge, tone }) => {
       default: return null;
     }
   };
-
   return (
     <div className="stat-mini-card">
       <div className={`stat-icon ${tone}`}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           {getIcon()}
         </svg>
       </div>
@@ -497,133 +495,303 @@ const StatCard = ({ icon, label, value, badge, tone }) => {
 };
 
 function App() {
-  const [rules, setRules] = useState(initialRules);
-  const [selectedSid, setSelectedSid] = useState(initialRules[0].sid);
-  const [editorValue, setEditorValue] = useState(initialRules[0].definition);
-  const [toast, setToast] = useState('');
-  const [lastUpdate] = useState(new Date());
+  const [rules, setRules] = useState([]);
+  const [selectedSid, setSelectedSid] = useState(null);
+  const [editorValue, setEditorValue] = useState('');
+  const [toast, setToast] = useState({ message: '', type: '' });
+  const [loading, setLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // ✅ Mise à jour locale des statistiques sans recharger toute la page
+  const updateStatsOnly = useCallback((newRules) => {
+    // Met à jour uniquement les cartes statistiques
+    const statTotal = document.getElementById('stat-total-value');
+    if (statTotal) statTotal.textContent = newRules.length;
+  }, []);
+
+  const loadRules = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    try {
+      const rulesData = await api.getRules();
+      
+      let formattedRules = [];
+      if (Array.isArray(rulesData)) {
+        formattedRules = rulesData.map(rule => ({
+          sid: String(rule.sid),
+          definition: rule.rule,
+          type: extractProtocol(rule.rule)
+        }));
+      }
+      
+      // ✅ Mise à jour locale du state
+      setRules(formattedRules);
+      updateStatsOnly(formattedRules);
+      
+      if (formattedRules.length > 0) {
+        const stillExists = formattedRules.some(r => r.sid === selectedSid);
+        if (!stillExists || !selectedSid) {
+          setSelectedSid(formattedRules[0].sid);
+        }
+      } else {
+        setSelectedSid(null);
+        setEditorValue('');
+      }
+    } catch (error) {
+      console.error('Erreur chargement:', error);
+      setToast({ message: 'Erreur: ' + error.message, type: 'error' });
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  }, [selectedSid, updateStatsOnly]);
+
+  // Chargement initial uniquement
+  useEffect(() => {
+    loadRules(true);
+  }, []);
 
   useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(''), 2500);
+    if (toast.message) {
+      const timer = setTimeout(() => setToast({ message: '', type: '' }), 3000);
       return () => clearTimeout(timer);
     }
   }, [toast]);
 
   const selectedRule = rules.find(r => r.sid === selectedSid);
-
   useEffect(() => {
     if (selectedRule) setEditorValue(selectedRule.definition);
   }, [selectedSid, selectedRule]);
 
   const getTypeBadge = (type) => {
-    const classes = {
-      tcp: 'badge-tcp',
-      udp: 'badge-udp',
-      icmp: 'badge-icmp'
-    };
-    return <span className={`badge-tcp ${classes[type] || 'badge-tcp'}`}>{type.toUpperCase()}</span>;
+    const classes = { tcp: 'badge-tcp', udp: 'badge-udp', icmp: 'badge-icmp' };
+    return <span className={classes[type] || 'badge-tcp'}>{type.toUpperCase()}</span>;
   };
 
-  const handleRuleSelect = (sid) => setSelectedSid(sid);
-
-  const handleSaveRule = () => {
-    setRules(rules.map(r => r.sid === selectedSid ? { ...r, definition: editorValue } : r));
-    setToast('Regle sauvegardee');
-  };
-
-  const handleAddRule = () => {
-    const newSid = `10000${rules.length + 1}`;
-    const newRule = { sid: newSid, definition: `alert tcp any any -> any any (msg:"Nouvelle regle"; sid:${newSid}; rev:1;)`, type: 'tcp' };
-    setRules([...rules, newRule]);
-    setSelectedSid(newSid);
-    setToast('Nouvelle regle ajoutee');
-  };
-
-  const handleDeleteRule = () => {
-    if (rules.length > 1) {
-      const newRules = rules.filter(r => r.sid !== selectedSid);
-      setRules(newRules);
-      setSelectedSid(newRules[0].sid);
-      setToast('Regle supprimee');
-    } else {
-      setToast('Impossible de supprimer la derniere regle');
+  // ✅ Ajouter - met à jour uniquement la table et l'éditeur
+  const handleAddRule = async () => {
+    if (!editorValue.trim()) {
+      setToast({ message: 'Veuillez saisir une règle dans l\'éditeur', type: 'error' });
+      return;
+    }
+    
+    setActionLoading(true);
+    try {
+      let newRule = editorValue.trim();
+      const sidMatch = newRule.match(/sid:(\d+)/);
+      let newSid;
+      
+      if (sidMatch) {
+        newSid = parseInt(sidMatch[1]);
+      } else {
+        newSid = rules.length > 0 ? Math.max(...rules.map(r => parseInt(r.sid)), 1000000) + 1 : 1000001;
+        newRule = `${newRule} sid:${newSid};`;
+      }
+      
+      await api.addRule(newRule);
+      
+      // ✅ Recharge uniquement les données (pas la page)
+      await loadRules(false);
+      
+      setSelectedSid(String(newSid));
+      setToast({ message: 'Règle ajoutée', type: 'success' });
+      setLastUpdate(new Date());
+    } catch (error) {
+      setToast({ message: 'Erreur: ' + error.message, type: 'error' });
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleResetRules = () => {
-    setRules(initialRules);
-    setSelectedSid(initialRules[0].sid);
-    setToast('Regles reinitialisees');
+  // ✅ Modifier - met à jour uniquement la ligne modifiée
+  const handleSaveRule = async () => {
+    if (!selectedSid) {
+      setToast({ message: 'Sélectionnez une règle à modifier', type: 'error' });
+      return;
+    }
+    if (!editorValue.trim()) {
+      setToast({ message: 'La règle ne peut pas être vide', type: 'error' });
+      return;
+    }
+    
+    setActionLoading(true);
+    try {
+      await api.updateRule(parseInt(selectedSid), editorValue);
+      
+      // ✅ Mise à jour locale de la règle modifiée sans recharger tout
+      const updatedRules = rules.map(rule => 
+        rule.sid === selectedSid 
+          ? { ...rule, definition: editorValue, type: extractProtocol(editorValue) }
+          : rule
+      );
+      setRules(updatedRules);
+      
+      setToast({ message: 'Règle sauvegardée', type: 'success' });
+      setLastUpdate(new Date());
+    } catch (error) {
+      setToast({ message: 'Erreur: ' + error.message, type: 'error' });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
+  // ✅ Supprimer - supprime la ligne sans recharger
+  const handleDeleteRule = async () => {
+    if (!selectedSid) return;
+    if (rules.length <= 1) {
+      setToast({ message: 'Impossible de supprimer la dernière règle', type: 'error' });
+      return;
+    }
+    if (!confirm(`Supprimer la règle ${selectedSid} ?`)) return;
+    
+    setActionLoading(true);
+    try {
+      await api.deleteRule(parseInt(selectedSid));
+      
+      // ✅ Mise à jour locale après suppression
+      const newRules = rules.filter(r => r.sid !== selectedSid);
+      setRules(newRules);
+      
+      if (newRules.length > 0) {
+        setSelectedSid(newRules[0].sid);
+      } else {
+        setSelectedSid(null);
+        setEditorValue('');
+      }
+      
+      setToast({ message: 'Règle supprimée', type: 'success' });
+      setLastUpdate(new Date());
+    } catch (error) {
+      setToast({ message: 'Erreur: ' + error.message, type: 'error' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ✅ Reset - recharge depuis le serveur
+  const handleResetRules = async () => {
+    if (!confirm('⚠️ Supprimer TOUTES les règles ?')) return;
+    setActionLoading(true);
+    try {
+      await api.resetRules();
+      await loadRules(false);
+      setToast({ message: 'Base réinitialisée', type: 'success' });
+      setLastUpdate(new Date());
+    } catch (error) {
+      setToast({ message: 'Erreur: ' + error.message, type: 'error' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ✅ Export - ne change pas l'état
   const handleExportToSnort = async () => {
     const exportData = rules.map(r => r.definition).join('\n\n');
     try {
       await navigator.clipboard.writeText(exportData);
-      setToast('Regles copiees dans le presse-papiers');
+      setToast({ message: `${rules.length} règles copiées`, type: 'success' });
     } catch {
-      setToast('Erreur lors de la copie');
+      setToast({ message: 'Erreur de copie', type: 'error' });
     }
   };
+
+  // ✅ Sélection d'une règle - mise à jour locale uniquement
+  const handleRuleSelect = (sid) => {
+    setSelectedSid(sid);
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+        <div className="loading-spinner"></div>
+        <span style={{ marginLeft: '10px' }}>Chargement des règles...</span>
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="stats-header-grid">
         <StatCard icon="rules" label="Regles actives" value={rules.length} badge="En production" tone="bg-blue" />
-        <StatCard icon="export" label="Dernier export" value="Aujourd'hui" badge={lastUpdate.toLocaleTimeString('fr-FR')} tone="bg-green" />
-        <StatCard icon="snort" label="Statut Snort" value="Operationnel" badge="Pret" tone="bg-amber" />
+        <StatCard icon="export" label="Dernière modif" value={lastUpdate.toLocaleTimeString('fr-FR')} badge="Manuel" tone="bg-green" />
+        <StatCard icon="snort" label="Statut API" value="Connectée" badge="Prêt" tone="bg-amber" />
       </div>
 
       <div className="manage-section">
         <div className="section-header">
-          <span className="section-title">Regles IDS</span>
-          <div className="status-indicator" style={{ background: '#22c55e' }}></div>
+          <span className="section-title">Règles IDS</span>
+          <div className="status-indicator" style={{ background: rules.length > 0 ? '#22c55e' : '#ef4444' }}></div>
         </div>
 
-        <div className="table-wrap">
+        {/* Table scrollable */}
+        <div className="table-scroll-container">
           <table>
             <thead>
               <tr>
                 <th>SID</th>
                 <th>Protocole</th>
-                <th>Definition de la regle</th>
+                <th>Définition de la règle</th>
               </tr>
             </thead>
             <tbody>
               {rules.map(rule => (
-                <tr key={rule.sid} className={`table-row ${selectedSid === rule.sid ? 'selected' : ''}`} onClick={() => handleRuleSelect(rule.sid)}>
+                <tr 
+                  key={rule.sid} 
+                  className={selectedSid === rule.sid ? 'selected' : ''} 
+                  onClick={() => handleRuleSelect(rule.sid)}
+                >
                   <td className="mono">{rule.sid}</td>
                   <td>{getTypeBadge(rule.type)}</td>
                   <td>{rule.definition}</td>
                 </tr>
               ))}
+              {rules.length === 0 && (
+                <tr>
+                  <td colSpan="3" style={{ textAlign: 'center', padding: '40px' }}>
+                    Aucune règle trouvée. Écrivez une règle dans l'éditeur et cliquez "Ajouter".
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
         <div className="button-row">
-          <button className="btn btn-primary" onClick={handleAddRule}>Ajouter</button>
-          <button className="btn btn-outline" onClick={handleSaveRule}>Modifier</button>
-          <button className="btn btn-danger" onClick={handleDeleteRule}>Supprimer</button>
-          <button className="btn btn-outline" onClick={handleResetRules}>Reset</button>
-          <button className="btn btn-success" onClick={handleExportToSnort}>Exporter vers Snort</button>
+          <button className="btn btn-primary" onClick={handleAddRule} disabled={actionLoading}>
+            {actionLoading ? <div className="loading-spinner" style={{ width: '14px', height: '14px' }}></div> : 'Ajouter'}
+          </button>
+          <button className="btn btn-outline" onClick={handleSaveRule} disabled={actionLoading || !selectedSid}>
+            Modifier
+          </button>
+          <button className="btn btn-danger" onClick={handleDeleteRule} disabled={actionLoading || !selectedSid || rules.length <= 1}>
+            Supprimer
+          </button>
+          <button className="btn btn-outline" onClick={handleResetRules} disabled={actionLoading}>
+            Reset
+          </button>
+          <button className="btn btn-success" onClick={handleExportToSnort} disabled={rules.length === 0}>
+            Exporter
+          </button>
         </div>
 
         {selectedRule && (
-          <div className="editor-container">
-            <label className="editor-label">Editeur de regle - SID {selectedRule.sid}</label>
+          <div>
+            <label className="editor-label">Éditeur de règle - SID {selectedRule.sid}</label>
             <textarea
               className="editor-area"
               value={editorValue}
               onChange={e => setEditorValue(e.target.value)}
-              placeholder="Entrez la definition de la regle Snort..."
+              placeholder="Entrez la définition de la règle Snort..."
+              disabled={actionLoading}
             />
           </div>
         )}
       </div>
 
-      {toast && <div className="toast">{toast}</div>}
+      {toast.message && (
+        <div className={`toast ${toast.type === 'error' ? 'toast-error' : toast.type === 'success' ? 'toast-success' : ''}`}>
+          {toast.message}
+        </div>
+      )}
     </>
   );
 }
@@ -631,38 +799,23 @@ function App() {
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 <script>
-  // Script de synchronisation du dark mode entre les pages
   (function syncDarkMode() {
-    // Appliquer le thème sauvegardé immédiatement
     const savedTheme = localStorage.getItem('netguard-theme');
     const htmlElement = document.documentElement;
+    if (savedTheme === 'dark') htmlElement.classList.add('dark-mode');
+    else if (savedTheme === 'light') htmlElement.classList.remove('dark-mode');
+    else if (window.matchMedia('(prefers-color-scheme: dark)').matches) htmlElement.classList.add('dark-mode');
     
-    if (savedTheme === 'dark') {
-      htmlElement.classList.add('dark-mode');
-    } else if (savedTheme === 'light') {
-      htmlElement.classList.remove('dark-mode');
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      htmlElement.classList.add('dark-mode');
-    }
-    
-    // Écouter les changements de thème depuis d'autres onglets/fenêtres
     window.addEventListener('storage', function(e) {
       if (e.key === 'netguard-theme') {
-        if (e.newValue === 'dark') {
-          htmlElement.classList.add('dark-mode');
-        } else if (e.newValue === 'light') {
-          htmlElement.classList.remove('dark-mode');
-        }
+        if (e.newValue === 'dark') htmlElement.classList.add('dark-mode');
+        else if (e.newValue === 'light') htmlElement.classList.remove('dark-mode');
       }
     });
     
-    // Écouter l'événement personnalisé
     window.addEventListener('themeChanged', function(e) {
-      if (e.detail.isDark) {
-        htmlElement.classList.add('dark-mode');
-      } else {
-        htmlElement.classList.remove('dark-mode');
-      }
+      if (e.detail.isDark) htmlElement.classList.add('dark-mode');
+      else htmlElement.classList.remove('dark-mode');
     });
   })();
 </script>
