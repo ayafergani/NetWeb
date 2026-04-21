@@ -194,12 +194,13 @@
     const VLANPage = () => {
       const [selectedVlan, setSelectedVlan] = useState(null);
       const [showCreateModal, setShowCreateModal] = useState(false);
-     const [isCreating, setIsCreating] = useState(false);
-      const [newVlan, setNewVlan] = useState({ id: '', name: '', type: 'Data', ports: '', switchIp: '', switchUser: '', switchPass: '' });
+      const [isCreating, setIsCreating] = useState(false);
+      
+      // AJOUT : switchName
+      const [newVlan, setNewVlan] = useState({ id: '', name: '', type: 'Data', ports: '', switchName: '', switchIp: '', switchUser: '', switchPass: '', vlanIp: '' });
       const [toastMsg, setToastMsg] = useState(null);
       const [isDarkMode, setIsDarkMode] = useState(false);
 
-      // Synchronize with the shared theme state used by the topbar
       useEffect(() => {
         const applyTheme = (event) => {
           const savedTheme = localStorage.getItem('netguard-theme');
@@ -230,16 +231,17 @@
         };
       }, []);
 
+      // AJOUT : switchName pour un affichage propre
       const [vlans, setVlans] = useState([
-        { id: 10, name: 'Finance', type: 'Data', ports: 'fa0/1, fa0/2', devices: 2, status: 'Active' },
-        { id: 20, name: 'IT', type: 'Data', ports: 'fa0/3', devices: 1, status: 'Active' },
-        { id: 99, name: 'Quarantine', type: 'Security', ports: 'fa0/4', devices: 1, status: 'Alert', reason: 'Intrusion detected (Snort)', srcIp: '192.168.1.10' }
+        { id: 10, name: 'Finance', type: 'Data', switchName: 'Core-SW', switchIp: '192.168.1.200', vlanIp: '192.168.10.1', ports: 'fa0/1, fa0/2', devices: 2, status: 'Active' },
+        { id: 20, name: 'IT', type: 'Data', switchName: 'Core-SW', switchIp: '192.168.1.200', vlanIp: '192.168.20.1', ports: 'fa0/3', devices: 1, status: 'Active' },
+        { id: 99, name: 'Quarantine', type: 'Security', switchName: 'Access-SW-1', switchIp: '192.168.1.201', vlanIp: '--', ports: 'fa0/4', devices: 1, status: 'Alert', reason: 'Intrusion detected (Snort)', srcIp: '192.168.1.10' }
       ]);
 
-      // Fonction pour envoyer l'ordre de création à Flask via Nornir
       const handleCreateVlan = async () => {
-        if (!newVlan.id || !newVlan.name || !newVlan.switchIp || !newVlan.switchUser || !newVlan.switchPass) {
-          return alert("Veuillez remplir tous les champs (VLAN et Switch).");
+        // Validation avec switchName
+        if (!newVlan.id || !newVlan.name || !newVlan.switchIp || !newVlan.switchName || !newVlan.switchUser || !newVlan.switchPass) {
+          return alert("Veuillez remplir tous les champs (VLAN et informations du Switch).");
         }
         setIsCreating(true);
         
@@ -252,11 +254,10 @@
           
           const data = await response.json();
           if (response.ok) {
-            setVlans([...vlans, { ...newVlan, devices: 0, status: 'Active' }]);
+            setVlans([...vlans, { ...newVlan, vlanIp: newVlan.vlanIp || '--', devices: 0, status: 'Active' }]);
             setShowCreateModal(false);
-            // On garde les identifiants pour les prochains VLANs
-            setNewVlan({ id: '', name: '', type: 'Data', ports: '', switchIp: newVlan.switchIp, switchUser: newVlan.switchUser, switchPass: newVlan.switchPass });
-            setToastMsg("VLAN créé avec succès sur " + newVlan.switchIp + " (Nornir) !");
+            setNewVlan({ id: '', name: '', type: 'Data', ports: '', switchName: newVlan.switchName, switchIp: newVlan.switchIp, switchUser: newVlan.switchUser, switchPass: newVlan.switchPass, vlanIp: '' });
+            setToastMsg(`VLAN créé avec succès sur ${newVlan.switchName} !`);
             setTimeout(() => setToastMsg(null), 4000);
           } else {
             alert("Erreur: " + data.error);
@@ -314,10 +315,11 @@
                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">VLAN ID</th>
                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">Name</th>
                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">Type</th>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">Switch</th>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">IP SVI</th>
                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">Ports</th>
                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">Devices</th>
                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">Status</th>
-                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark-mode:divide-slate-700">
@@ -334,6 +336,9 @@
                               {vlan.type}
                             </span>
                           </td>
+                          {/* Affichage du NOM du switch et non de l'IP */}
+                          <td className="px-8 py-5 text-sm font-bold text-slate-700 dark-mode:text-slate-300">{vlan.switchName}</td>
+                          <td className="px-8 py-5 font-mono text-xs text-slate-600 dark-mode:text-slate-400">{vlan.vlanIp}</td>
                           <td className="px-8 py-5 text-sm font-medium text-slate-500 dark-mode:text-slate-400">{vlan.ports}</td>
                           <td className="px-8 py-5 text-sm font-bold text-slate-600 dark-mode:text-slate-300">{vlan.devices} dev.</td>
                           <td className="px-8 py-5">
@@ -341,11 +346,6 @@
                               <span className={`w-1.5 h-1.5 rounded-full ${vlan.status === 'Active' ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
                               {vlan.status}
                             </span>
-                          </td>
-                          <td className="px-8 py-5 text-right space-x-2">
-                            <button type="button" className="text-slate-400 hover:text-indigo-600 transition-colors dark-mode:hover:text-indigo-400">Edit</button>
-                            <button type="button" className="text-slate-400 hover:text-blue-600 transition-colors dark-mode:hover:text-blue-400">View</button>
-                            <button type="button" className="text-slate-400 hover:text-rose-600 transition-colors dark-mode:hover:text-rose-400">Delete</button>
                           </td>
                         </tr>
                       ))}
@@ -387,6 +387,19 @@
                       </div>
                     )}
 
+                    {/* Rappel des infos Switch et SVI dans les détails */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div className="p-4 bg-slate-50 rounded-2xl dark-mode:bg-slate-700/50">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase dark-mode:text-slate-500">Switch Cible</span>
+                        <p className="text-sm font-bold text-slate-700 dark-mode:text-slate-200 mt-1">{selectedVlan.switchName}</p>
+                        <p className="text-[10px] font-mono text-slate-400 mt-1">{selectedVlan.switchIp}</p>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-2xl dark-mode:bg-slate-700/50">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase dark-mode:text-slate-500">SVI (Gateway)</span>
+                        <p className="text-sm font-mono text-indigo-600 dark-mode:text-indigo-400 mt-1">{selectedVlan.vlanIp}</p>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="p-4 bg-slate-50 rounded-2xl dark-mode:bg-slate-700/50">
                         <span className="text-[10px] font-bold text-slate-400 uppercase dark-mode:text-slate-500">Ports UP</span>
@@ -425,17 +438,21 @@
 
           {showCreateModal && (
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-              <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-10 shadow-2xl animate-in zoom-in-95 duration-300 dark-mode:bg-slate-800 dark-mode:border dark-mode:border-slate-700" style={{
+              <div className="bg-white rounded-[2.5rem] w-full max-w-2xl p-10 shadow-2xl animate-in zoom-in-95 duration-300 dark-mode:bg-slate-800 dark-mode:border dark-mode:border-slate-700" style={{
                 boxShadow: isDarkMode
                   ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
                   : '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
               }}>
                 <h2 className="text-2xl font-bold text-slate-800 mb-6 dark-mode:text-slate-100">Create New VLAN</h2>
                 <div className="space-y-5">
-                  {/* --- Paramètres de Connexion Nornir --- */}
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 dark-mode:bg-slate-700/30 dark-mode:border-slate-600 mb-4">
                     <h3 className="text-xs font-bold text-indigo-600 mb-3 uppercase tracking-wider dark-mode:text-indigo-400">Connexion au Switch Cible</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* AJOUT : Champ pour le Nom du Switch dans le grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Nom du Switch</label>
+                        <input type="text" value={newVlan.switchName} onChange={(e) => setNewVlan({...newVlan, switchName: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="Core-SW" />
+                      </div>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">IP du Switch</label>
                         <input type="text" value={newVlan.switchIp} onChange={(e) => setNewVlan({...newVlan, switchIp: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="192.168.1.200" />
@@ -461,18 +478,28 @@
                       <input type="text" value={newVlan.name} onChange={(e) => setNewVlan({...newVlan, name: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="Voice_VOIP" />
                     </div>
                   </div>
+                  
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">Traffic Type</label>
-                    <select value={newVlan.type} onChange={(e) => setNewVlan({...newVlan, type: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100">
-                      <option value="Data">Data</option>
-                      <option value="Voice">Voice</option>
-                      <option value="Security">Security / Isolation</option>
-                    </select>
+                    <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">IP Gateway (SVI) - Optionnel</label>
+                    <input type="text" value={newVlan.vlanIp} onChange={(e) => setNewVlan({...newVlan, vlanIp: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="Ex: 192.168.30.1" />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">Initial Port Assignment</label>
-                    <input type="text" value={newVlan.ports} onChange={(e) => setNewVlan({...newVlan, ports: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="fa0/10, fa0/11" />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">Traffic Type</label>
+                      <select value={newVlan.type} onChange={(e) => setNewVlan({...newVlan, type: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100">
+                        <option value="Data">Data</option>
+                        <option value="Voice">Voice</option>
+                        <option value="Management">Management (Gestion & Admin)</option>
+                        <option value="Security">Security / Isolation</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">Initial Port Assignment</label>
+                      <input type="text" value={newVlan.ports} onChange={(e) => setNewVlan({...newVlan, ports: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="fa0/10, fa0/11" />
+                    </div>
                   </div>
+
                   <div className="flex gap-4 mt-8">
                     <button onClick={() => setShowCreateModal(false)} className="flex-1 py-3 font-bold text-slate-400 hover:bg-slate-50 rounded-xl transition-all dark-mode:hover:bg-slate-700 dark-mode:text-slate-500">Cancel</button>
                     <button onClick={handleCreateVlan} disabled={isCreating} className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl transition-all disabled:opacity-50" style={{
@@ -486,7 +513,6 @@
             </div>
           )}
 
-          {/* Message de succès stylisé (Toast) */}
           {toastMsg && (
             <div className="fixed bottom-6 right-6 px-6 py-4 bg-emerald-600 rounded-xl shadow-2xl font-bold text-sm text-white z-50 flex items-center gap-3 animate-in">
               <span>✅</span>
