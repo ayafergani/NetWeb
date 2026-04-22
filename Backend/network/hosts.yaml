@@ -1,0 +1,6 @@
+---
+switch1:
+  hostname: "10.10.10.50"
+  username: "admin"
+  password: "admin123" # Mets le vrai mot de passe ici
+  platform: "cisco_ios"

@@ -1,53 +1,48 @@
-from flask import Blueprint, request, jsonify
-from utils.decorators import require_role
-from nornir import InitNornir
-from nornir_netmiko.tasks import netmiko_send_config, netmiko_save_config
+from netmiko import ConnectHandler
 
-network_bp = Blueprint('network', __name__)
+print("🚀 Initialisation de l'automatisation via Câble Console...")
 
-@network_bp.route("/api/vlans", methods=["POST"])
-@require_role("ADMIN") # Ou NETWORK_ADMIN
-def create_vlan_on_switch():
-    data = request.json
-    vlan_id = data.get("id")
-    vlan_name = data.get("name")
+# On configure la connexion pour utiliser le câble bleu (Serial) au lieu de SSH
+switch = {
+    'device_type': 'cisco_ios_serial',
+    'serial_settings': {
+        'port': 'COM5',  # REMPLACE PAR TON PORT (ex: COM4, COM5...)
+        'baudrate': 9600,
+        'bytesize': 8,
+        'parity': 'N',
+        'stopbits': 1
+    },
+    # Pas besoin d'IP ! Le câble va direct au switch.
+}
 
-    # Nouveaux paramètres dynamiques
-    host = data.get("switchIp")
-    username = data.get("switchUser")
-    password = data.get("switchPass")
+# Les commandes qu'on veut pousser
+commands = [
+    "vlan 99",
+    "name Quarantine_Snort",
+    "exit"
+]
 
-    if not all([vlan_id, vlan_name, host, username, password]):
-        return jsonify({"error": "Paramètres VLAN et identifiants du switch requis"}), 400
+try:
+    print(f"📡 Connexion au port {switch['serial_settings']['port']} en cours...")
+    # On se connecte
+    net_connect = ConnectHandler(**switch)
+    
+    # On appuie sur "Entrée" pour réveiller la console
+    net_connect.write_channel('\r')
+    
+    print("✅ Connecté ! Envoi de la configuration...")
+    # On pousse les commandes
+    output = net_connect.send_config_set(commands)
+    
+    # On sauvegarde (write memory)
+    save_out = net_connect.save_config()
+    
+    print("\n--- Résultat du Déploiement ---")
+    print(output)
+    print("-------------------------------")
+    print("🎉 SUCCÈS ! Le VLAN a été créé via le câble Console !")
+    
+    net_connect.disconnect()
 
-    try:
-        # 1. Création d'un inventaire Nornir à la volée
-        inventory = {
-            "plugin": "DictInventory",
-            "options": {
-                "hosts": {
-                    "switch_cible": {
-                        "hostname": host,
-                        "username": username,
-                        "password": password,
-                        "platform": "ios" # plate-forme Cisco IOS
-                    }
-                }
-            }
-        }
-
-        # 2. Initialisation de Nornir
-        nr = InitNornir(inventory=inventory)
-        
-        # 3. Exécution de la tâche de configuration
-        commands = [f"vlan {vlan_id}", f"name {vlan_name}"]
-        result = nr.run(task=netmiko_send_config, config_commands=commands)
-        nr.run(task=netmiko_save_config) # write memory
-
-        if result.failed:
-            return jsonify({"error": f"Erreur SSH: {result['switch_cible'][0].exception}"}), 500
-
-        output = result["switch_cible"][0].result
-        return jsonify({"message": "VLAN créé avec succès via Nornir", "output": output}), 200
-    except Exception as e:
-        return jsonify({"error": f"Erreur critique de Nornir : {str(e)}"}), 500
+except Exception as e:
+    print(f"❌ Erreur : {e}")
