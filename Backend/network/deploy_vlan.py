@@ -1,50 +1,56 @@
-from netmiko import ConnectHandler
-import time
+from nornir import InitNornir
+from nornir_netmiko.tasks import netmiko_send_config, netmiko_save_config
+from nornir_utils.plugins.functions import print_result
 
-# --- CONFIGURATION CONSOLE ---
-# Remplace 'COM3' par ton numéro de port (vérifie dans le Gestionnaire de périphériques)
-device = {
-    'device_type': 'cisco_ios_serial',
-    'serial_settings': {
-        'port': 'COM5', 
-        'baudrate': 9600,
-    }
-}
+VLAN_ID   = 70
+VLAN_NAME = "Quarantine_Snort"
 
-# La liste des commandes pour créer ton VLAN
 commands = [
-    "vlan 99",
-    "name Quarantine_Snort",
+    f"vlan {VLAN_ID}",
+    f"name {VLAN_NAME}",
     "exit"
 ]
 
-def run_backup_deploy():
+def build_nornir():
+    return InitNornir(
+        runner={"plugin": "threaded", "options": {"num_workers": 1}},
+        inventory={
+            "plugin": "YAMLInventory",
+            "options": {
+                "host_file": "hosts.yaml",
+                "group_file": "groups.yaml",    # optionnel
+                "defaults_file": "defaults.yaml" # optionnel
+            }
+        },
+    )
+
+def run_deploy():
+    print("🔌 Connexion SSH via Nornir...")
     try:
-        print("🔌 Tentative de connexion via le câble Console...")
-        
-        # On se connecte
-        with ConnectHandler(**device) as net_connect:
-            # On envoie un retour à la ligne pour réveiller le switch
-            net_connect.write_channel('\r')
-            time.sleep(1)
-            
-            print("✅ Console détectée ! Envoi de la configuration...")
-            
-            # On envoie les commandes de VLAN
-            output = net_connect.send_config_set(commands)
-            
-            # On sauvegarde
-            print("💾 Sauvegarde en cours (write memory)...")
-            save_out = net_connect.save_config()
-            
-            print("\n--- RÉSULTAT DU SWITCH ---")
-            print(output)
-            print("--------------------------")
-            print("🎉 VICTOIRE ! Le VLAN 99 a été créé via l'automatisation Console.")
+        nr = build_nornir()
+        print("✅ Nornir initialisé ! Envoi de la configuration VLAN...")
+
+        result = nr.run(
+            task=netmiko_send_config,
+            config_commands=commands,
+            name=f"Création VLAN {VLAN_ID} - {VLAN_NAME}"
+        )
+
+        if result.failed:
+            exc = result["switch_cible"][0].exception
+            print(f"❌ Erreur SSH : {exc}")
+            return
+
+        print("\n--- RÉSULTAT DU SWITCH ---")
+        print_result(result)
+        print("--------------------------")
+
+        print("💾 Sauvegarde (write memory)...")
+        nr.run(task=netmiko_save_config)
+        print(f"🎉 VLAN {VLAN_ID} '{VLAN_NAME}' créé et sauvegardé !")
 
     except Exception as e:
         print(f"❌ Erreur critique : {e}")
-        print("\n💡 ASTUCE : Vérifie que PuTTY est bien FERMÉ et que le port COM est le bon !")
 
 if __name__ == "__main__":
-    run_backup_deploy()
+    run_deploy()

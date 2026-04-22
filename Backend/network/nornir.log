@@ -71,3 +71,7 @@ Traceback (most recent call last):
 nornir.core.exceptions.NornirSubTaskError: Subtask: netmiko_send_config (failed)
 
 
+2026-04-22 16:01:05,034 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 99 - Quarantine_Snort' with args {'config_commands': ['vlan 99', 'name Quarantine_Snort', 'exit']} on 1 hosts
+2026-04-22 16:01:07,152 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-04-22 16:01:23,174 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 70 - Quarantine_Snort' with args {'config_commands': ['vlan 70', 'name Quarantine_Snort', 'exit']} on 1 hosts
+2026-04-22 16:01:25,300 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts

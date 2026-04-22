@@ -1,6 +1,15 @@
----
-switch1:
-  hostname: "10.10.10.50"
-  username: "admin"
-  password: "admin123" # Mets le vrai mot de passe ici
-  platform: "cisco_ios"
+switch_cible:
+  hostname: 10.10.10.50
+  username: admin
+  password: admin123
+  platform: ios
+  port: 22
+  connection_options:
+    netmiko:
+      extras:
+        secret: cisco1
+        global_delay_factor: 2
+        disabled_algorithms:
+          pubkeys:
+            - rsa-sha2-256
+            - rsa-sha2-512
