@@ -16,7 +16,7 @@ class User:
         self.role = role
 
 @users_bp.route("/users", methods=["POST"])
-@require_role("ADMIN")  # Seul un ADMIN peut créer d'autres utilisateurs
+@require_role("ADMIN")
 def create_user():
     data = request.json
     username = data.get("username")
@@ -52,8 +52,22 @@ def get_users():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT id_user, username, email, role FROM utilisateur;")
-        users = [{"id": row[0], "username": row[1], "email": row[2], "role": row[3]} for row in cursor.fetchall()]
+        # ✅ Ajout des colonnes last_login et last_logout
+        cursor.execute("""
+            SELECT id_user, username, email, role, last_login, last_logout 
+            FROM utilisateur
+            ORDER BY id_user
+        """)
+        users = []
+        for row in cursor.fetchall():
+            users.append({
+                "id": row[0],
+                "username": row[1],
+                "email": row[2],
+                "role": row[3],
+                "last_login": row[4].isoformat() if row[4] else None,
+                "last_logout": row[5].isoformat() if row[5] else None
+            })
         cursor.close()
         conn.close()
         return jsonify({"users": users}), 200
@@ -69,3 +83,49 @@ def delete_user(user_id):
     conn.commit()
     conn.close()
     return jsonify({"message": "Utilisateur supprimé"}), 200
+
+# ✅ Route pour les activités utilisateur
+@users_bp.route("/api/users/activity", methods=["GET"])
+@require_role("ADMIN")
+def get_user_activity():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT username, last_login, last_logout 
+            FROM utilisateur
+            WHERE last_login IS NOT NULL OR last_logout IS NOT NULL
+        """)
+        
+        users = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        logs = []
+        for user in users:
+            username = user[0]
+            last_login = user[1]
+            last_logout = user[2]
+            
+            if last_login:
+                logs.append({
+                    "username": username,
+                    "action": "login",
+                    "timestamp": last_login.isoformat() if last_login else None
+                })
+            
+            if last_logout:
+                logs.append({
+                    "username": username,
+                    "action": "logout",
+                    "timestamp": last_logout.isoformat() if last_logout else None
+                })
+        
+        logs.sort(key=lambda x: x["timestamp"], reverse=True)
+        logs = logs[:10]
+        
+        return jsonify({"success": True, "logs": logs}), 200
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500

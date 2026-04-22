@@ -40,14 +40,34 @@
     icons[type] +
     '</svg>';
 
-  const handleLogout = () => {
-    window.NetGuardAuth.clearSession();
-    window.location.href = 'login.html';
+  // ✅ Fonction de déconnexion corrigée
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('jwtToken');
+      
+      // Appeler l'API de déconnexion pour enregistrer last_logout
+      if (token) {
+        await fetch('http://127.0.0.1:5000/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        console.log('✅ Déconnexion enregistrée');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    } finally {
+      // Nettoyer la session et rediriger
+      window.NetGuardAuth.clearSession();
+      window.location.href = 'login.html';
+    }
   };
 
   host.innerHTML = `
     <aside class="app-sidebar">
-      <a class="sidebar-logo" href="${window.NetGuardAuth.getDefaultPage(session.role)}" aria-label="Go to home">
+      <a class="sidebar-logo" href="${window.NetGuardAuth.getDefaultPage(session?.role)}" aria-label="Go to home">
         ${renderIcon('vlan')}
       </a>
       <nav class="sidebar-nav" aria-label="Main navigation">

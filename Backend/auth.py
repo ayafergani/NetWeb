@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from utils.security import check_password, hash_password
 from Database.db import get_db_connection
-from flask_jwt_extended import create_access_token, decode_token
+from flask_jwt_extended import create_access_token, decode_token, jwt_required, get_jwt_identity
 from datetime import timedelta
 
 auth_bp = Blueprint('auth', __name__)
@@ -16,14 +16,11 @@ def login():
         return jsonify({"error": "Nom d'utilisateur et mot de passe requis"}), 400
 
     try:
-        # Nettoyer les entrées
         username = username.strip()
         password = password.strip()
         
         conn = get_db_connection()
         cursor = conn.cursor()
-        # Utiliser LOWER() pour une recherche insensible à la casse
-        # Récupérer aussi email depuis la table
         cursor.execute("SELECT id_user, username, password, role, email FROM utilisateur WHERE LOWER(username) = LOWER(%s)", (username,))
         user = cursor.fetchone()
         cursor.close()
@@ -34,30 +31,63 @@ def login():
     if not user:
         return jsonify({"error": "Identifiants incorrects"}), 401
     
-    # Récupérer le hash stocké
     stored_hash = user[2]
     
-    # Conversion systématique en bytes pour bcrypt
     if isinstance(stored_hash, str):
         stored_hash = stored_hash.encode('utf-8')
     elif not isinstance(stored_hash, bytes):
         return jsonify({"error": "Format de mot de passe invalide"}), 500
     
-    # Vérification du mot de passe
     if check_password(password, stored_hash):
-        # Création du token
-        access_token = create_access_token(identity=user[1], additional_claims={"role": user[3]})
+        # ✅ Mettre à jour last_login
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE utilisateur SET last_login = NOW() WHERE id_user = %s",
+                (user[0],)
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Erreur mise à jour last_login: {e}")
+        
+        user_role = user[3].upper() if user[3] else "AUDITOR"
+        access_token = create_access_token(identity=user[1], additional_claims={"role": user_role})
         
         return jsonify({
             "message": "login success",
             "access_token": access_token,
-            "username": user[1],        # ← username réel depuis la BDD
-            "email":    user[4] or "",  # ← email réel depuis la BDD
-            "role":     user[3]
+            "username": user[1],
+            "email": user[4] or "",
+            "role": user_role
         }), 200
     else:
         return jsonify({"error": "Identifiants incorrects"}), 401
 
+# ✅ ROUTE DE DÉCONNEXION
+@auth_bp.route("/logout", methods=["POST"])
+@jwt_required()
+def logout():
+    try:
+        current_user = get_jwt_identity()
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            "UPDATE utilisateur SET last_logout = NOW() WHERE username = %s",
+            (current_user,)
+        )
+        conn.commit()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({"success": True, "message": "Déconnexion réussie"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @auth_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
@@ -79,13 +109,11 @@ def forgot_password():
 
     if user:
         username = user[1]
-        # token short-lived (30 minutes) with a pw_reset claim
         token = create_access_token(identity=username, additional_claims={"pw_reset": True}, expires_delta=timedelta(minutes=30))
         reset_link = f"http://localhost:5500/reset-password.html?token={token}"
         print(f"[INFO] Envoi simulé de l'email de réinitialisation à {email}: {reset_link}")
 
     return jsonify({"message": "Si un compte existe pour cet email, un lien de réinitialisation a été envoyé."}), 200
-
 
 @auth_bp.route('/api/check-email', methods=['POST'])
 def check_email():
@@ -109,13 +137,8 @@ def check_email():
 
     return jsonify({'id': user[0], 'username': user[1], 'email': user[2]}), 200
 
-
 @auth_bp.route("/reset-password", methods=["POST"])
 def reset_password():
-    """
-    Réinitialise le mot de passe en utilisant un token JWT
-    AUCUNE CONTRAINTE DE TAILLE sur le mot de passe
-    """
     data = request.json
     token = data.get("token")
     new_password = data.get("new_password")
@@ -123,7 +146,6 @@ def reset_password():
     if not token or not new_password:
         return jsonify({"error": "Token et nouveau mot de passe requis"}), 400
 
-    # Nettoyer le mot de passe (mais sans contrainte de taille)
     new_password = new_password.strip()
 
     try:
@@ -131,7 +153,6 @@ def reset_password():
     except Exception as e:
         return jsonify({"error": "Token invalide ou expiré"}), 400
 
-    # Vérifier la présence de la claim pw_reset
     if not decoded.get("pw_reset"):
         return jsonify({"error": "Token invalide pour la réinitialisation"}), 400
 
@@ -143,13 +164,9 @@ def reset_password():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 1. Hachage (bcrypt génère des bytes)
         new_hash_bytes = hash_password(new_password)
-        
-        # 2. Conversion en string pour stockage VARCHAR/TEXT
         new_hash_str = new_hash_bytes.decode('utf-8')
         
-        # 3. Update de la base de données
         cursor.execute("UPDATE utilisateur SET password = %s WHERE username = %s", (new_hash_str, username))
         
         if cursor.rowcount == 0:
@@ -158,24 +175,18 @@ def reset_password():
             return jsonify({"error": "Utilisateur non trouvé"}), 404
             
         conn.commit()
-        
         cursor.close()
         conn.close()
         
         return jsonify({
-            "message": "Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe."
+            "message": "Mot de passe réinitialisé avec succès."
         }), 200
         
     except Exception as e:
         return jsonify({"error": f"Erreur de base de données : {str(e)}"}), 500
 
-
 @auth_bp.route('/reset-password-final', methods=['POST'])
 def reset_password_final():
-    """
-    Route alternative pour réinitialiser le mot de passe sans token
-    AUCUNE CONTRAINTE DE TAILLE sur le mot de passe
-    """
     data = request.json
     username = data.get('username')
     new_password = data.get('new_password')
@@ -183,7 +194,6 @@ def reset_password_final():
     if not username or not new_password:
         return jsonify({'error': 'username et new_password requis'}), 400
 
-    # Nettoyer les entrées (mais sans contrainte de taille)
     username = username.strip()
     new_password = new_password.strip()
 
@@ -191,13 +201,9 @@ def reset_password_final():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 1. Hachage (bcrypt génère des bytes)
         new_hash_bytes = hash_password(new_password)
-        
-        # 2. Conversion en string pour stockage VARCHAR/TEXT
         new_hash_str = new_hash_bytes.decode('utf-8')
         
-        # 3. Update de la base de données
         cursor.execute("UPDATE utilisateur SET password = %s WHERE username = %s", (new_hash_str, username))
         
         if cursor.rowcount == 0:
@@ -206,24 +212,18 @@ def reset_password_final():
             return jsonify({'error': 'Utilisateur introuvable'}), 404
             
         conn.commit()
-        
         cursor.close()
         conn.close()
         
         return jsonify({
-            'message': 'Mot de passe mis à jour avec succès. Veuillez vous reconnecter avec votre nouveau mot de passe.'
+            'message': 'Mot de passe mis à jour avec succès.'
         }), 200
         
     except Exception as e:
         return jsonify({'error': f'Erreur base de données: {str(e)}'}), 500
 
-
-# Route de vérification pour déboguer
 @auth_bp.route("/verify-password-storage", methods=["POST"])
 def verify_password_storage():
-    """
-    Vérifie comment le mot de passe est stocké en base de données
-    """
     data = request.json
     username = data.get("username")
     
