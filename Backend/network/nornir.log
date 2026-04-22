@@ -75,3 +75,39 @@ nornir.core.exceptions.NornirSubTaskError: Subtask: netmiko_send_config (failed)
 2026-04-22 16:01:07,152 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
 2026-04-22 16:01:23,174 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 70 - Quarantine_Snort' with args {'config_commands': ['vlan 70', 'name Quarantine_Snort', 'exit']} on 1 hosts
 2026-04-22 16:01:25,300 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-04-22 16:24:01,829 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 70 - Quarantine_Snort' with args {'config_commands': ['vlan 70', 'name Quarantine_Snort', 'exit']} on 1 hosts
+2026-04-22 16:24:03,926 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-04-22 16:29:00,833 -  nornir.core -     INFO -        run() - Running task 'Config FastEthernet0/1 - VLAN 99' with args {'config_commands': ['interface FastEthernet0/1', 'switchport mode access', 'switchport access vlan 99', 'no shutdown', 'switchport port-security', 'switchport port-security maximum 2', 'switchport port-security violation restrict', 'switchport port-security mac-address sticky', 'spanning-tree bpduguard enable', 'exit']} on 1 hosts
+2026-04-22 16:29:00,836 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'Config FastEthernet0/1 - VLAN 99' failed with traceback:
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\task.py", line 98, in start
+    r = self.task(self, **self.params)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir_netmiko\tasks\netmiko_send_config.py", line 28, in netmiko_send_config
+    net_connect = task.host.get_connection(CONNECTION_NAME, task.nornir.config)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\inventory.py", line 475, in get_connection
+    conn = self.get_connection_parameters(connection)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\inventory.py", line 414, in get_connection_parameters
+    hostname=r.hostname if r.hostname is not None else self.hostname,
+                           ^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'hostname'
+
+2026-04-22 16:29:56,468 -  nornir.core -     INFO -        run() - Running task 'Config FastEthernet0/1 - VLAN 99' with args {'config_commands': ['interface FastEthernet0/1', 'switchport mode access', 'switchport access vlan 99', 'no shutdown', 'switchport port-security', 'switchport port-security maximum 2', 'switchport port-security violation restrict', 'switchport port-security mac-address sticky', 'spanning-tree bpduguard enable', 'exit']} on 1 hosts
+2026-04-22 16:29:56,471 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'Config FastEthernet0/1 - VLAN 99' failed with traceback:
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\task.py", line 98, in start
+    r = self.task(self, **self.params)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir_netmiko\tasks\netmiko_send_config.py", line 28, in netmiko_send_config
+    net_connect = task.host.get_connection(CONNECTION_NAME, task.nornir.config)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\inventory.py", line 475, in get_connection
+    conn = self.get_connection_parameters(connection)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\inventory.py", line 414, in get_connection_parameters
+    hostname=r.hostname if r.hostname is not None else self.hostname,
+                           ^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'hostname'
+
+2026-04-22 16:33:13,299 -  nornir.core -     INFO -        run() - Running task 'Config FastEthernet0/1 - VLAN 99' with args {'config_commands': ['interface FastEthernet0/1', 'switchport mode access', 'switchport access vlan 99', 'no shutdown', 'switchport port-security', 'switchport port-security maximum 2', 'switchport port-security violation restrict', 'switchport port-security mac-address sticky', 'spanning-tree bpduguard enable', 'exit']} on 1 hosts
+2026-04-22 16:33:16,048 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-04-22 16:40:15,036 -  nornir.core -     INFO -        run() - Running task 'show version' with args {'command_string': 'show version'} on 1 hosts
+2026-04-22 16:40:17,578 -  nornir.core -     INFO -        run() - Running task 'show interfaces' with args {'command_string': 'show ip interface brief'} on 1 hosts
+2026-04-22 16:40:18,364 -  nornir.core -     INFO -        run() - Running task 'show vlan' with args {'command_string': 'show vlan brief'} on 1 hosts
+2026-04-22 16:45:33,673 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
