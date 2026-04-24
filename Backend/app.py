@@ -6,12 +6,15 @@ from Database.alerts import alerts_bp
 from Database.traffic import traffic_bp
 from Database.regles import regles_bp
 from Database.vlan import vlan_bp
+from Database.interface import interface_bp, initialize_default_interfaces
 # from vlan_api import vlan_bp # <-- Importer le nouveau fichier
 from network_api import network_bp
 import os
+import logging
 from flask_cors import CORS
 
 app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # Autoriser les requetes CORS provenant du frontend
 CORS(app)
@@ -27,10 +30,14 @@ app.register_blueprint(alerts_bp)
 app.register_blueprint(traffic_bp)
 app.register_blueprint(regles_bp)
 app.register_blueprint(vlan_bp)
+app.register_blueprint(interface_bp)
+try:
+    initialize_default_interfaces()
+except Exception as e:
+    app.logger.error("Initialisation des interfaces impossible: %s", e)
 
 # app.register_blueprint(vlan_bp)      # <-- Enregistrer la nouvelle route
 app.register_blueprint(network_bp)   # ← routes /api/network
 
 if __name__ == "__main__":
     app.run(debug=True, host='127.0.0.1', port=5000)
-    app.run(debug=True)

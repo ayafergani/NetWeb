@@ -345,7 +345,8 @@
       });
       const [recentAlerts, setRecentAlerts] = useState([]);
       const [rulesCount, setRulesCount] = useState(0);
-      const [vlanStats, setVlanStats] = useState({ count: 0, latest: [], quarantine: null });
+      const [vlanStats, setVlanStats] = useState({ count: 0, lastCreated: null, quarantine: null });
+      const [interfaceStats, setInterfaceStats] = useState({ total: 0, up: 0, down: 0, alerts: 0, trunks: 0 });
       const [loading, setLoading] = useState(true);
       const [trafficStatus, setTrafficStatus] = useState({ status: 'Normal', color: '#22c55e', bg: 'bg-green' });
       const [lastTriggeredRule, setLastTriggeredRule] = useState(null);
@@ -406,15 +407,34 @@
           });
           const data = await response.json();
           if (response.ok && data.success) {
-            const items = (data.vlans || []).slice().sort((a, b) => Number(b.id_vlan) - Number(a.id_vlan));
+            const items = (data.vlans || []).slice().sort((a, b) => Number(b.id_vlan ?? b.id) - Number(a.id_vlan ?? a.id));
             setVlanStats({
               count: data.count || items.length,
-              latest: items.slice(0, 3),
+              lastCreated: items[0] || null,
               quarantine: items.find((item) => String(item.status).toLowerCase() === 'alert') || null
             });
           }
         } catch (error) {
           console.error('Erreur chargement VLANs:', error);
+        }
+      };
+
+      const loadInterfaces = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/interface`, {
+            headers: auth.getAuthHeaders()
+          });
+          const data = await response.json();
+          if (response.ok && data.success) {
+            const items = data.interfaces || [];
+            const up = items.filter((item) => String(item.status).toUpperCase() === 'UP').length;
+            const down = items.filter((item) => String(item.status).toUpperCase() !== 'UP').length;
+            const alerts = items.filter((item) => Boolean(item.port_security) === false && String(item.status).toUpperCase() === 'UP').length;
+            const trunks = items.filter((item) => String(item.mode) === 'Trunk').length;
+            setInterfaceStats({ total: items.length, up, down, alerts, trunks });
+          }
+        } catch (error) {
+          console.error('Erreur chargement interfaces:', error);
         }
       };
 
@@ -470,6 +490,7 @@
           loadRecentAlerts(),
           loadRulesCount(),
           loadVlans(),
+          loadInterfaces(),
           loadAllAlerts(),
           loadLastTriggeredRule(),
           loadUserActivities()
@@ -480,23 +501,27 @@
       useEffect(() => {
         loadAllData();
 
-        const refreshVlans = () => loadVlans();
+        const refreshData = () => {
+          loadVlans();
+          loadInterfaces();
+        };
+
         const handleStorage = (event) => {
           if (event.key === 'netguard-vlan-updated-at') {
-            refreshVlans();
+            loadVlans();
           }
         };
 
         window.addEventListener('storage', handleStorage);
-        window.addEventListener('focus', refreshVlans);
-        window.addEventListener('netguard:vlan-updated', refreshVlans);
+        window.addEventListener('focus', refreshData);
+        window.addEventListener('netguard:vlan-updated', loadVlans);
 
-        const intervalId = window.setInterval(refreshVlans, 30000);
+        const intervalId = window.setInterval(refreshData, 30000);
 
         return () => {
           window.removeEventListener('storage', handleStorage);
-          window.removeEventListener('focus', refreshVlans);
-          window.removeEventListener('netguard:vlan-updated', refreshVlans);
+          window.removeEventListener('focus', refreshData);
+          window.removeEventListener('netguard:vlan-updated', loadVlans);
           window.clearInterval(intervalId);
         };
       }, []);
@@ -540,9 +565,9 @@
             <div className="stat-mini-card">
               <div className="stat-icon bg-green"><Icon type="ports" /></div>
               <div className="stat-info">
-                <span className="stat-value">{rulesCount}</span>
-                <span className="stat-label">Regles actives</span>
-                <span className="stat-badge bg-blue">Snort IDS</span>
+                <span className="stat-value">{interfaceStats.up}</span>
+                <span className="stat-label">Ports UP</span>
+                <span className="stat-badge bg-blue">{interfaceStats.down} down</span>
               </div>
             </div>
             <div className="stat-mini-card">
@@ -572,18 +597,16 @@
               <div className="data-row"><span className="data-label">Total VLANs</span><span className="data-value" style={{ color: '#6366f1' }}>{vlanStats.count} configured</span></div>
               <div className="data-row">
                 <span className="data-label">Last created</span>
-                <span className="data-value">{vlanStats.latest[0] ? `VLAN ${vlanStats.latest[0].id_vlan} - ${vlanStats.latest[0].nom}` : 'Aucun VLAN'}</span>
+                <span className="data-value">{vlanStats.lastCreated ? `VLAN ${vlanStats.lastCreated.id_vlan ?? vlanStats.lastCreated.id} - ${vlanStats.lastCreated.nom ?? vlanStats.lastCreated.name}` : 'Aucun VLAN'}</span>
               </div>
               <div className="data-row">
                 <span className="data-label">Quarantine VLAN</span>
-                <span className="data-value" style={{ color: '#f59e0b' }}>{vlanStats.quarantine ? `VLAN ${vlanStats.quarantine.id_vlan} ${vlanStats.quarantine.status}` : 'Aucune isolation active'}</span>
+                <span className="data-value" style={{ color: '#f59e0b' }}>{vlanStats.quarantine ? `VLAN ${vlanStats.quarantine.id_vlan ?? vlanStats.quarantine.id} ${vlanStats.quarantine.status}` : 'Aucune isolation active'}</span>
               </div>
-              {vlanStats.latest.slice(0, 2).map((vlan) => (
-                <div className="data-row" key={vlan.id_vlan}>
-                  <span className="data-label">{vlan.nom}</span>
-                  <span className="data-value">{vlan.reseau}</span>
-                </div>
-              ))}
+              <div className="data-row">
+                <span className="data-label">Réseau</span>
+                <span className="data-value">{vlanStats.lastCreated ? (vlanStats.lastCreated.reseau ?? vlanStats.lastCreated.vlanIp ?? '--') : '--'}</span>
+              </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '5px' }}>
                 {renderActionButton('vlan', 'View VLANs')}
                 {renderActionButton('interfaces', 'View Interfaces')}
@@ -593,11 +616,12 @@
             <div className="manage-section">
               <div className="section-header">
                 <span className="section-title">Interfaces</span>
-                <div className="status-indicator" style={{ background: '#22c55e' }}></div>
+                <div className="status-indicator" style={{ background: interfaceStats.alerts > 0 ? '#f59e0b' : '#22c55e' }}></div>
               </div>
-              <div className="data-row"><span className="data-label">Sources uniques</span><span className="data-value" style={{ color: '#22c55e' }}>{stats.unique_sources || 0}</span></div>
-              <div className="data-row"><span className="data-label">Ports DOWN</span><span className="data-value">20 idle</span></div>
-              <div className="data-row"><span className="data-label">Trunk links</span><span className="data-value" style={{ color: '#6366f1' }}>2 configured</span></div>
+              <div className="data-row"><span className="data-label">Ports UP</span><span className="data-value" style={{ color: '#22c55e' }}>{interfaceStats.up}</span></div>
+              <div className="data-row"><span className="data-label">Ports DOWN</span><span className="data-value">{interfaceStats.down}</span></div>
+              <div className="data-row"><span className="data-label">Trunk links</span><span className="data-value" style={{ color: '#6366f1' }}>{interfaceStats.trunks}</span></div>
+              <div className="data-row"><span className="data-label">Security alerts</span><span className="data-value" style={{ color: interfaceStats.alerts > 0 ? '#f59e0b' : '#22c55e' }}>{interfaceStats.alerts}</span></div>
               <div style={{ marginTop: '5px' }}>
                 {renderActionButton('interfaces', 'View Interfaces')}
               </div>
@@ -616,7 +640,7 @@
               </div>
               <div className="data-row">
                 <span className="data-label">Interface errors</span>
-                <span className="data-value">0 detected</span>
+                <span className="data-value">{interfaceStats.down}</span>
               </div>
               <div className="data-row">
                 <span className="data-label">Bandwidth use</span>
@@ -679,7 +703,7 @@
                 <span className="section-title">System Status</span>
                 <div className="status-indicator" style={{ background: '#22c55e' }}></div>
               </div>
-              <div className="data-row"><span className="data-label">Switch uptime</span><span className="data-value">14d 6h</span></div>
+              <div className="data-row"><span className="data-label">Interfaces tracked</span><span className="data-value">{interfaceStats.total}</span></div>
               <div className="data-row"><span className="data-label">CPU load</span><span className="data-value">8%</span></div>
               <div className="data-row"><span className="data-label">Config backup</span><span className="data-value" style={{ color: '#22c55e' }}>Up to date</span></div>
               <div style={{ marginTop: '5px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>

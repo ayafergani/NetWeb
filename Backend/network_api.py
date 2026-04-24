@@ -3,7 +3,7 @@ from network.deploy_vlan import run_deploy
 
 network_bp = Blueprint('network', __name__)
 
-@network_bp.route("/api/network/deploy-vlan", methods=["POST"])
+@network_bp.route("/api/network/deploy-vlan/direct", methods=["POST"])
 def api_deploy_vlan():
     """Route pour déployer un VLAN directement sur le switch (Mode Dev - Sans BDD)"""
     data = request.json

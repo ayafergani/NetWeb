@@ -19,7 +19,6 @@
       font-family: 'DM Sans', sans-serif;
     }
 
-    /* Dark mode overrides for native elements */
     .dark-mode body {
       background-color: #0f172a;
     }
@@ -103,7 +102,6 @@
       }
     }
 
-    /* Dark mode specific enhancements */
     .dark-mode .card,
     .dark-mode .bg-white {
       background-color: #1e293b !important;
@@ -191,9 +189,22 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
     const API_BASE_URL = window.location.port === '5000' ? '' : 'http://127.0.0.1:5000';
+    const auth = window.NetGuardAuth;
+
+    const EMPTY_VLAN = {
+      id: '',
+      name: '',
+      type: 'Data',
+      ports: '',
+      switchName: '',
+      switchIp: '',
+      switchUser: '',
+      switchPass: '',
+      vlanIp: ''
+    };
 
     const mapApiVlanToUi = (vlan) => ({
-      id: vlan.id ?? vlan.id_vlan,
+      id: Number(vlan.id ?? vlan.id_vlan ?? 0),
       name: vlan.name ?? vlan.nom ?? '',
       type: vlan.type ?? 'Data',
       switchName: vlan.switchName ?? '',
@@ -201,41 +212,60 @@
       vlanIp: vlan.vlanIp ?? vlan.gateway ?? '--',
       ports: vlan.ports ?? '',
       devices: vlan.devices ?? 0,
-      status: vlan.status ?? 'Active'
+      status: vlan.status ?? 'Active',
+      reason: vlan.reason ?? null,
+      srcIp: vlan.srcIp ?? null
     });
+
+    const notifyVlanUpdated = () => {
+      const stamp = String(Date.now());
+      localStorage.setItem('netguard-vlan-updated-at', stamp);
+      window.dispatchEvent(new CustomEvent('netguard:vlan-updated', { detail: { stamp } }));
+    };
 
     const VLANPage = () => {
       const [selectedVlan, setSelectedVlan] = useState(null);
       const [showCreateModal, setShowCreateModal] = useState(false);
       const [isCreating, setIsCreating] = useState(false);
-      
-      // AJOUT : switchName
-      const [newVlan, setNewVlan] = useState({ id: '', name: '', type: 'Data', ports: '', switchName: '', switchIp: '', switchUser: '', switchPass: '', vlanIp: '' });
+      const [newVlan, setNewVlan] = useState(EMPTY_VLAN);
       const [toastMsg, setToastMsg] = useState(null);
+      const [toastType, setToastType] = useState('success');
       const [isDarkMode, setIsDarkMode] = useState(false);
+      const [vlans, setVlans] = useState([]);
+
+      const showToast = (message, type = 'success') => {
+        setToastType(type);
+        setToastMsg(message);
+        window.clearTimeout(window.__vlanToastTimer);
+        window.__vlanToastTimer = window.setTimeout(() => setToastMsg(null), 4000);
+      };
 
       const loadVlans = async () => {
         try {
           const response = await fetch(`${API_BASE_URL}/api/vlan`, {
-            headers: window.NetGuardAuth.getAuthHeaders()
+            headers: auth.getAuthHeaders()
           });
           const data = await response.json();
-
           if (!response.ok || !data.success) {
-            throw new Error(data.error || "Erreur lors du chargement des VLANs");
+            throw new Error(data.error || 'Erreur lors du chargement des VLANs');
           }
 
           const items = (data.vlans || []).map(mapApiVlanToUi);
           setVlans(items);
-          if (items.length) {
-            setSelectedVlan(items[0]);
-          }
+          setSelectedVlan((current) => {
+            if (!items.length) return null;
+            if (!current) return items[0];
+            return items.find((item) => item.id === current.id) || items[0];
+          });
         } catch (error) {
-          console.error("Erreur chargement VLANs:", error);
+          console.error('Erreur chargement VLANs:', error);
+          showToast(error.message || 'Impossible de charger les VLANs', 'error');
         }
       };
 
       useEffect(() => {
+        auth.requirePageAccess('vlan');
+
         const applyTheme = (event) => {
           const savedTheme = localStorage.getItem('netguard-theme');
           const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -244,7 +274,6 @@
             : savedTheme === 'dark' || (!savedTheme && systemPrefersDark);
 
           setIsDarkMode(isDark);
-
           document.documentElement.classList.toggle('dark-mode', isDark);
           document.body.classList.toggle('dark-mode', isDark);
         };
@@ -253,61 +282,59 @@
           if (e.key === 'netguard-theme') {
             applyTheme({ detail: { isDark: e.newValue === 'dark' } });
           }
+          if (e.key === 'netguard-vlan-updated-at') {
+            loadVlans();
+          }
         };
 
         applyTheme();
         loadVlans();
         window.addEventListener('themeChanged', applyTheme);
         window.addEventListener('storage', handleStorage);
+        window.addEventListener('netguard:vlan-updated', loadVlans);
 
         return () => {
           window.removeEventListener('themeChanged', applyTheme);
           window.removeEventListener('storage', handleStorage);
+          window.removeEventListener('netguard:vlan-updated', loadVlans);
+          window.clearTimeout(window.__vlanToastTimer);
         };
       }, []);
 
-      // AJOUT : switchName pour un affichage propre
-      const [vlans, setVlans] = useState([
-        { id: 10, name: 'Finance', type: 'Data', switchName: 'Core-SW', switchIp: '192.168.1.200', vlanIp: '192.168.10.1', ports: 'fa0/1, fa0/2', devices: 2, status: 'Active' },
-        { id: 20, name: 'IT', type: 'Data', switchName: 'Core-SW', switchIp: '192.168.1.200', vlanIp: '192.168.20.1', ports: 'fa0/3', devices: 1, status: 'Active' },
-        { id: 99, name: 'Quarantine', type: 'Security', switchName: 'Access-SW-1', switchIp: '192.168.1.201', vlanIp: '--', ports: 'fa0/4', devices: 1, status: 'Alert', reason: 'Intrusion detected (Snort)', srcIp: '192.168.1.10' }
-      ]);
-
       const handleCreateVlan = async () => {
-        // Validation avec switchName
         if (!newVlan.id || !newVlan.name || !newVlan.switchIp || !newVlan.switchName || !newVlan.switchUser || !newVlan.switchPass) {
-          return alert("Veuillez remplir tous les champs (VLAN et informations du Switch).");
+          showToast("Veuillez remplir tous les champs (VLAN et informations du Switch).", 'error');
+          return;
         }
+
         setIsCreating(true);
-        
         try {
           const response = await fetch(`${API_BASE_URL}/api/network/deploy-vlan`, {
-          const response = await fetch('http://127.0.0.1:5000/api/network/deploy-vlan', {
             method: 'POST',
-            headers: window.NetGuardAuth.getAuthHeaders(),
-            body: JSON.stringify({
-              vlan_id: newVlan.id,
-              vlan_name: newVlan.name,
-              switch_ip: newVlan.switchIp,
-              switch_user: newVlan.switchUser,
-              switch_password: newVlan.switchPass
-            })
+            headers: auth.getAuthHeaders(),
+            body: JSON.stringify(newVlan)
           });
-          
           const data = await response.json();
-          if (response.ok) {
-            const createdVlan = mapApiVlanToUi(data.vlan || { ...newVlan, vlanIp: newVlan.vlanIp || '--', devices: 0, status: 'Active' });
-            setVlans((currentVlans) => [...currentVlans, createdVlan]);
-            setSelectedVlan(createdVlan);
-            setShowCreateModal(false);
-            setNewVlan({ id: '', name: '', type: 'Data', ports: '', switchName: newVlan.switchName, switchIp: newVlan.switchIp, switchUser: newVlan.switchUser, switchPass: newVlan.switchPass, vlanIp: '' });
-            setToastMsg(`VLAN créé avec succès sur ${newVlan.switchName} !`);
-            setTimeout(() => setToastMsg(null), 4000);
-          } else {
-            alert("Erreur: " + data.error);
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Creation du VLAN impossible');
           }
+
+          const createdVlan = mapApiVlanToUi(data.vlan || { ...newVlan, status: 'Active', devices: 0 });
+          setVlans((currentVlans) => [...currentVlans, createdVlan].sort((a, b) => a.id - b.id));
+          setSelectedVlan(createdVlan);
+          setShowCreateModal(false);
+          setNewVlan({
+            ...EMPTY_VLAN,
+            switchName: newVlan.switchName,
+            switchIp: newVlan.switchIp,
+            switchUser: newVlan.switchUser,
+            switchPass: newVlan.switchPass
+          });
+          showToast(`VLAN créé avec succès sur ${createdVlan.switchName || newVlan.switchName} !`);
+          notifyVlanUpdated();
         } catch (error) {
-          alert("Erreur réseau: Impossible de joindre Flask.");
+          console.error('Erreur creation VLAN:', error);
+          showToast(error.message || 'Erreur réseau: Impossible de joindre Flask.', 'error');
         } finally {
           setIsCreating(false);
         }
@@ -325,8 +352,8 @@
                 onClick={() => setShowCreateModal(true)}
                 className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold transition-all flex items-center gap-2"
                 style={{
-                  boxShadow: isDarkMode 
-                    ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)' 
+                  boxShadow: isDarkMode
+                    ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
                     : '0 4px 6px -1px rgba(99, 102, 241, 0.2), 0 2px 4px -1px rgba(99, 102, 241, 0.1)'
                 }}
                 onMouseEnter={(e) => {
@@ -380,7 +407,6 @@
                               {vlan.type}
                             </span>
                           </td>
-                          {/* Affichage du NOM du switch et non de l'IP */}
                           <td className="px-8 py-5 text-sm font-bold text-slate-700 dark-mode:text-slate-300">{vlan.switchName}</td>
                           <td className="px-8 py-5 font-mono text-xs text-slate-600 dark-mode:text-slate-400">{vlan.vlanIp}</td>
                           <td className="px-8 py-5 text-sm font-medium text-slate-500 dark-mode:text-slate-400">{vlan.ports}</td>
@@ -431,7 +457,6 @@
                       </div>
                     )}
 
-                    {/* Rappel des infos Switch et SVI dans les détails */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="p-4 bg-slate-50 rounded-2xl dark-mode:bg-slate-700/50">
                         <span className="text-[10px] font-bold text-slate-400 uppercase dark-mode:text-slate-500">Switch Cible</span>
@@ -491,7 +516,6 @@
                 <div className="space-y-5">
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 dark-mode:bg-slate-700/30 dark-mode:border-slate-600 mb-4">
                     <h3 className="text-xs font-bold text-indigo-600 mb-3 uppercase tracking-wider dark-mode:text-indigo-400">Connexion au Switch Cible</h3>
-                    {/* AJOUT : Champ pour le Nom du Switch dans le grid */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Nom du Switch</label>
@@ -507,7 +531,7 @@
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Mot de passe</label>
-                        <input type="password" value={newVlan.switchPass} onChange={(e) => setNewVlan({...newVlan, switchPass: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="••••" />
+                        <input type="password" value={newVlan.switchPass} onChange={(e) => setNewVlan({...newVlan, switchPass: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="****" />
                       </div>
                     </div>
                   </div>
@@ -522,7 +546,7 @@
                       <input type="text" value={newVlan.name} onChange={(e) => setNewVlan({...newVlan, name: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="Voice_VOIP" />
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">IP Gateway (SVI) - Optionnel</label>
                     <input type="text" value={newVlan.vlanIp} onChange={(e) => setNewVlan({...newVlan, vlanIp: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="Ex: 192.168.30.1" />
@@ -558,8 +582,8 @@
           )}
 
           {toastMsg && (
-            <div className="fixed bottom-6 right-6 px-6 py-4 bg-emerald-600 rounded-xl shadow-2xl font-bold text-sm text-white z-50 flex items-center gap-3 animate-in">
-              <span>✅</span>
+            <div className={`fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-2xl font-bold text-sm text-white z-50 flex items-center gap-3 animate-in ${toastType === 'error' ? 'bg-rose-600' : 'bg-emerald-600'}`}>
+              <span>{toastType === 'error' ? '!' : 'OK'}</span>
               {toastMsg}
             </div>
           )}
