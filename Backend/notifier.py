@@ -6,7 +6,7 @@ des notifications Windows toast à chaque nouvelle alerte détectée,
 même si le dashboard est fermé.
  
 Dépendances :
-    pip install plyer requests psycopg2-binary win10toast-persist
+    pip install plyer requests psycopg2-binary win10toast-persist winotify winrt
  
 Usage :
     python notifier.py
@@ -22,7 +22,9 @@ import logging
 import threading
 import os
 import json
+import smtplib
 from datetime import datetime, timedelta
+from email.message import EmailMessage
 from pathlib import Path
 
 # ── Configuration ──────────────────────────────────────────────────────────
@@ -30,6 +32,53 @@ CONFIG_DIR = Path(os.getenv("APPDATA")) / "IDS_Notifier"
 CONFIG_DIR.mkdir(exist_ok=True)
 STATE_FILE = CONFIG_DIR / "notifier_state.json"
 LOG_FILE = CONFIG_DIR / "notifier.log"
+
+
+def _load_runtime_env():
+    """Charge les variables depuis %APPDATA%\\IDS_Notifier\\(.env|notifier.conf|email_config.json)."""
+    for config_path in (CONFIG_DIR / ".env", CONFIG_DIR / "notifier.conf"):
+        if not config_path.exists():
+            continue
+
+        try:
+            with open(config_path, "r", encoding="utf-8") as fh:
+                for raw_line in fh:
+                    line = raw_line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+
+                    key, value = line.split("=", 1)
+                    key = key.strip()
+                    value = value.strip().strip('"').strip("'")
+                    if key:
+                        os.environ.setdefault(key, value)
+        except Exception as exc:
+            print(f"[WARN] Impossible de charger {config_path}: {exc}")
+
+    email_config_path = CONFIG_DIR / "email_config.json"
+    if email_config_path.exists():
+        try:
+            with open(email_config_path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+
+            mapping = {
+                "smtp_server": "SMTP_HOST",
+                "smtp_port": "SMTP_PORT",
+                "smtp_user": "SMTP_USER",
+                "smtp_password": "SMTP_PASSWORD",
+                "use_tls": "SMTP_USE_TLS",
+                "from_email": "SMTP_FROM",
+            }
+
+            os.environ.setdefault("SMTP_ENABLED", "true")
+            for src_key, env_key in mapping.items():
+                if src_key in data and data[src_key] is not None:
+                    os.environ.setdefault(env_key, str(data[src_key]))
+        except Exception as exc:
+            print(f"[WARN] Impossible de charger {email_config_path}: {exc}")
+
+
+_load_runtime_env()
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -78,6 +127,201 @@ def get_machine_guid():
         return "default"
 
 
+def parse_bool(value, default=False):
+    if value is None:
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "on", "oui"}
+
+
+def get_db_config():
+    return {
+        "dbname": os.getenv("DB_NAME", "ids_db"),
+        "user": os.getenv("DB_USER", "aya"),
+        "password": os.getenv("DB_PASSWORD", "aya"),
+        "host": os.getenv("DB_HOST", "192.168.1.2"),
+        "port": os.getenv("DB_PORT", "5432"),
+    }
+
+
+def normalize_severity(value):
+    sev_raw = (value or "").lower()
+    if sev_raw in ("critical", "critique", "high", "élevée", "elevee"):
+        return "critical"
+    if sev_raw in ("medium", "moyen", "moyenne"):
+        return "medium"
+    return "low"
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  NOTIFICATIONS EMAIL POUR LES ADMINS (VERSION CORRIGÉE)
+# ════════════════════════════════════════════════════════════════════════════
+class AdminEmailNotifier:
+    def __init__(self, db_cfg):
+        self.db_cfg = db_cfg
+        self.enabled = parse_bool(os.getenv("SMTP_ENABLED"), default=False)
+        self.smtp_host = os.getenv("SMTP_HOST", "").strip()
+        self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        self.smtp_user = os.getenv("SMTP_USER", "").strip()
+        self.smtp_password = os.getenv("SMTP_PASSWORD", "")
+        self.smtp_from = os.getenv("SMTP_FROM", "").strip()
+        self.use_tls = parse_bool(os.getenv("SMTP_USE_TLS"), default=True)
+        self.use_ssl = parse_bool(os.getenv("SMTP_USE_SSL"), default=False)
+        self.subject_prefix = os.getenv("SMTP_SUBJECT_PREFIX", "[IDS]")
+        if "gmail.com" in self.smtp_host.lower():
+            self.smtp_password = self.smtp_password.replace(" ", "")
+        self._sent_alert_ids = set()
+        self._lock = threading.Lock()
+
+    def is_ready(self):
+        """Vérifie si la configuration SMTP est complète"""
+        return self.enabled and bool(self.smtp_host and self.smtp_from)
+
+    def _fetch_admin_emails(self):
+        """Récupère les emails des utilisateurs avec le rôle ADMIN"""
+        try:
+            import psycopg2
+        except ImportError:
+            log.error("psycopg2 introuvable: impossible de récupérer les emails admin")
+            return []
+
+        conn = None
+        try:
+            conn = psycopg2.connect(**self.db_cfg, connect_timeout=5)
+            cur = conn.cursor()
+            # Requête adaptée à votre table utilisateur
+            cur.execute("""
+                SELECT DISTINCT TRIM(email)
+                FROM utilisateur
+                WHERE LOWER(TRIM(role)) = 'admin'
+                  AND email IS NOT NULL
+                  AND TRIM(email) <> ''
+            """)
+            emails = [row[0] for row in cur.fetchall() if row[0]]
+            if emails:
+                log.info(f"📧 {len(emails)} email(s) admin trouvé(s) dans la base")
+            else:
+                log.warning("⚠️ Aucun email admin trouvé - Vérifiez la table utilisateur")
+            return emails
+        except Exception as exc:
+            log.error(f"Impossible de récupérer les emails admin: {exc}")
+            return []
+        finally:
+            if conn:
+                conn.close()
+
+    def _build_subject(self, alert):
+        """Construit le sujet de l'email selon la sévérité"""
+        severity_labels = {
+            "critical": "CRITIQUE",
+            "medium": "MOYENNE",
+            "low": "FAIBLE",
+        }
+        sev = normalize_severity(alert.get("severity"))
+        label = severity_labels.get(sev, sev.upper())
+        name = alert.get("name", "Alerte inconnue")
+        return f"{self.subject_prefix} Alerte {label} - {name}"
+
+    def _build_body(self, alert):
+        """Construit le corps de l'email"""
+        ts = alert.get("timestamp") or datetime.now().isoformat()
+        details = alert.get("details")
+        if isinstance(details, dict):
+            details_text = json.dumps(details, ensure_ascii=False, indent=2)
+        elif details:
+            details_text = str(details)
+        else:
+            details_text = "Aucun détail supplémentaire."
+
+        return "\n".join([
+            "=" * 60,
+            "🚨 IDS - NOUVELLE ALERTE DÉTECTÉE 🚨",
+            "=" * 60,
+            "",
+            f"🆔 ID: {alert.get('id', 'N/A')}",
+            f"📋 Type: {alert.get('name', 'Alerte inconnue')}",
+            f"⚠️ Sévérité: {normalize_severity(alert.get('severity')).upper()}",
+            f"🖥️ Source: {alert.get('src', '?')}",
+            f"🎯 Destination: {alert.get('dst', '?')}",
+            f"🔌 Protocole: {alert.get('proto', 'N/A')}",
+            f"🕐 Horodatage: {ts}",
+            "",
+            "📝 DÉTAILS:",
+            "-" * 40,
+            details_text,
+            "",
+            "=" * 60,
+            "⚠️ Action recommandée: Vérifier immédiatement cette alerte",
+            "=" * 60,
+        ])
+
+    def _send_message(self, recipient, subject, body):
+        """Envoie un email à un destinataire"""
+        message = EmailMessage()
+        message["From"] = self.smtp_from
+        message["To"] = recipient
+        message["Subject"] = subject
+        message.set_content(body, charset="utf-8")
+
+        try:
+            if self.use_ssl:
+                with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=15) as server:
+                    if self.smtp_user:
+                        server.login(self.smtp_user, self.smtp_password)
+                    server.send_message(message)
+                return True
+
+            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=15) as server:
+                server.ehlo()
+                if self.use_tls:
+                    server.starttls()
+                    server.ehlo()
+                if self.smtp_user:
+                    server.login(self.smtp_user, self.smtp_password)
+                server.send_message(message)
+            return True
+        except Exception as exc:
+            log.error(f"Échec envoi à {recipient}: {exc}")
+            return False
+
+    def send_alert_email(self, alert):
+        """Envoie l'alerte par email à tous les admins"""
+        alert_id = alert.get("id")
+        with self._lock:
+            if alert_id in self._sent_alert_ids:
+                log.debug(f"Alerte {alert_id} déjà envoyée par email")
+                return
+            self._sent_alert_ids.add(alert_id)
+            # Nettoyer l'historique si trop grand
+            if len(self._sent_alert_ids) > 1000:
+                self._sent_alert_ids = set(list(self._sent_alert_ids)[-500:])
+
+        if not self.is_ready():
+            log.debug("Email admin désactivé ou configuration SMTP incomplète")
+            return
+
+        recipients = self._fetch_admin_emails()
+        if not recipients:
+            log.warning("⚠️ Aucun utilisateur ADMIN avec email trouvé")
+            log.warning("   Vérifiez que des utilisateurs ont role='admin' et un email valide")
+            return
+
+        subject = self._build_subject(alert)
+        body = self._build_body(alert)
+
+        log.info(f"📧 Envoi de l'alerte à {len(recipients)} admin(s)...")
+        
+        success_count = 0
+        for recipient in recipients:
+            if self._send_message(recipient, subject, body):
+                success_count += 1
+                log.info(f"   ✓ Email envoyé à {recipient}")
+
+        if success_count == len(recipients):
+            log.info(f"✅ {success_count} email(s) envoyé(s) avec succès")
+        else:
+            log.warning(f"⚠️ {success_count}/{len(recipients)} emails envoyés")
+
+
 # ── Notification Windows améliorée (multi-méthodes) ─────────────────────────
 class WindowsNotifier:
     def __init__(self):
@@ -96,33 +340,25 @@ class WindowsNotifier:
     def _notify_winrt(self, title, message, severity="normal"):
         """Utilise Windows.Runtime (plus moderne et fiable)"""
         try:
-            import asyncio
             from winrt.windows.ui.notifications import (
                 ToastNotificationManager, ToastNotification, 
                 ToastTemplateType, ToastDuration
             )
             from winrt.windows.data.xml.dom import XmlDocument
             
-            # Créer le template
             template = ToastTemplateType.TOAST_TEXT02
             toast_xml = ToastNotificationManager.get_template_content(template)
             
-            # Remplir les textes
             xml_doc = XmlDocument()
             xml_doc.load_xml(toast_xml)
             text_nodes = xml_doc.get_elements_by_tag_name("text")
             text_nodes[0].append_child(xml_doc.create_text_node(title))
             text_nodes[1].append_child(xml_doc.create_text_node(message))
             
-            # Configurer la durée et la priorité
-            duration = ToastDuration.SHORT
-            if severity == "critical":
-                duration = ToastDuration.LONG
-                
+            duration = ToastDuration.LONG if severity == "critical" else ToastDuration.SHORT
             toast = ToastNotification(xml_doc)
             toast.expiration_time = datetime.now() + timedelta(seconds=30)
             
-            # Afficher
             notifier = ToastNotificationManager.create_toast_notifier("IDS Monitor")
             notifier.show(toast)
             return True
@@ -203,7 +439,6 @@ class WindowsNotifier:
     
     def notify(self, title, message, severity="normal"):
         """Envoie une notification en essayant plusieurs méthodes"""
-        # Éviter les notifications en rafale (max 1 par 2 secondes)
         current_time = time.time()
         if title in self.last_toast_time:
             if current_time - self.last_toast_time[title] < 2:
@@ -232,7 +467,7 @@ def play_alert_sound(severity="normal"):
     try:
         import winsound
         sounds = {
-            "critical": (1000, 500),  # (fréquence, durée ms)
+            "critical": (1000, 500),
             "medium": (800, 300),
             "low": (600, 200),
             "normal": (500, 150)
@@ -246,7 +481,7 @@ def play_alert_sound(severity="normal"):
 # ════════════════════════════════════════════════════════════════════════════
 #  MODE 1 — Surveillance via l'API Flask
 # ════════════════════════════════════════════════════════════════════════════
-def watch_api(api_base: str, interval: int, notifier: WindowsNotifier):
+def watch_api(api_base: str, interval: int, notifier: WindowsNotifier, email_notifier=None):
     import requests
     
     log.info(f"Démarrage surveillance API → {api_base}  (toutes les {interval}s)")
@@ -268,8 +503,7 @@ def watch_api(api_base: str, interval: int, notifier: WindowsNotifier):
             else:
                 log.error(f"❌ API injoignable après {max_retries} tentatives: {api_base}")
                 log.error("Vérifiez que le dashboard Flask est lancé (python app.py)")
-                if not args.db:
-                    sys.exit(1)
+                sys.exit(1)
     
     consecutive_errors = 0
     
@@ -296,24 +530,20 @@ def watch_api(api_base: str, interval: int, notifier: WindowsNotifier):
                     for a in sorted(new_alerts, key=lambda x: x.get("timestamp", "")):
                         seen_ids.add(a["id"])
                         
-                        # Priorité aux alertes critiques
                         sev = a.get("severity", "low")
                         if sev == "critical":
                             threading.Thread(target=play_alert_sound, args=("critical",), daemon=True).start()
-                            threading.Thread(target=_handle_new_alert, args=(a, notifier), daemon=True).start()
-                            # Notification supplémentaire après 2s pour les critiques
+                            threading.Thread(target=_handle_new_alert, args=(a, notifier, email_notifier), daemon=True).start()
                             time.sleep(2)
-                            threading.Thread(target=_handle_new_alert, args=(a, notifier), daemon=True).start()
+                            threading.Thread(target=_handle_new_alert, args=(a, notifier, email_notifier), daemon=True).start()
                         else:
-                            threading.Thread(target=_handle_new_alert, args=(a, notifier), daemon=True).start()
+                            threading.Thread(target=_handle_new_alert, args=(a, notifier, email_notifier), daemon=True).start()
                     
-                    # Sauvegarder l'état périodiquement
                     if len(seen_ids) % 10 == 0:
                         save_state(seen_ids)
                 
                 elif not first_run:
-                    # Affichage périodique du statut
-                    if int(time.time()) % 60 == 0:  # Toutes les minutes
+                    if int(time.time()) % 60 == 0:
                         log.info(f"💓 Surveillance active - {len(seen_ids)} alertes traitées")
                 
                 first_run = False
@@ -327,8 +557,7 @@ def watch_api(api_base: str, interval: int, notifier: WindowsNotifier):
         except Exception as e:
             log.error(f"Erreur inattendue : {e}")
         
-        # Sauvegarde périodique
-        if int(time.time()) % 300 == 0:  # Toutes les 5 minutes
+        if int(time.time()) % 300 == 0:
             save_state(seen_ids)
         
         time.sleep(interval)
@@ -337,7 +566,7 @@ def watch_api(api_base: str, interval: int, notifier: WindowsNotifier):
 # ════════════════════════════════════════════════════════════════════════════
 #  MODE 2 — Surveillance directe en base (sans Flask)
 # ════════════════════════════════════════════════════════════════════════════
-def watch_db(interval: int, notifier: WindowsNotifier):
+def watch_db(interval: int, notifier: WindowsNotifier, email_notifier=None):
     try:
         import psycopg2
         import psycopg2.extras
@@ -346,13 +575,7 @@ def watch_db(interval: int, notifier: WindowsNotifier):
         log.error("psycopg2 introuvable. Lancez : pip install psycopg2-binary")
         sys.exit(1)
     
-    db_cfg = {
-        "dbname":   os.getenv("DB_NAME", "ids_db"),
-        "user":     os.getenv("DB_USER", "aya"),
-        "password": os.getenv("DB_PASSWORD", "aya"),
-        "host":     os.getenv("DB_HOST", "192.168.1.2"),
-        "port":     os.getenv("DB_PORT", "5432"),
-    }
+    db_cfg = get_db_config()
     
     log.info(f"Démarrage surveillance DB directe → {db_cfg['host']}:{db_cfg['port']}/{db_cfg['dbname']}")
     
@@ -403,14 +626,7 @@ def watch_db(interval: int, notifier: WindowsNotifier):
                 for r in sorted(new_rows, key=lambda x: x.get("timestamp") or datetime.min):
                     seen_ids.add(r["id"])
                     
-                    # Convertir le format
-                    sev_raw = (r["severity"] or "").lower()
-                    if sev_raw in ("critical", "critique", "high", "élevée", "elevee"):
-                        sev = "critical"
-                    elif sev_raw in ("medium", "moyen", "moyenne"):
-                        sev = "medium"
-                    else:
-                        sev = "low"
+                    sev = normalize_severity(r["severity"])
                     
                     src_ip = r['source_ip'] or "0.0.0.0"
                     src_port = r['source_port']
@@ -434,9 +650,8 @@ def watch_db(interval: int, notifier: WindowsNotifier):
                     if sev == "critical":
                         threading.Thread(target=play_alert_sound, args=("critical",), daemon=True).start()
                     
-                    threading.Thread(target=_handle_new_alert, args=(alert, notifier), daemon=True).start()
+                    threading.Thread(target=_handle_new_alert, args=(alert, notifier, email_notifier), daemon=True).start()
                     
-                    # Sauvegarde périodique
                     if len(seen_ids) % 10 == 0:
                         save_state(seen_ids)
             
@@ -476,8 +691,8 @@ SEV_LABEL = {
     "low":      "🔵 FAIBLE",
 }
 
-def _handle_new_alert(alert: dict, notifier: WindowsNotifier):
-    sev = alert.get("severity", "low")
+def _handle_new_alert(alert: dict, notifier: WindowsNotifier, email_notifier=None):
+    sev = normalize_severity(alert.get("severity", "low"))
     name = alert.get("name", "Alerte inconnue")
     src = alert.get("src", "?")
     dst = alert.get("dst", "?")
@@ -487,7 +702,6 @@ def _handle_new_alert(alert: dict, notifier: WindowsNotifier):
     color = SEV_COLOR.get(sev, "")
     label = SEV_LABEL.get(sev, sev.upper())
     
-    # Log console coloré avec timestamp
     timestamp = datetime.now().strftime("%H:%M:%S")
     log.info(f"{color}[{timestamp}] ⚠ {label} | {name} | {src} → {dst} ({proto}){RESET}")
     
@@ -512,7 +726,6 @@ def _handle_new_alert(alert: dict, notifier: WindowsNotifier):
         except:
             pass
     
-    # Ajouter les détails si disponibles
     details = alert.get("details")
     if details and isinstance(details, dict):
         if "payload" in details:
@@ -522,7 +735,6 @@ def _handle_new_alert(alert: dict, notifier: WindowsNotifier):
     
     message = "\n".join(message_lines)
     
-    # Envoyer la notification (dans un thread séparé)
     def send():
         for attempt in range(2):
             if notifier.notify(title, message, sev):
@@ -531,6 +743,10 @@ def _handle_new_alert(alert: dict, notifier: WindowsNotifier):
                 time.sleep(0.5)
     
     threading.Thread(target=send, daemon=True).start()
+
+    # Envoi de l'email aux admins
+    if email_notifier:
+        threading.Thread(target=email_notifier.send_alert_email, args=(alert,), daemon=True).start()
     
     # Pour les alertes critiques, écrire dans un fichier d'urgence
     if sev == "critical":
@@ -579,12 +795,33 @@ def main():
     log.info("=" * 60)
     
     notifier = WindowsNotifier()
+    email_notifier = AdminEmailNotifier(get_db_config())
+    
+    # Afficher le statut de l'email
+    if email_notifier.is_ready():
+        log.info("✉️ Envoi email admin ACTIVÉ")
+        # Test de connexion SMTP au démarrage
+        try:
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            result = sock.connect_ex((email_notifier.smtp_host, email_notifier.smtp_port))
+            sock.close()
+            if result == 0:
+                log.info(f"   ✅ Serveur SMTP {email_notifier.smtp_host}:{email_notifier.smtp_port} accessible")
+            else:
+                log.warning(f"   ⚠️ Serveur SMTP {email_notifier.smtp_host}:{email_notifier.smtp_port} inaccessible")
+        except:
+            pass
+    else:
+        log.info("✉️ Envoi email admin DÉSACTIVÉ")
+        log.info("   Pour activer: configurez SMTP dans %APPDATA%\\IDS_Notifier\\.env")
     
     try:
         if args.db:
-            watch_db(args.interval, notifier)
+            watch_db(args.interval, notifier, email_notifier)
         else:
-            watch_api(args.api, args.interval, notifier)
+            watch_api(args.api, args.interval, notifier, email_notifier)
     except KeyboardInterrupt:
         log.info("🛑 Notifier arrêté par l'utilisateur.")
         save_state(set())
