@@ -3,16 +3,34 @@ from utils.security import check_password, hash_password
 from Database.db import get_db_connection
 from flask_jwt_extended import create_access_token, decode_token, jwt_required, get_jwt_identity
 from datetime import timedelta
+import datetime
 
 auth_bp = Blueprint('auth', __name__)
+
+# ✅ Fonction pour ajouter des logs
+def add_log(username, action, status='success', ip_address=None):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO logs (username, action, status, ip_address) 
+            VALUES (%s, %s, %s, %s)
+        """, (username, action, status, ip_address))
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"Erreur ajout log: {e}")
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
     data = request.json
     username = data.get("username")
     password = data.get("password")
+    ip_address = request.remote_addr or request.headers.get('X-Forwarded-For', 'unknown')
 
     if not username or not password:
+        add_log(username or 'unknown', 'login_failed', 'error', ip_address)
         return jsonify({"error": "Nom d'utilisateur et mot de passe requis"}), 400
 
     try:
@@ -26,9 +44,11 @@ def login():
         cursor.close()
         conn.close()
     except Exception as e:
+        add_log(username, 'login_error', 'error', ip_address)
         return jsonify({"error": f"Erreur de base de données : {str(e)}"}), 500
 
     if not user:
+        add_log(username, 'login_failed', 'error', ip_address)
         return jsonify({"error": "Identifiants incorrects"}), 401
     
     stored_hash = user[2]
@@ -39,6 +59,9 @@ def login():
         return jsonify({"error": "Format de mot de passe invalide"}), 500
     
     if check_password(password, stored_hash):
+        # ✅ Log du succès
+        add_log(username, 'login', 'success', ip_address)
+        
         # ✅ Mettre à jour last_login
         try:
             conn = get_db_connection()
@@ -64,6 +87,7 @@ def login():
             "role": user_role
         }), 200
     else:
+        add_log(username, 'login_failed', 'error', ip_address)
         return jsonify({"error": "Identifiants incorrects"}), 401
 
 # ✅ ROUTE DE DÉCONNEXION
@@ -72,6 +96,10 @@ def login():
 def logout():
     try:
         current_user = get_jwt_identity()
+        ip_address = request.remote_addr or request.headers.get('X-Forwarded-For', 'unknown')
+        
+        # ✅ Log du logout
+        add_log(current_user, 'logout', 'success', ip_address)
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -86,6 +114,39 @@ def logout():
         conn.close()
         
         return jsonify({"success": True, "message": "Déconnexion réussie"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ✅ Route pour récupérer les logs
+@auth_bp.route("/api/logs", methods=["GET"])
+@jwt_required()
+def get_logs():
+    try:
+        current_user = get_jwt_identity()
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT username, action, status, timestamp, ip_address 
+            FROM logs 
+            ORDER BY timestamp DESC 
+            LIMIT 50
+        """)
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        logs = []
+        for row in rows:
+            logs.append({
+                "username": row[0],
+                "action": row[1],
+                "status": row[2],
+                "timestamp": row[3].isoformat() if row[3] else None,
+                "ip_address": row[4]
+            })
+        
+        return jsonify({"success": True, "logs": logs}), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 

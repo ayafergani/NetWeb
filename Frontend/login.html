@@ -61,66 +61,6 @@
     .bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;display:block}
     .card{position:relative;z-index:10;width:100%;max-width:400px;background:rgba(10,10,30,0.85);border:0.5px solid rgba(100,108,255,0.3);border-radius:24px;padding:2.2rem 2.2rem;backdrop-filter:blur(12px);box-shadow:0 25px 50px -12px rgba(100,108,255,0.2)}
 
-    /* ─── Mode sombre (défaut) ─── */
-    body.dark-mode{min-height:100vh;background:linear-gradient(135deg,#0f0c29 0%,#1a1a3e 50%,#0a0a1a 100%)}
-    body.dark-mode .card{background:rgba(10,10,30,0.85);border:0.5px solid rgba(100,108,255,0.3);box-shadow:0 25px 50px -12px rgba(0,0,0,0.5)}
-    body.dark-mode .app-name{color:#fff}
-    body.dark-mode .app-sub{color:rgba(160,170,255,0.6)}
-    body.dark-mode .ids-tag{background:rgba(100,108,255,0.1);border:0.5px solid rgba(100,108,255,0.25);color:rgba(160,170,255,0.9)}
-    body.dark-mode label{color:rgba(160,170,255,0.5)}
-    body.dark-mode input{background:rgba(20,20,50,0.6);border:0.5px solid rgba(100,108,255,0.2);color:#e2e8f0}
-    body.dark-mode input:focus{border-color:rgba(100,108,255,0.7);box-shadow:0 0 0 3px rgba(100,108,255,0.1)}
-    body.dark-mode input::placeholder{color:rgba(160,170,255,0.25)}
-    body.dark-mode .strength-bar{background:rgba(255,255,255,0.05)}
-    body.dark-mode .status-indicator{color:rgba(160,170,255,0.6)}
-    body.dark-mode .modal-card{background:rgba(10,10,30,0.97);border:1px solid rgba(100,108,255,0.3)}
-    body.dark-mode .modal-card h3{color:#fff}
-    body.dark-mode .modal-sub{color:rgba(160,170,255,0.5)}
-    body.dark-mode .auth-link{color:#818cf8}
-    body.dark-mode .auth-link:hover{color:#c7d2fe}
-    body.dark-mode .err{background:rgba(239,68,68,0.1);border:0.5px solid rgba(239,68,68,0.3);color:#fca5a5}
-    body.dark-mode .success-msg{background:rgba(34,197,94,0.1);border:0.5px solid rgba(34,197,94,0.3);color:#86efac}
-    body.dark-mode .close-modal{color:#818cf8}
-    body.dark-mode .modal-btn-secondary{background:rgba(100,108,255,0.1);border:1px solid rgba(100,108,255,0.3);color:#818cf8}
-    body.dark-mode .theme-switch{background:rgba(100,108,255,0.2);border:1px solid rgba(100,108,255,0.3);color:#818cf8}
-    body.dark-mode .code-digit-input{background:rgba(20,20,50,0.8);border:2px solid rgba(100,108,255,0.3);color:#fff}
-    body.dark-mode .code-digit-input:focus{border-color:#818cf8;box-shadow:0 0 0 3px rgba(100,108,255,0.15)}
-    body.dark-mode .modal-info{background:rgba(100,108,255,0.08);border:0.5px solid rgba(100,108,255,0.2);color:rgba(160,170,255,0.8)}
-    body.dark-mode .step-label{color:rgba(160,170,255,0.5)}
-    body.dark-mode .timer-box{color:rgba(160,170,255,0.6)}
-
-    /* ─── Mode clair ─── */
-    body.light-mode{min-height:100vh;background:linear-gradient(135deg,#e0e7ff 0%,#f0f9ff 50%,#e6f0fa 100%)}
-    body.light-mode .card{background:rgba(255,255,255,0.92);border:0.5px solid rgba(99,102,241,0.2);box-shadow:0 25px 50px -12px rgba(0,0,0,0.15);backdrop-filter:blur(12px)}
-    body.light-mode .app-name{color:#1e1b4b}
-    body.light-mode .app-sub{color:rgba(79,70,229,0.7)}
-    body.light-mode .ids-tag{background:rgba(99,102,241,0.08);border:0.5px solid rgba(99,102,241,0.2);color:#4f46e5}
-    body.light-mode .dot-live{background:#4f46e5;box-shadow:0 0 6px #4f46e5}
-    body.light-mode label{color:rgba(79,70,229,0.6)}
-    body.light-mode input{background:rgba(255,255,255,0.8);border:0.5px solid rgba(99,102,241,0.2);color:#1e1b4b}
-    body.light-mode input:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(99,102,241,0.15)}
-    body.light-mode input::placeholder{color:rgba(79,70,229,0.3)}
-    body.light-mode .strength-bar{background:rgba(0,0,0,0.05)}
-    body.light-mode .status-indicator{color:rgba(79,70,229,0.7)}
-    body.light-mode .status-dot{background:#4f46e5}
-    body.light-mode .bar-mini{background:rgba(99,102,241,0.5)}
-    body.light-mode .modal-card{background:rgba(255,255,255,0.98);border:1px solid rgba(99,102,241,0.2)}
-    body.light-mode .modal-card h3{color:#1e1b4b}
-    body.light-mode .modal-sub{color:rgba(79,70,229,0.5)}
-    body.light-mode .auth-link{color:#4f46e5}
-    body.light-mode .auth-link:hover{color:#6366f1;text-decoration:underline}
-    body.light-mode .err{background:rgba(239,68,68,0.08);border:0.5px solid rgba(239,68,68,0.2);color:#dc2626}
-    body.light-mode .success-msg{background:rgba(34,197,94,0.08);border:0.5px solid rgba(34,197,94,0.2);color:#16a34a}
-    body.light-mode .close-modal{color:#4f46e5}
-    body.light-mode .close-modal:hover{color:#1e1b4b}
-    body.light-mode .modal-btn-secondary{background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);color:#4f46e5}
-    body.light-mode .theme-switch{background:rgba(255,255,255,0.8);border:1px solid rgba(99,102,241,0.3);color:#4f46e5}
-    body.light-mode .code-digit-input{background:#fff;border:2px solid rgba(99,102,241,0.3);color:#1e1b4b}
-    body.light-mode .code-digit-input:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(99,102,241,0.15)}
-    body.light-mode .modal-info{background:rgba(99,102,241,0.06);border:0.5px solid rgba(99,102,241,0.2);color:rgba(79,70,229,0.8)}
-    body.light-mode .step-label{color:rgba(79,70,229,0.5)}
-    body.light-mode .timer-box{color:rgba(79,70,229,0.6)}
-
     /* ─── Layout ─── */
     body{min-height:100vh}
     .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;padding:2rem 1rem}
@@ -433,19 +373,6 @@ let users = {
 
 /* ══════════════════════════════════════════════
    ✉️  buildEmailRecipients — NOUVELLE FONCTION
-   ─────────────────────────────────────────────
-   Construit automatiquement les champs EmailJS
-   à partir du tableau users :
-     • to_email  → email du destinataire principal
-     • to_name   → nom du destinataire
-     • cc_emails → tous les autres emails (séparés
-                   par virgule) sauf le destinataire
-     • all_emails_list → liste lisible de tous les
-                   comptes pour le corps du mail
-   Utilisation dans le template EmailJS :
-     {{to_email}}        → destinataire principal
-     {{cc_emails}}       → mettre en CC dans le template
-     {{all_emails_list}} → afficher la liste complète
 ══════════════════════════════════════════════ */
 function buildEmailRecipients(targetUsername) {
   const targetUser = users[targetUsername];
@@ -489,7 +416,6 @@ function toggleTheme(){
     icon.textContent='🌙'; text.textContent='Mode sombre';
     localStorage.setItem('netguard-theme','dark');
   }
-  // Propager aux autres pages ouvertes
   window.dispatchEvent(new CustomEvent('themeChanged', {
     detail: { isDark: document.body.classList.contains('dark-mode') }
   }));
@@ -514,6 +440,31 @@ function updateStrength(v){
   fill.style.background=s>=100?'#22c55e':s>=60?'#f59e0b':'#ef4444';
 }
 
+// ✅ Vérifier si une session valide existe déjà
+function checkExistingSession() {
+  if (typeof NetGuardAuth !== 'undefined') {
+    const session = NetGuardAuth.getSession();
+    if (session && session.role && session.token) {
+      try {
+        const payload = JSON.parse(atob(session.token.split('.')[1]));
+        const exp = payload.exp;
+        if (exp && Date.now() < exp * 1000) {
+          const targetPage = NetGuardAuth.getDefaultPage(session.role);
+          if (targetPage && targetPage !== 'login.html') {
+            window.location.replace(targetPage);
+            return true;
+          }
+        } else {
+          NetGuardAuth.clearSession();
+        }
+      } catch(e) {
+        NetGuardAuth.clearSession();
+      }
+    }
+  }
+  return false;
+}
+
 async function doLogin(){
   const u=document.getElementById('uIn').value.trim().toLowerCase();
   const p=document.getElementById('pIn').value;
@@ -523,49 +474,42 @@ async function doLogin(){
   btn.disabled=true;
   btn.innerHTML='<span class="spinner"></span>Authentification…';
 
-  // Blocage de sécurité : empêche l'utilisation via double-clic (file://)
   if (window.location.protocol === 'file:') {
-    err.innerHTML = '⚠ <b>Erreur :</b> Vous avez ouvert ce fichier par un double-clic (file://).<br>La mémoire du navigateur est bloquée en mode fichier.<br><br>Tapez <b>http://localhost:8000/netguard_login_v2.html</b> dans la barre d\'adresse de votre navigateur pour que la redirection fonctionne.';
+    err.innerHTML = '⚠ <b>Erreur :</b> Vous avez ouvert ce fichier par un double-clic (file://).<br>Tapez <b>http://localhost:8000/login.html</b> dans la barre d\'adresse.';
     err.style.display = 'block';
-    btn.disabled = false;
-    btn.textContent = 'Connexion →';
-    btn.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)';
+    btn.disabled=false;
+    btn.textContent='Connexion →';
     return;
   }
 
   try {
-    // Vérification anti-cache : on s'assure que la nouvelle version de auth.js est bien chargée
     if (typeof NetGuardAuth.authenticate !== 'function') {
       throw new Error("CACHE_ERROR");
     }
 
-    // On attend (await) la réponse du serveur backend
     const result = await NetGuardAuth.authenticate(u, p);
 
     if(result.success){
       NetGuardAuth.setSession(result.user);
       btn.style.background='linear-gradient(135deg,#22c55e,#16a34a)';
       const targetPage = NetGuardAuth.getDefaultPage(result.user.role);
-      console.log("Connexion réussie ! Rôle:", result.user.role, "-> Redirection vers:", targetPage);
-      btn.innerHTML='✓ Ouverture de <b>' + targetPage + '</b>';
-      setTimeout(()=>{ window.location.href = targetPage; }, 1500);
+      btn.innerHTML='✓ Redirection vers ' + targetPage;
+      setTimeout(()=>{ window.location.href = targetPage; }, 1000);
     } else {
       err.innerHTML = '⚠ ' + result.error;
       err.style.display='block';
       btn.disabled=false;
       btn.textContent='Connexion →';
-      btn.style.background='linear-gradient(135deg,#6366f1,#8b5cf6)';
     }
   } catch (error) {
     if (error.message === "CACHE_ERROR") {
-      err.innerHTML = '⚠ <b>Erreur :</b> Votre navigateur a gardé l\'ancienne version en mémoire.<br>Appuyez sur <b>Ctrl + F5</b> pour mettre à jour.';
+      err.innerHTML = '⚠ <b>Erreur :</b> Cache navigateur. Appuyez sur <b>Ctrl + F5</b>.';
     } else {
-      err.innerHTML = '⚠ <b>Erreur Serveur :</b> Impossible de joindre Flask.<br>Vérifiez que le backend tourne bien.';
+      err.innerHTML = '⚠ <b>Erreur Serveur :</b> Vérifiez que le backend tourne.';
     }
     err.style.display='block';
     btn.disabled=false;
     btn.textContent='Connexion →';
-    btn.style.background='linear-gradient(135deg,#6366f1,#8b5cf6)';
   }
 }
 
@@ -626,7 +570,6 @@ function doForgotStep1(){
   btn.disabled=true;
   btn.innerHTML='<span class="spinner"></span>Vérification…';
 
-  // Appel backend pour vérifier l'email / identifiant dans la table 'utilisateur'
   fetch('http://127.0.0.1:5000/api/check-email', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -640,10 +583,8 @@ function doForgotStep1(){
       return;
     }
 
-    // data doit contenir { username, email }
     const userData = { name: data.username || data.email, email: data.email };
     btn.disabled=false; btn.textContent='Envoyer le code →';
-    // Envoi du code via EmailJS vers l'email récupéré depuis la base
     sendResetCode(data.username, userData, btn);
   }).catch(err=>{
     console.error('Erreur check-email:', err);
@@ -652,21 +593,15 @@ function doForgotStep1(){
   });
 }
 
-/* ══════════════════════════════════════════════
-   sendResetCode — utilise buildEmailRecipients
-   pour injecter automatiquement tous les emails
-   dans les paramètres du template EmailJS
-══════════════════════════════════════════════ */
 function sendResetCode(username, userData, btn){
   const code = String(Math.floor(100000 + Math.random() * 900000));
   resetState.username = username;
   resetState.code = code;
   resetState.expiry = Date.now() + 10 * 60 * 1000;
 
-  /* ── Envoi uniquement à l'email de l'utilisateur qui a saisi son identifiant ── */
   emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
     to_name:    userData.name,
-    to_email:   userData.email,   // ← email de LA personne qui a demandé la réinitialisation
+    to_email:   userData.email,
     reset_code: code,
     username:   username
   }).then(() => {
@@ -686,6 +621,7 @@ function sendResetCode(username, userData, btn){
     showForgotErr('⚠ Échec d\'envoi. Vérifiez la configuration EmailJS.');
   });
 }
+
 function maskEmail(email){
   const[local,domain]=email.split('@');
   return local.slice(0,2)+'***@'+domain;
@@ -709,7 +645,6 @@ function doForgotStep2(){
   }
 
   clearResetTimer();
-  // Passe à l'étape 3 : saisie du nouveau mot de passe
   setStep(3);
   document.getElementById('step2Section').style.display = 'none';
   document.getElementById('step3Section').style.display = 'block';
@@ -800,7 +735,6 @@ function showForgotErr(msg){
   box.textContent=msg;box.style.display='block';
 }
 
-/* Validation et soumission du nouveau mot de passe (étape 3) */
 function updateNewPwdStrength(v){
   const fill=document.getElementById('newPwdStrength');
   if(!v){fill.style.width='0';return;}
@@ -823,7 +757,6 @@ async function submitNewPassword(){
   const btn = document.getElementById('step3Btn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Enregistrement…';
 
-  // Envoi au backend : username provenant de resetState
   const username = resetState.username;
   try{
     const resp = await fetch('http://127.0.0.1:5000/reset-password-final', {
@@ -851,7 +784,12 @@ async function submitNewPassword(){
 ══════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded',()=>{
   loadTheme();
-  // Écouter les changements de thème depuis topbar.js dans d'autres onglets
+  
+  // ✅ Vérifier si une session valide existe déjà
+  if (checkExistingSession()) {
+    return;
+  }
+  
   window.addEventListener('storage', function(e) {
     if (e.key === 'netguard-theme') {
       if (e.newValue === 'light') {
@@ -869,20 +807,9 @@ document.addEventListener('DOMContentLoaded',()=>{
       }
     }
   });
+  
   if(typeof window.NetGuardAuth!=='undefined'){
     console.log('auth.js chargé ✓');
-    
-    // Si l'utilisateur a déjà une session valide, on le redirige tout de suite
-    const session = NetGuardAuth.getSession();
-    if (session && session.role) {
-      const targetPage = NetGuardAuth.getDefaultPage(session.role);
-      // On empêche la page de se recharger sur elle-même (boucle infinie)
-      if (targetPage !== 'netguard_login_v2.html' && targetPage !== 'login.html') {
-        window.location.replace(targetPage);
-      } else {
-        NetGuardAuth.clearSession(); // La session est corrompue, on la nettoie
-      }
-    }
   } else {
     console.log('auth.js non trouvé — mode standalone actif');
   }

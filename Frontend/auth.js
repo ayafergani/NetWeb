@@ -1,10 +1,11 @@
 (function () {
   // ========================================================
-  // MODE DESIGN : Mettre à true pour désactiver la sécurité
-  const DEV_MODE = true; 
+  // MODE DESIGN : Mettre à false pour activer la sécurité réelle
+  const DEV_MODE = false; 
   // ========================================================
 
   const STORAGE_KEY = 'netguardSession';
+  const TOKEN_KEY = 'jwtToken';
   const ROLES = {
     ADMIN: 'ADMIN',
     NETWORK_ADMIN: 'NETWORK_ADMIN',
@@ -30,8 +31,6 @@
     [ROLES.AUDITOR]: 'dashboard.html'
   };
 
-  // NOTE: Removed hardcoded users. Password reset now uses backend endpoints.
-
   function getSession() {
     if (DEV_MODE) {
       return { 
@@ -43,9 +42,30 @@
     }
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!raw || !token) return null;
+      
+      const session = JSON.parse(raw);
+      // Vérifier que le token n'est pas expiré
+      if (isTokenExpired(token)) {
+        clearSession();
+        return null;
+      }
+      return session;
     } catch (error) {
       return null;
+    }
+  }
+
+  // Helper pour vérifier l'expiration du token JWT
+  function isTokenExpired(token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const exp = payload.exp;
+      if (!exp) return false;
+      return Date.now() >= exp * 1000;
+    } catch (e) {
+      return true;
     }
   }
 
@@ -58,17 +78,18 @@
       localStorage.setItem('userEmail', session.email);
     }
     if (session.token) {
-      localStorage.setItem('jwtToken', session.token);
+      localStorage.setItem(TOKEN_KEY, session.token);
     }
   }
 
   function clearSession() {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem('userRole');
     localStorage.removeItem('userName');
     localStorage.removeItem('userId');
     localStorage.removeItem('userEmail');
-    localStorage.removeItem('jwtToken');
+    sessionStorage.clear();
   }
 
   function getRole() {
@@ -77,7 +98,9 @@
   }
 
   function isAuthenticated() {
-    return Boolean(getSession());
+    if (DEV_MODE) return true;
+    const session = getSession();
+    return session !== null;
   }
 
   function canAccessPage(pageId, role) {
@@ -92,7 +115,7 @@
   }
 
   function getDefaultPage(role) {
-    const safeRole = String(role || '').toUpperCase(); // Force la lecture en majuscules
+    const safeRole = String(role || '').toUpperCase();
     return DEFAULT_PAGE_BY_ROLE[safeRole] || 'login.html';
   }
 
@@ -102,7 +125,7 @@
 
   function requirePageAccess(pageId) {
     if (DEV_MODE) {
-      return true; // Désactive le "videur" pour le design
+      return true;
     }
 
     const session = getSession();
@@ -120,7 +143,6 @@
     return true;
   }
 
-  // Demande de réinitialisation : appelle le backend pour générer et envoyer un token de reset
   async function requestPasswordReset(email) {
     if (!email) return { success: false, error: 'Email requis' };
 
@@ -147,7 +169,6 @@
     }
   }
 
-  // Effectuer la réinitialisation finale : envoie le token et le nouveau mot de passe au backend
   async function performPasswordReset(token, newPassword) {
     if (!token || !newPassword) return { success: false, error: 'Token et nouveau mot de passe requis' };
 
@@ -183,17 +204,16 @@
       const data = await response.json();
       
       if (response.ok) {
-        // On s'assure que le rôle est bien en majuscules et sans espaces (ex: "admin" -> "ADMIN")
         const safeRole = (data.role || '').trim().toUpperCase();
         
         return {
           success: true,
           user: {
-            username: data.username || username,  // ← username réel depuis la BDD
-            name:     data.username || username,  // ← idem
-            email:    data.email    || '',        // ← email réel depuis la BDD
-            role:     safeRole,
-            token:    data.access_token
+            username: data.username || username,
+            name: data.username || username,
+            email: data.email || '',
+            role: safeRole,
+            token: data.access_token
           }
         };
       } else {
@@ -205,11 +225,29 @@
     }
   }
 
+  async function logout() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token && !DEV_MODE) {
+      try {
+        await fetch('http://127.0.0.1:5000/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      } catch (error) {
+        console.error('Erreur logout backend:', error);
+      }
+    }
+    clearSession();
+  }
+
   function getAuthHeaders() {
     if (DEV_MODE) {
       return { 'Content-Type': 'application/json', 'Authorization': 'Bearer dev-token' };
     }
-    const token = localStorage.getItem('jwtToken');
+    const token = localStorage.getItem(TOKEN_KEY);
     return {
       'Content-Type': 'application/json',
       'Authorization': token ? `Bearer ${token}` : ''
@@ -230,6 +268,7 @@
     redirectToDefault,
     requirePageAccess,
     authenticate,
+    logout,
     getAuthHeaders,
     requestPasswordReset,
     performPasswordReset
