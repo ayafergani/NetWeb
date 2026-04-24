@@ -282,9 +282,16 @@
         
         try {
           const response = await fetch(`${API_BASE_URL}/api/network/deploy-vlan`, {
+          const response = await fetch('http://127.0.0.1:5000/api/network/deploy-vlan', {
             method: 'POST',
             headers: window.NetGuardAuth.getAuthHeaders(),
-            body: JSON.stringify(newVlan)
+            body: JSON.stringify({
+              vlan_id: newVlan.id,
+              vlan_name: newVlan.name,
+              switch_ip: newVlan.switchIp,
+              switch_user: newVlan.switchUser,
+              switch_password: newVlan.switchPass
+            })
           });
           
           const data = await response.json();
