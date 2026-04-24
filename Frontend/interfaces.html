@@ -20,12 +20,12 @@
     .animate-in { animation: fadeInUp 0.4s ease backwards; animation-delay: 0.1s; }
     .table-row { animation: rowSlideIn 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1) both; }
     .slide-in-right { animation: fadeInRight 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1) backwards; }
-    
+
     @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes rowSlideIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
     @keyframes fadeInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-    
+
     .custom-scroll::-webkit-scrollbar { width: 6px; }
     .custom-scroll::-webkit-scrollbar-track { background: transparent; }
     .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -36,6 +36,9 @@
     .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; }
     input:checked + .slider { background-color: #6366f1; }
     input:checked + .slider:before { transform: translateX(18px); }
+    
+    .type-badge-access { background: #e0e7ff; color: #4338ca; }
+    .type-badge-uplink { background: #fef3c7; color: #92400e; }
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen app-body">
@@ -52,86 +55,286 @@
   </div>
 
   <script type="text/babel">
-    const { useState } = React;
+    const { useState, useEffect } = React;
+    const API_BASE_URL = window.location.port === '5000' ? '' : 'http://127.0.0.1:5000';
+    const auth = window.NetGuardAuth;
 
-    // --- Génération de la base de données simulée ---
-    const generateInitialPorts = () => {
+    const pickDefaultAccessVlan = (availableVlans, preferredVlan) => {
+      const normalizedVlans = (availableVlans || []).map((vlan) => String(vlan));
+      if (normalizedVlans.includes(String(preferredVlan))) return String(preferredVlan);
+      if (normalizedVlans.includes('1')) return '1';
+      return normalizedVlans[0] || '';
+    };
+
+    const generateInitialPorts = (availableVlans = []) => {
       const ports = [];
+      let interfaceId = 1;
+
+      // Ports cuivre (type = "access")
       for (let i = 1; i <= 24; i++) {
-        // Seuls les ports 1 à 4 et le port 24 sont considérés "déjà configurés"
-        const isConfigured = i <= 4 || i === 24; 
+        const isConfigured = i <= 4 || i === 24;
+        const preferredVlan = i === 3 ? '20' : (i === 24 ? '30' : (isConfigured ? '10' : '1'));
         ports.push({
+          id_interface: interfaceId++,
           id: `Gi1/0/${i}`,
+          equipement_id: null,
           status: i <= 4 ? 'UP' : 'DOWN',
-          vlan: i === 3 ? '20' : (isConfigured ? (i === 24 ? '30' : '10') : '1'), // VLAN 1 par défaut si non configuré
-          mode: 'Access',
+          vlan: pickDefaultAccessVlan(availableVlans, preferredVlan),
+          mode: 'access',           // Configuration logicielle
+          type: 'access',            // Type physique (port cuivre)
           speed: i <= 4 ? '1Gb' : '-',
           devices: i <= 4 ? 1 : 0,
           alert: i === 4,
-          srcIp: i === 4 ? '192.168.1.10' : null,
-          threat: i === 4 ? 'Port Scan Détecté' : null,
+          srcIp: i === 4 ? '192.168.1.10' : '',
+          threat: i === 4 ? 'Port Scan Détecté' : '',
           portSecurity: i <= 3,
           securityViolation: 'shutdown',
           maxMac: 1,
-          bpduGuard: true,
-          configured: isConfigured // NOUVEAU FLAG !
+          bpdu_guard: true,
+          configured: isConfigured,
+          allowedVlans: '',
+          dbExists: false
         });
       }
+
+      // Ports fibre SFP+ (type = "uplink")
       for (let i = 1; i <= 4; i++) {
         const isConfigured = i <= 2;
         ports.push({
+          id_interface: interfaceId++,
           id: `Te1/1/${i}`,
+          equipement_id: null,
           status: i === 1 ? 'UP' : 'DOWN',
-          vlan: isConfigured ? 'All' : '1',
-          mode: isConfigured ? 'Trunk' : 'Access',
+          vlan: isConfigured ? 'All' : pickDefaultAccessVlan(availableVlans, '1'),
+          mode: isConfigured ? 'trunk' : 'access',  // Configuration logicielle
+          type: 'uplink',                           // Type physique (fibre SFP+)
           speed: i === 1 ? '10Gb' : '-',
           devices: 0,
           alert: false,
+          srcIp: '',
+          threat: '',
           portSecurity: false,
           securityViolation: 'shutdown',
           maxMac: 1,
-          bpduGuard: false,
-          configured: isConfigured // NOUVEAU FLAG !
+          bpdu_guard: false,
+          configured: isConfigured,
+          allowedVlans: isConfigured ? 'All' : '',
+          dbExists: false
         });
       }
+
       return ports;
     };
 
+    const mapDbInterfaceToUi = (row, fallbackPort) => ({
+      ...(fallbackPort || {}),
+      id_interface: row.id_interface,
+      id: row.nom,
+      equipement_id: row.equipement_id ?? fallbackPort?.equipement_id ?? null,
+      status: (row.status || fallbackPort?.status || 'DOWN').toUpperCase(),
+      vlan: row.mode === 'trunk' ? (row.allowed_vlans || 'All') : String(row.vlan_id ?? fallbackPort?.vlan ?? '1'),
+      mode: row.mode || fallbackPort?.mode || 'access',
+      type: row.type || fallbackPort?.type || 'access',
+      speed: row.speed || fallbackPort?.speed || '-',
+      devices: fallbackPort?.devices || 0,
+      alert: fallbackPort?.alert || false,
+      srcIp: row.ip || fallbackPort?.srcIp || '',
+      threat: fallbackPort?.threat || '',
+      portSecurity: Boolean(row.port_security),
+      securityViolation: row.violation_mode || fallbackPort?.securityViolation || 'shutdown',
+      maxMac: row.max_mac || fallbackPort?.maxMac || 1,
+      bpdu_guard: Boolean(row.bpdu_guard),
+      configured: true,
+      allowedVlans: row.allowed_vlans || '',
+      dbExists: true
+    });
+
+    const buildInterfacePayload = (port) => ({
+      id_interface: port.id_interface,
+      nom: port.id,
+      ip: port.srcIp || null,
+      vlan_id: port.mode === 'trunk' ? null : (port.vlan && port.vlan !== 'All' ? Number(port.vlan) : null),
+      equipement_id: port.equipement_id ?? null,
+      status: port.status,
+      mode: port.mode,
+      type: port.type,
+      speed: port.speed === '-' ? null : port.speed,
+      allowed_vlans: port.mode === 'trunk' ? (port.vlan || port.allowedVlans || 'All') : null,
+      port_security: port.portSecurity,
+      max_mac: Number(port.maxMac || 1),
+      violation_mode: port.securityViolation || 'shutdown',
+      bpdu_guard: port.bpdu_guard,
+    });
+
     const InterfacesPage = () => {
+      const [availableVlans, setAvailableVlans] = useState([]);
       const [ports, setPorts] = useState(generateInitialPorts());
       const [selectedPortId, setSelectedPortId] = useState(null);
       const [isApplying, setIsApplying] = useState(false);
+      const [toast, setToast] = useState(null);
 
-      const selectedPort = ports.find(p => p.id === selectedPortId);
-      
-      // On filtre le tableau pour n'afficher QUE les ports configurés
-      const configuredPorts = ports.filter(p => p.configured);
+      const selectedPort = ports.find((p) => p.id === selectedPortId);
+      const configuredPorts = ports.filter((p) => p.configured);
 
-      // --- Actions ---
+      const showToast = (message, type = 'success') => {
+        setToast({ message, type });
+        window.clearTimeout(window.__interfaceToastTimer);
+        window.__interfaceToastTimer = window.setTimeout(() => setToast(null), 3500);
+      };
+
+      const loadInterfaces = async () => {
+        try {
+          const [interfaceResponse, vlanResponse] = await Promise.all([
+            fetch(`${API_BASE_URL}/api/interface`, {
+              headers: auth.getAuthHeaders()
+            }),
+            fetch(`${API_BASE_URL}/api/vlan`, {
+              headers: auth.getAuthHeaders()
+            })
+          ]);
+
+          const [interfaceData, vlanData] = await Promise.all([
+            interfaceResponse.json(),
+            vlanResponse.json()
+          ]);
+
+          if (!interfaceResponse.ok || !interfaceData.success) {
+            throw new Error(interfaceData.error || 'Chargement des interfaces impossible');
+          }
+          if (!vlanResponse.ok || !vlanData.success) {
+            throw new Error(vlanData.error || 'Chargement des VLANs impossible');
+          }
+
+          const vlanIds = (vlanData.vlans || []).map((item) => String(item.id_vlan ?? item.id)).filter(Boolean);
+          setAvailableVlans(vlanIds);
+
+          const defaults = generateInitialPorts(vlanIds);
+          const merged = defaults.map((port) => {
+            const dbPort = (interfaceData.interfaces || []).find((item) =>
+              item.id_interface === port.id_interface || item.nom === port.id
+            );
+            return dbPort ? mapDbInterfaceToUi(dbPort, port) : port;
+          });
+
+          setPorts(merged);
+          setSelectedPortId((current) => merged.find((port) => port.id === current)?.id || null);
+          
+          window.dispatchEvent(new CustomEvent('netguard:interface-updated'));
+        } catch (error) {
+          console.error('Erreur chargement interfaces:', error);
+          showToast(error.message || 'Impossible de charger les interfaces', 'error');
+        }
+      };
+
+      useEffect(() => {
+        auth.requirePageAccess('interfaces');
+        loadInterfaces();
+        return () => window.clearTimeout(window.__interfaceToastTimer);
+      }, []);
+
+      const persistPort = async (port, successMessage, fallbackMessage = 'Enregistrement impossible') => {
+        const payload = buildInterfacePayload(port);
+        const method = port.dbExists ? 'PUT' : 'POST';
+        const url = port.dbExists
+          ? `${API_BASE_URL}/api/interface/${port.id_interface}`
+          : `${API_BASE_URL}/api/interface`;
+
+        const response = await fetch(url, {
+          method,
+          headers: auth.getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || fallbackMessage);
+        }
+
+        const savedPort = mapDbInterfaceToUi(data.interface || payload, port);
+        setPorts((currentPorts) =>
+          currentPorts.map((item) => item.id === port.id ? { ...savedPort, configured: true, dbExists: true } : item)
+        );
+        
+        window.dispatchEvent(new CustomEvent('netguard:interface-updated'));
+        showToast(successMessage);
+      };
+
+      const updatePortLocally = (id, updates) => {
+        setPorts((currentPorts) => currentPorts.map((port) => (
+          port.id === id ? { ...port, ...updates } : port
+        )));
+      };
+
+      const getPort = (id) => ports.find((port) => port.id === id);
+
       const toggleStatus = (id) => {
-        setPorts(ports.map(p => p.id === id ? { ...p, status: p.status === 'UP' ? 'DOWN' : 'UP', speed: p.status === 'UP' ? '-' : (p.id.startsWith('Te') ? '10Gb' : '1Gb') } : p));
+        const currentPort = getPort(id);
+        if (!currentPort) return;
+
+        const nextStatus = currentPort.status === 'UP' ? 'DOWN' : 'UP';
+        const nextSpeed = nextStatus === 'UP' ? (currentPort.type === 'uplink' ? '10Gb' : '1Gb') : '-';
+        updatePortLocally(id, { status: nextStatus, speed: nextSpeed });
       };
 
       const isolatePort = (id) => {
-        setPorts(ports.map(p => p.id === id ? { ...p, vlan: '99', alert: false, status: 'DOWN', configured: true } : p));
-        setSelectedPortId(null);
+        updatePortLocally(id, {
+          vlan: '99',
+          alert: false,
+          status: 'DOWN',
+          mode: 'access',
+          threat: '',
+          allowedVlans: '',
+        });
+        setSelectedPortId(id);
       };
 
       const updatePortParam = (id, param, value) => {
-        setPorts(ports.map(p => p.id === id ? { ...p, [param]: value } : p));
+        const currentPort = getPort(id);
+        if (!currentPort) return;
+
+        let updates = { [param]: value };
+        if (param === 'mode' && value === 'trunk') {
+          updates = { ...updates, vlan: currentPort.allowedVlans || 'All' };
+        } else if (param === 'mode' && value === 'access') {
+          updates = { ...updates, vlan: currentPort.vlan === 'All' ? '1' : currentPort.vlan };
+        } else if (param === 'vlan') {
+          updates = { ...updates, allowedVlans: currentPort.mode === 'trunk' ? value : currentPort.allowedVlans };
+        }
+
+        updatePortLocally(id, updates);
       };
 
-      // Bouton "Apply" : Sauvegarde la config et rend le port "Configured"
-      const handleApplyChanges = (id) => {
+      const handleApplyChanges = async (id) => {
+        const currentPort = getPort(id);
+        if (!currentPort) return;
+        if (currentPort.mode === 'access') {
+          if (!currentPort.vlan) {
+            showToast('Selectionnez un VLAN valide avant d\'enregistrer.', 'error');
+            return;
+          }
+          if (!availableVlans.includes(String(currentPort.vlan))) {
+            showToast(`Le VLAN ${currentPort.vlan} n'existe pas encore. Creez-le d'abord dans la page VLAN.`, 'error');
+            return;
+          }
+        }
+
         setIsApplying(true);
-        // Simulation du temps de réponse du Backend (Nornir)
-        setTimeout(() => {
-          setPorts(ports.map(p => p.id === id ? { ...p, configured: true } : p));
+        try {
+          await persistPort({ ...currentPort, configured: true }, `Configuration appliquée sur ${id}.`);
+        } catch (error) {
+          showToast(error.message, 'error');
+        } finally {
           setIsApplying(false);
-        }, 600);
+        }
       };
 
-      // --- Composants UI ---
+      const getModeDisplay = (mode) => {
+        return mode === 'trunk' ? 'Trunk' : 'Access';
+      };
+
+      const getTypeDisplay = (type) => {
+        return type === 'uplink' ? '🔗 Uplink SFP+' : '🔌 Access Port';
+      };
+
       const PhysicalSwitch = () => {
         return (
           <div className="bg-[#1a1c3a] p-6 rounded-2xl shadow-xl shadow-indigo-600/20 mb-8 border border-slate-200 flex flex-col items-center">
@@ -141,16 +344,16 @@
                 <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div> IOS-XE SECURE
               </span>
             </div>
-            
+
             <div className="flex gap-8 items-center w-full justify-center overflow-x-auto pb-4">
               <div className="flex flex-col gap-2 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                <span className="text-[9px] font-mono text-slate-500 text-center uppercase tracking-widest mb-1">Access Ports (Cu)</span>
+                <span className="text-[9px] font-mono text-slate-500 text-center uppercase tracking-widest mb-1">Access Ports (Cuivre - Type Access)</span>
                 <div className="grid grid-cols-12 gap-1.5">
                   {Array.from({ length: 24 }).map((_, i) => {
                     const portId = `Gi1/0/${i + 1}`;
-                    const portData = ports.find(p => p.id === portId);
-                    
-                    let bgColor = 'bg-slate-700'; // Port non-configuré (Gris)
+                    const portData = ports.find((p) => p.id === portId);
+
+                    let bgColor = 'bg-slate-700';
                     let borderColor = 'border-slate-800';
                     let animation = '';
 
@@ -158,18 +361,21 @@
                       if (portData.alert) {
                         bgColor = 'bg-orange-500'; borderColor = 'border-orange-300'; animation = 'animate-pulse';
                       } else if (!portData.configured) {
-                        bgColor = 'bg-slate-700'; borderColor = 'border-slate-600'; // Non configuré
+                        bgColor = 'bg-slate-700'; borderColor = 'border-slate-600';
                       } else if (portData.status === 'UP') {
-                        bgColor = 'bg-emerald-500'; borderColor = 'border-emerald-300'; // Configuré et Actif
+                        bgColor = 'bg-emerald-500'; borderColor = 'border-emerald-300';
                       } else {
-                        bgColor = 'bg-rose-500'; borderColor = 'border-rose-300'; // Configuré mais DOWN
+                        bgColor = 'bg-rose-500'; borderColor = 'border-rose-300';
                       }
                     }
 
                     return (
-                      <div key={portId} onClick={() => portData && setSelectedPortId(portId)}
+                      <div
+                        key={portId}
+                        onClick={() => portData && setSelectedPortId(portId)}
                         className={`w-8 h-8 rounded border-b-2 ${bgColor} ${borderColor} ${animation} flex items-center justify-center cursor-pointer hover:scale-110 transition-transform shadow-inner`}
-                        title={`Interface ${portId} ${portData && !portData.configured ? '(Non Configuré)' : ''}`}>
+                        title={`Interface ${portId} (Type: Access Port Cuivre) ${portData && !portData.configured ? '(Non Configuré)' : ''}`}
+                      >
                         <span className="text-[8px] font-mono text-white/90">{i + 1}</span>
                       </div>
                     );
@@ -178,12 +384,12 @@
               </div>
 
               <div className="flex flex-col gap-2 p-3 bg-slate-800/80 rounded-xl border border-slate-700">
-                <span className="text-[9px] font-mono text-cyan-500/70 text-center uppercase tracking-widest mb-1">Uplinks (SFP+)</span>
+                <span className="text-[9px] font-mono text-cyan-500/70 text-center uppercase tracking-widest mb-1">Uplinks (Fibre SFP+ - Type Uplink)</span>
                 <div className="grid grid-cols-2 gap-2">
                   {Array.from({ length: 4 }).map((_, i) => {
                     const portId = `Te1/1/${i + 1}`;
-                    const portData = ports.find(p => p.id === portId);
-                    
+                    const portData = ports.find((p) => p.id === portId);
+
                     let bgColor = 'bg-slate-900';
                     let borderColor = 'border-slate-700';
 
@@ -198,9 +404,12 @@
                     }
 
                     return (
-                      <div key={portId} onClick={() => portData && setSelectedPortId(portId)}
+                      <div
+                        key={portId}
+                        onClick={() => portData && setSelectedPortId(portId)}
                         className={`w-10 h-8 rounded border-2 ${bgColor} ${borderColor} flex items-center justify-center cursor-pointer hover:scale-105 transition-transform`}
-                        title={`Uplink ${portId}`}>
+                        title={`Uplink ${portId} (Type: Fibre SFP+)`}
+                      >
                         <span className="text-[8px] font-mono text-white/60">T{i + 1}</span>
                       </div>
                     );
@@ -234,24 +443,28 @@
                     <thead className="bg-slate-50/80 border-b border-slate-100 sticky top-0 z-10">
                       <tr>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Port</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type Physique</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">VLAN</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mode</th>
-                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Securité</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Sécurité</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {configuredPorts.map((port, idx) => (
-                        <tr 
-                          key={port.id} 
+                        <tr
+                          key={port.id}
                           onClick={() => setSelectedPortId(port.id)}
-                          className={`group cursor-pointer transition-colors table-row 
-                            ${selectedPortId === port.id ? 'bg-indigo-50/40' : 'hover:bg-slate-50/80'}
-                            ${port.alert ? 'bg-orange-50/30 hover:bg-orange-50/60' : ''}`}
-                          style={{animationDelay: `${0.1 + (idx * 0.05)}s`}}
+                          className={`group cursor-pointer transition-colors table-row ${selectedPortId === port.id ? 'bg-indigo-50/40' : 'hover:bg-slate-50/80'} ${port.alert ? 'bg-orange-50/30 hover:bg-orange-50/60' : ''}`}
+                          style={{ animationDelay: `${0.1 + (idx * 0.05)}s` }}
                         >
                           <td className="px-6 py-4 font-mono font-bold text-slate-700">{port.id}</td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${port.type === 'uplink' ? 'type-badge-uplink' : 'type-badge-access'}`}>
+                              {getTypeDisplay(port.type)}
+                            </span>
+                          </td>
                           <td className="px-6 py-4">
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${port.status === 'UP' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${port.status === 'UP' ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
@@ -262,8 +475,8 @@
                             {port.vlan !== 'All' ? `VLAN ${port.vlan}` : port.vlan}
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${port.mode === 'Trunk' ? 'bg-purple-50 text-purple-600' : 'bg-slate-100 text-slate-600'}`}>
-                              {port.mode}
+                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${port.mode === 'trunk' ? 'bg-purple-50 text-purple-600' : 'bg-slate-100 text-slate-600'}`}>
+                              {getModeDisplay(port.mode)}
                             </span>
                           </td>
                           <td className="px-6 py-4">
@@ -272,7 +485,7 @@
                             ) : (
                               <span className="text-slate-400 text-xs font-medium" title="Port Security Disabled">🔓 Off</span>
                             )}
-                            {port.bpduGuard && (
+                            {port.bpdu_guard && (
                               <span className="ml-2 text-indigo-600 text-xs font-bold" title="BPDU Guard Enabled">🛡️ BPDU</span>
                             )}
                           </td>
@@ -286,7 +499,7 @@
                       ))}
                       {configuredPorts.length === 0 && (
                         <tr>
-                          <td colSpan="6" className="px-6 py-10 text-center text-slate-400 text-sm">
+                          <td colSpan="7" className="px-6 py-10 text-center text-slate-400 text-sm">
                             Aucun port configuré. Cliquez sur le schéma du switch pour commencer.
                           </td>
                         </tr>
@@ -300,12 +513,14 @@
             {selectedPort && (
               <div className="col-span-12 lg:col-span-4 slide-in-right">
                 <div className="detail-panel bg-white rounded-[2rem] border border-slate-200 p-6 shadow-xl shadow-indigo-600/15 sticky top-6">
-                  
                   <div className="flex justify-between items-start mb-6">
                     <div>
                       <h2 className="text-xl font-bold text-slate-800">Configuration</h2>
                       <div className="flex items-center gap-2 mt-1">
                         <p className="text-sm font-mono text-indigo-600">Interface {selectedPort.id}</p>
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold ${selectedPort.type === 'uplink' ? 'type-badge-uplink' : 'type-badge-access'}`}>
+                          {getTypeDisplay(selectedPort.type)}
+                        </span>
                         {!selectedPort.configured && (
                           <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[9px] font-bold uppercase rounded-md">Vierge</span>
                         )}
@@ -318,7 +533,7 @@
                     <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-2xl shadow-sm">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>
-                        <h4 className="text-orange-800 font-bold text-xs uppercase tracking-wider">Activité Suspecte</h4>
+                        <h4 className="text-orange-800 font-bold text-xs uppercase tracking-wider">Activité suspecte</h4>
                       </div>
                       <p className="text-orange-700 text-sm font-medium">{selectedPort.threat}</p>
                       <div className="mt-3 py-2 px-3 bg-white rounded-lg border border-orange-100 text-[11px] font-mono text-orange-600 font-bold">
@@ -331,7 +546,6 @@
                   )}
 
                   <div className="space-y-5">
-                    
                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
                       <div>
                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Port Status</p>
@@ -339,7 +553,7 @@
                           State: {selectedPort.status}
                         </p>
                       </div>
-                      <button 
+                      <button
                         onClick={() => toggleStatus(selectedPort.id)}
                         className={`px-4 py-2 rounded-lg text-xs font-bold text-white transition-colors ${selectedPort.status === 'UP' ? 'bg-rose-500 hover:bg-rose-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
                       >
@@ -349,25 +563,44 @@
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Mode</label>
-                        <select 
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Mode (Configuration)</label>
+                        <select
                           value={selectedPort.mode}
                           onChange={(e) => updatePortParam(selectedPort.id, 'mode', e.target.value)}
                           className="w-full border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 bg-white"
                         >
-                          <option value="Access">Access</option>
-                          <option value="Trunk">Trunk</option>
+                          <option value="access">Access</option>
+                          <option value="trunk">Trunk</option>
                         </select>
+                        <p className="text-[9px] text-slate-400 mt-1">Mode logiciel du port</p>
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">VLAN</label>
-                        <input 
-                          type="text" 
-                          value={selectedPort.vlan}
-                          onChange={(e) => updatePortParam(selectedPort.id, 'vlan', e.target.value)}
-                          disabled={selectedPort.mode === 'Trunk'}
-                          className="w-full border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-indigo-600 outline-none focus:border-indigo-500 bg-white disabled:bg-slate-100 disabled:text-slate-400" 
-                        />
+                        {selectedPort.mode === 'trunk' ? (
+                          <input
+                            type="text"
+                            value={selectedPort.vlan}
+                            onChange={(e) => updatePortParam(selectedPort.id, 'vlan', e.target.value)}
+                            className="w-full border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-indigo-600 outline-none focus:border-indigo-500 bg-white"
+                            placeholder="All, 10,20,30..."
+                          />
+                        ) : (
+                          <select
+                            value={selectedPort.vlan}
+                            onChange={(e) => updatePortParam(selectedPort.id, 'vlan', e.target.value)}
+                            className="w-full border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-indigo-600 outline-none focus:border-indigo-500 bg-white"
+                          >
+                            <option value="">Selectionnez un VLAN</option>
+                            {availableVlans.map((vlanId) => (
+                              <option key={vlanId} value={vlanId}>VLAN {vlanId}</option>
+                            ))}
+                          </select>
+                        )}
+                        {selectedPort.mode === 'access' && availableVlans.length === 0 && (
+                          <p className="mt-2 text-[11px] text-rose-600 font-medium">
+                            Aucun VLAN disponible. Creez d'abord un VLAN dans la page VLAN.
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -375,7 +608,7 @@
                       <h4 className="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-4 flex items-center gap-2">
                         <span>🔒</span> Port Security (L2)
                       </h4>
-                      
+
                       <div className="flex justify-between items-center mb-4">
                         <span className="text-xs font-bold text-slate-600">Enable Port Security</span>
                         <label className="switch-toggle">
@@ -406,7 +639,7 @@
                       <div className="flex justify-between items-center mt-4 pt-4 border-t border-indigo-100/50">
                         <span className="text-xs font-bold text-slate-600">Enable BPDU Guard</span>
                         <label className="switch-toggle">
-                          <input type="checkbox" checked={selectedPort.bpduGuard} onChange={(e) => updatePortParam(selectedPort.id, 'bpduGuard', e.target.checked)} />
+                          <input type="checkbox" checked={selectedPort.bpdu_guard} onChange={(e) => updatePortParam(selectedPort.id, 'bpdu_guard', e.target.checked)} />
                           <span className="slider"></span>
                         </label>
                       </div>
@@ -414,8 +647,8 @@
 
                     <div className="pt-4 mt-2 flex gap-3">
                       <button onClick={() => setSelectedPortId(null)} className="flex-1 py-2.5 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">Cancel</button>
-                      <button 
-                        onClick={() => handleApplyChanges(selectedPort.id)} 
+                      <button
+                        onClick={() => handleApplyChanges(selectedPort.id)}
                         disabled={isApplying}
                         className="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/15 hover:bg-indigo-700 transition-all disabled:opacity-75"
                       >
@@ -427,21 +660,27 @@
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">CLI Preview</p>
                       <pre className="text-[10px] font-mono text-emerald-400 whitespace-pre-wrap">
 {`interface ${selectedPort.id}
- switchport mode ${selectedPort.mode.toLowerCase()}
- ${selectedPort.mode === 'Access' ? `switchport access vlan ${selectedPort.vlan}` : `switchport trunk allowed vlan ${selectedPort.vlan}`}
+ description ${selectedPort.type === 'uplink' ? 'Uplink Fibre SFP+' : 'Access Port Cuivre'}
+ switchport mode ${selectedPort.mode}
+ ${selectedPort.mode === 'access' ? `switchport access vlan ${selectedPort.vlan}` : `switchport trunk allowed vlan ${selectedPort.vlan}`}
  ${selectedPort.portSecurity ? `switchport port-security
  switchport port-security maximum ${selectedPort.maxMac}
  switchport port-security violation ${selectedPort.securityViolation}` : ''}
- ${selectedPort.bpduGuard ? 'spanning-tree bpduguard enable' : ''}
+ ${selectedPort.bpdu_guard ? 'spanning-tree bpduguard enable' : ''}
  ${selectedPort.status === 'UP' ? 'no shutdown' : 'shutdown'}`.replace(/^\s*[\r\n]/gm, '')}
                       </pre>
                     </div>
-
                   </div>
                 </div>
               </div>
             )}
           </div>
+
+          {toast && (
+            <div className={`fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-2xl font-bold text-sm text-white z-50 ${toast.type === 'error' ? 'bg-rose-600' : 'bg-emerald-600'}`}>
+              {toast.message}
+            </div>
+          )}
         </div>
       );
     };
@@ -449,7 +688,7 @@
     const root = ReactDOM.createRoot(document.getElementById('interfaces-root'));
     root.render(<InterfacesPage />);
   </script>
-  
+
   <script src="sidebar.js"></script>
   <script src="topbar.js"></script>
 </body>

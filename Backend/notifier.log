@@ -1,0 +1,75 @@
+2026-04-24 17:19:12,043 [INFO] Connexion à 192.168.1.2/ids_db — écoute canal 'nouvelle_alerte'
+2026-04-24 17:19:12,232 [INFO] ✅ En attente de notifications…
+2026-04-24 17:20:21,073 [INFO] 📨 NOTIFY reçu  pid=14832  payload='{"id" : 292, "name" : "Auto-SQL-Injection-Test", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.104:22", "proto" : "TCP", "timestamp" : "2026-04-24 17:20:20.866721+02"}'
+2026-04-24 17:20:21,073 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection-Test | 192.168.56.106:54321 → 192.168.56.104:22 (TCP)
+2026-04-24 17:20:21,140 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 17:28:46,395 [INFO] 📨 NOTIFY reçu  pid=14832  payload='{"id" : 293, "name" : "Auto-SQL-Injection-Test", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.104:22", "proto" : "TCP", "timestamp" : "2026-04-24 17:28:46.182316+02"}'
+2026-04-24 17:28:46,395 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection-Test | 192.168.56.106:54321 → 192.168.56.104:22 (TCP)
+2026-04-24 17:28:46,398 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 17:35:35,465 [INFO] 📨 NOTIFY reçu  pid=14832  payload='{"id" : 294, "name" : "Auto-SQL-Injection-Test", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.104:22", "proto" : "TCP", "timestamp" : "2026-04-24 17:35:35.257699+02"}'
+2026-04-24 17:35:35,465 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection-Test | 192.168.56.106:54321 → 192.168.56.104:22 (TCP)
+2026-04-24 17:35:35,467 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 17:59:13,822 [INFO] 📨 NOTIFY reçu  pid=14832  payload='{"id" : 295, "name" : "Auto-SQL-Injection-Test", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.104:22", "proto" : "TCP", "timestamp" : "2026-04-24 17:59:13.597586+02"}'
+2026-04-24 17:59:13,823 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection-Test | 192.168.56.106:54321 → 192.168.56.104:22 (TCP)
+2026-04-24 17:59:13,827 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 18:00:19,610 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 296, "name" : "Auto-SQL-Injection-Test", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.104:22", "proto" : "TCP", "timestamp" : "2026-04-24 18:00:19.324652+02"}'
+2026-04-24 18:00:19,611 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection-Test | 192.168.56.106:54321 → 192.168.56.104:22 (TCP)
+2026-04-24 18:00:19,614 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 18:00:30,594 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 297, "name" : "Auto-SQL-Injection-Test", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.104:22", "proto" : "TCP", "timestamp" : "2026-04-24 18:00:30.331739+02"}'
+2026-04-24 18:00:30,594 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection-Test | 192.168.56.106:54321 → 192.168.56.104:22 (TCP)
+2026-04-24 18:00:30,597 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 18:01:14,395 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 298, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.104:22", "proto" : "TCP", "timestamp" : "2026-04-24 18:01:14.148971+02"}'
+2026-04-24 18:01:14,395 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.104:22 (TCP)
+2026-04-24 18:01:14,411 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 18:01:47,384 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 299, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 18:01:47.173484+02"}'
+2026-04-24 18:01:47,384 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 18:01:47,398 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 18:02:29,001 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 300, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 18:02:28.789698+02"}'
+2026-04-24 18:02:29,001 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 18:02:29,004 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 18:43:42,470 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 301, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 18:43:42.231048+02"}'
+2026-04-24 18:43:42,471 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 18:43:42,475 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 18:47:18,799 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 302, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 18:47:18.566219+02"}'
+2026-04-24 18:47:18,799 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 18:47:18,802 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 18:57:35,334 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 303, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 18:57:35.097265+02"}'
+2026-04-24 18:57:35,334 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 18:57:35,338 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 19:40:46,834 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 304, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 19:40:46.58668+02"}'
+2026-04-24 19:40:46,835 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 19:40:46,838 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 20:18:12,825 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 305, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 20:18:12.583641+02"}'
+2026-04-24 20:18:12,826 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 20:18:12,830 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 20:24:35,594 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 306, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 20:24:35.346178+02"}'
+2026-04-24 20:24:35,594 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 20:24:35,598 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 20:31:57,865 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 307, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 20:31:57.542146+02"}'
+2026-04-24 20:31:57,866 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 20:31:57,876 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 20:39:40,974 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 308, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 20:39:40.726341+02"}'
+2026-04-24 20:39:40,974 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 20:39:40,979 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 20:40:24,520 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 309, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 20:40:24.264983+02"}'
+2026-04-24 20:40:24,520 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 20:40:24,523 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 20:46:28,199 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 310, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 20:46:27.95159+02"}'
+2026-04-24 20:46:28,199 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 20:46:28,203 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 20:49:30,216 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 311, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 20:49:29.984486+02"}'
+2026-04-24 20:49:30,216 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 20:49:30,218 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 21:27:31,032 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 312, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 21:27:30.648363+02"}'
+2026-04-24 21:27:31,032 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 21:27:31,035 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 21:30:06,718 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 313, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 21:30:06.489071+02"}'
+2026-04-24 21:30:06,718 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 21:30:06,721 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 21:34:31,308 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 314, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.56.106:54321", "dst" : "192.168.56.101:22", "proto" : "TCP", "timestamp" : "2026-04-24 21:34:31.062223+02"}'
+2026-04-24 21:34:31,309 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.56.106:54321 → 192.168.56.101:22 (TCP)
+2026-04-24 21:34:31,311 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 21:35:24,895 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 315, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.10:54321", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-24 21:35:24.50733+02"}'
+2026-04-24 21:35:24,895 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.10:54321 → 192.168.59.9:22 (TCP)
+2026-04-24 21:35:24,946 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+-24 21:35:24,946 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
