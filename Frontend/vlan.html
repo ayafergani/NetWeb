@@ -19,6 +19,7 @@
       font-family: 'DM Sans', sans-serif;
     }
 
+    /* Dark mode overrides for native elements */
     .dark-mode body {
       background-color: #0f172a;
     }
@@ -102,6 +103,7 @@
       }
     }
 
+    /* Dark mode specific enhancements */
     .dark-mode .card,
     .dark-mode .bg-white {
       background-color: #1e293b !important;
@@ -179,6 +181,582 @@
 
     <main class="main">
       <div id="topbar-root" data-title="VLAN Management" data-subtitle="Gestion dédiée des VLANs et des ports associés." data-notifications="3"></div>
+
+      <section class="content">
+        <div id="vlan-root" class="page-block"></div>
+      </section>
+    </main>
+  </div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const API_BASE_URL = window.location.port === '5000' ? '' : 'http://127.0.0.1:5000';
+
+    const mapApiVlanToUi = (vlan) => ({
+      id: vlan.id ?? vlan.id_vlan,
+      name: vlan.name ?? vlan.nom ?? '',
+      type: vlan.type ?? 'Data',
+      switchName: vlan.switchName ?? '',
+      switchIp: vlan.switchIp ?? '',
+      vlanIp: vlan.vlanIp ?? vlan.gateway ?? '--',
+      ports: vlan.ports ?? '',
+      devices: vlan.devices ?? 0,
+      status: vlan.status ?? 'Active'
+    });
+
+    const VLANPage = () => {
+      const [selectedVlan, setSelectedVlan] = useState(null);
+      const [showCreateModal, setShowCreateModal] = useState(false);
+      const [isCreating, setIsCreating] = useState(false);
+      
+      // AJOUT : switchName
+      const [newVlan, setNewVlan] = useState({ id: '', name: '', type: 'Data', ports: '', switchName: '', switchIp: '', switchUser: '', switchPass: '', vlanIp: '' });
+      const [toastMsg, setToastMsg] = useState(null);
+      const [isDarkMode, setIsDarkMode] = useState(false);
+
+      const loadVlans = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/vlan`, {
+            headers: window.NetGuardAuth.getAuthHeaders()
+          });
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || "Erreur lors du chargement des VLANs");
+          }
+
+          const items = (data.vlans || []).map(mapApiVlanToUi);
+          setVlans(items);
+          if (items.length) {
+            setSelectedVlan(items[0]);
+          }
+        } catch (error) {
+          console.error("Erreur chargement VLANs:", error);
+        }
+      };
+
+      useEffect(() => {
+        const applyTheme = (event) => {
+          const savedTheme = localStorage.getItem('netguard-theme');
+          const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const isDark = event?.detail?.isDark !== undefined
+            ? event.detail.isDark
+            : savedTheme === 'dark' || (!savedTheme && systemPrefersDark);
+
+          setIsDarkMode(isDark);
+
+          document.documentElement.classList.toggle('dark-mode', isDark);
+          document.body.classList.toggle('dark-mode', isDark);
+        };
+
+        const handleStorage = (e) => {
+          if (e.key === 'netguard-theme') {
+            applyTheme({ detail: { isDark: e.newValue === 'dark' } });
+          }
+        };
+
+        applyTheme();
+        loadVlans();
+        window.addEventListener('themeChanged', applyTheme);
+        window.addEventListener('storage', handleStorage);
+
+        return () => {
+          window.removeEventListener('themeChanged', applyTheme);
+          window.removeEventListener('storage', handleStorage);
+        };
+      }, []);
+
+      // AJOUT : switchName pour un affichage propre
+      const [vlans, setVlans] = useState([
+        { id: 10, name: 'Finance', type: 'Data', switchName: 'Core-SW', switchIp: '192.168.1.200', vlanIp: '192.168.10.1', ports: 'fa0/1, fa0/2', devices: 2, status: 'Active' },
+        { id: 20, name: 'IT', type: 'Data', switchName: 'Core-SW', switchIp: '192.168.1.200', vlanIp: '192.168.20.1', ports: 'fa0/3', devices: 1, status: 'Active' },
+        { id: 99, name: 'Quarantine', type: 'Security', switchName: 'Access-SW-1', switchIp: '192.168.1.201', vlanIp: '--', ports: 'fa0/4', devices: 1, status: 'Alert', reason: 'Intrusion detected (Snort)', srcIp: '192.168.1.10' }
+      ]);
+
+      const handleCreateVlan = async () => {
+        // Validation avec switchName
+        if (!newVlan.id || !newVlan.name || !newVlan.switchIp || !newVlan.switchName || !newVlan.switchUser || !newVlan.switchPass) {
+          return alert("Veuillez remplir tous les champs (VLAN et informations du Switch).");
+        }
+        setIsCreating(true);
+        
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/network/deploy-vlan`, {
+          const response = await fetch('http://127.0.0.1:5000/api/network/deploy-vlan', {
+            method: 'POST',
+            headers: window.NetGuardAuth.getAuthHeaders(),
+            body: JSON.stringify({
+              vlan_id: newVlan.id,
+              vlan_name: newVlan.name,
+              switch_ip: newVlan.switchIp,
+              switch_user: newVlan.switchUser,
+              switch_password: newVlan.switchPass
+            })
+          });
+          
+          const data = await response.json();
+          if (response.ok) {
+            const createdVlan = mapApiVlanToUi(data.vlan || { ...newVlan, vlanIp: newVlan.vlanIp || '--', devices: 0, status: 'Active' });
+            setVlans((currentVlans) => [...currentVlans, createdVlan]);
+            setSelectedVlan(createdVlan);
+            setShowCreateModal(false);
+            setNewVlan({ id: '', name: '', type: 'Data', ports: '', switchName: newVlan.switchName, switchIp: newVlan.switchIp, switchUser: newVlan.switchUser, switchPass: newVlan.switchPass, vlanIp: '' });
+            setToastMsg(`VLAN créé avec succès sur ${newVlan.switchName} !`);
+            setTimeout(() => setToastMsg(null), 4000);
+          } else {
+            alert("Erreur: " + data.error);
+          }
+        } catch (error) {
+          alert("Erreur réseau: Impossible de joindre Flask.");
+        } finally {
+          setIsCreating(false);
+        }
+      };
+
+      return (
+        <div className="p-2 md:p-4 max-w-[1600px] mx-auto animate-in fade-in duration-500">
+          <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-800 tracking-tight dark-mode:text-slate-100">VLAN Management</h1>
+              <p className="text-slate-500 mt-1 dark-mode:text-slate-400">Gérez la segmentation réseau et la sécurité des ports Cisco.</p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold transition-all flex items-center gap-2"
+                style={{
+                  boxShadow: isDarkMode 
+                    ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)' 
+                    : '0 4px 6px -1px rgba(99, 102, 241, 0.2), 0 2px 4px -1px rgba(99, 102, 241, 0.1)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = isDarkMode
+                    ? '0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.25)'
+                    : '0 10px 15px -3px rgba(99, 102, 241, 0.3), 0 4px 6px -2px rgba(99, 102, 241, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = isDarkMode
+                    ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
+                    : '0 4px 6px -1px rgba(99, 102, 241, 0.2), 0 2px 4px -1px rgba(99, 102, 241, 0.1)';
+                }}
+              >
+                <span className="text-lg">+</span> Create VLAN
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-12 gap-8">
+            <div className="col-span-12 lg:col-span-8 space-y-6">
+              <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden vlan-card dark-mode:bg-slate-800 dark-mode:border-slate-700" style={{
+                boxShadow: isDarkMode
+                  ? '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2)'
+                  : '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02)'
+              }}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50/80 border-b border-slate-100 dark-mode:bg-slate-800/50 dark-mode:border-slate-700">
+                      <tr>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">VLAN ID</th>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">Name</th>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">Type</th>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">Switch</th>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">IP SVI</th>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">Ports</th>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">Devices</th>
+                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest dark-mode:text-slate-500">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark-mode:divide-slate-700">
+                      {vlans.map((vlan) => (
+                        <tr
+                          key={vlan.id}
+                          onClick={() => setSelectedVlan(vlan)}
+                          className={`group cursor-pointer transition-all table-row ${selectedVlan?.id === vlan.id ? 'bg-indigo-50/40 dark-mode:bg-indigo-500/10' : 'hover:bg-slate-50/80 dark-mode:hover:bg-slate-700/50'}`}
+                        >
+                          <td className="px-8 py-5 font-mono font-bold text-indigo-600 dark-mode:text-indigo-400">VLAN {vlan.id}</td>
+                          <td className="px-8 py-5 font-bold text-slate-700 dark-mode:text-slate-200">{vlan.name}</td>
+                          <td className="px-8 py-5">
+                            <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${vlan.type === 'Security' ? 'bg-orange-100 text-orange-700 dark-mode:bg-orange-900/30 dark-mode:text-orange-400' : 'bg-blue-50 text-blue-600 dark-mode:bg-blue-900/30 dark-mode:text-blue-400'}`}>
+                              {vlan.type}
+                            </span>
+                          </td>
+                          {/* Affichage du NOM du switch et non de l'IP */}
+                          <td className="px-8 py-5 text-sm font-bold text-slate-700 dark-mode:text-slate-300">{vlan.switchName}</td>
+                          <td className="px-8 py-5 font-mono text-xs text-slate-600 dark-mode:text-slate-400">{vlan.vlanIp}</td>
+                          <td className="px-8 py-5 text-sm font-medium text-slate-500 dark-mode:text-slate-400">{vlan.ports}</td>
+                          <td className="px-8 py-5 text-sm font-bold text-slate-600 dark-mode:text-slate-300">{vlan.devices} dev.</td>
+                          <td className="px-8 py-5">
+                            <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold ${vlan.status === 'Active' ? 'bg-emerald-50 text-emerald-600 dark-mode:bg-emerald-900/30 dark-mode:text-emerald-400' : 'bg-rose-50 text-rose-600 animate-pulse dark-mode:bg-rose-900/30 dark-mode:text-rose-400'}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${vlan.status === 'Active' ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                              {vlan.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-span-12 lg:col-span-4 space-y-6">
+              {selectedVlan ? (
+                <div className="bg-white rounded-[2rem] border border-slate-200 p-8 animate-in slide-in-from-right duration-300 dark-mode:bg-slate-800 dark-mode:border-slate-700" style={{
+                  boxShadow: isDarkMode
+                    ? '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2)'
+                    : '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02)'
+                }}>
+                  <div className="flex justify-between items-start mb-6">
+                    <h2 className="text-xl font-bold text-slate-800 dark-mode:text-slate-100">Détails de {selectedVlan.name}</h2>
+                    <span className="text-xs font-mono bg-slate-100 px-2 py-1 rounded text-slate-500 dark-mode:bg-slate-700 dark-mode:text-slate-400">ID: {selectedVlan.id}</span>
+                  </div>
+
+                  <div className="space-y-6">
+                    {selectedVlan.status === 'Alert' && (
+                      <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl dark-mode:bg-rose-950/30 dark-mode:border-rose-800">
+                        <h4 className="text-rose-700 font-bold text-xs uppercase flex items-center gap-2 mb-2 dark-mode:text-rose-400">
+                          Alerte Sécurité (Snort)
+                        </h4>
+                        <p className="text-rose-600 text-sm leading-relaxed dark-mode:text-rose-300">{selectedVlan.reason}</p>
+                        <div className="mt-3 py-2 px-3 bg-white rounded-lg border border-rose-100 text-[10px] font-mono text-rose-500 dark-mode:bg-slate-900 dark-mode:border-rose-800 dark-mode:text-rose-400">
+                          SOURCE IP: {selectedVlan.srcIp}
+                        </div>
+                        <button className="w-full mt-4 py-2.5 bg-rose-600 text-white text-xs font-bold rounded-xl hover:bg-rose-700 transition-all" style={{
+                          boxShadow: isDarkMode
+                            ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
+                            : '0 4px 6px -1px rgba(225, 29, 72, 0.2), 0 2px 4px -1px rgba(225, 29, 72, 0.1)'
+                        }}>
+                          Release Device
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Rappel des infos Switch et SVI dans les détails */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div className="p-4 bg-slate-50 rounded-2xl dark-mode:bg-slate-700/50">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase dark-mode:text-slate-500">Switch Cible</span>
+                        <p className="text-sm font-bold text-slate-700 dark-mode:text-slate-200 mt-1">{selectedVlan.switchName}</p>
+                        <p className="text-[10px] font-mono text-slate-400 mt-1">{selectedVlan.switchIp}</p>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-2xl dark-mode:bg-slate-700/50">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase dark-mode:text-slate-500">SVI (Gateway)</span>
+                        <p className="text-sm font-mono text-indigo-600 dark-mode:text-indigo-400 mt-1">{selectedVlan.vlanIp}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-slate-50 rounded-2xl dark-mode:bg-slate-700/50">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase dark-mode:text-slate-500">Ports UP</span>
+                        <p className="text-lg font-bold text-slate-700 dark-mode:text-slate-200">2 Active</p>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-2xl dark-mode:bg-slate-700/50">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase dark-mode:text-slate-500">Ports DOWN</span>
+                        <p className="text-lg font-bold text-slate-400 dark-mode:text-slate-500">0</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-3 dark-mode:text-slate-500">Connected Devices</h4>
+                      <div className="space-y-2">
+                        {[...Array(selectedVlan.devices)].map((_, i) => (
+                          <div key={i} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:border-indigo-100 transition-colors dark-mode:border-slate-700 dark-mode:hover:border-indigo-800">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500 text-xs dark-mode:bg-indigo-900/30 dark-mode:text-indigo-400">PC</div>
+                              <span className="text-xs font-mono text-slate-600 dark-mode:text-slate-300">192.168.{selectedVlan.id}.{12 + i}</span>
+                            </div>
+                            <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-64 flex flex-col items-center justify-center bg-slate-100/50 border-2 border-dashed border-slate-200 rounded-[2rem] text-slate-400 dark-mode:bg-slate-800/30 dark-mode:border-slate-700">
+                  <span className="text-4xl mb-3">[]</span>
+                  <p className="text-sm font-medium">Sélectionnez un VLAN pour voir les détails</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {showCreateModal && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+              <div className="bg-white rounded-[2.5rem] w-full max-w-2xl p-10 shadow-2xl animate-in zoom-in-95 duration-300 dark-mode:bg-slate-800 dark-mode:border dark-mode:border-slate-700" style={{
+                boxShadow: isDarkMode
+                  ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                  : '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+              }}>
+                <h2 className="text-2xl font-bold text-slate-800 mb-6 dark-mode:text-slate-100">Create New VLAN</h2>
+                <div className="space-y-5">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 dark-mode:bg-slate-700/30 dark-mode:border-slate-600 mb-4">
+                    <h3 className="text-xs font-bold text-indigo-600 mb-3 uppercase tracking-wider dark-mode:text-indigo-400">Connexion au Switch Cible</h3>
+                    {/* AJOUT : Champ pour le Nom du Switch dans le grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Nom du Switch</label>
+                        <input type="text" value={newVlan.switchName} onChange={(e) => setNewVlan({...newVlan, switchName: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="Core-SW" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">IP du Switch</label>
+                        <input type="text" value={newVlan.switchIp} onChange={(e) => setNewVlan({...newVlan, switchIp: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="192.168.1.200" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Utilisateur SSH</label>
+                        <input type="text" value={newVlan.switchUser} onChange={(e) => setNewVlan({...newVlan, switchUser: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="admin" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Mot de passe</label>
+                        <input type="password" value={newVlan.switchPass} onChange={(e) => setNewVlan({...newVlan, switchPass: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="••••" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">VLAN ID</label>
+                      <input type="number" value={newVlan.id} onChange={(e) => setNewVlan({...newVlan, id: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="30" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">VLAN Name</label>
+                      <input type="text" value={newVlan.name} onChange={(e) => setNewVlan({...newVlan, name: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="Voice_VOIP" />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">IP Gateway (SVI) - Optionnel</label>
+                    <input type="text" value={newVlan.vlanIp} onChange={(e) => setNewVlan({...newVlan, vlanIp: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="Ex: 192.168.30.1" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">Traffic Type</label>
+                      <select value={newVlan.type} onChange={(e) => setNewVlan({...newVlan, type: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100">
+                        <option value="Data">Data</option>
+                        <option value="Voice">Voice</option>
+                        <option value="Management">Management (Gestion & Admin)</option>
+                        <option value="Security">Security / Isolation</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-2 dark-mode:text-slate-400">Initial Port Assignment</label>
+                      <input type="text" value={newVlan.ports} onChange={(e) => setNewVlan({...newVlan, ports: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-indigo-500 dark-mode:bg-slate-700 dark-mode:border-slate-600 dark-mode:text-slate-100 dark-mode:focus:border-indigo-500" placeholder="fa0/10, fa0/11" />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 mt-8">
+                    <button onClick={() => setShowCreateModal(false)} className="flex-1 py-3 font-bold text-slate-400 hover:bg-slate-50 rounded-xl transition-all dark-mode:hover:bg-slate-700 dark-mode:text-slate-500">Cancel</button>
+                    <button onClick={handleCreateVlan} disabled={isCreating} className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl transition-all disabled:opacity-50" style={{
+                      boxShadow: isDarkMode
+                        ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
+                        : '0 4px 6px -1px rgba(99, 102, 241, 0.2), 0 2px 4px -1px rgba(99, 102, 241, 0.1)'
+                    }}>{isCreating ? 'Création...' : 'Create'}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {toastMsg && (
+            <div className="fixed bottom-6 right-6 px-6 py-4 bg-emerald-600 rounded-xl shadow-2xl font-bold text-sm text-white z-50 flex items-center gap-3 animate-in">
+              <span>✅</span>
+              {toastMsg}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('vlan-root'));
+    root.render(<VLANPage />);
+  </script>
+  <script src="sidebar.js"></script>
+  <script src="topbar.js"></script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetGuard - VLAN Management Expert</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="auth.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="layout.css" />
+  <link rel="stylesheet" href="sidebar.css" />
+  <link rel="stylesheet" href="topbar.css" />
+  <link rel="stylesheet" href="dark-mode.css" />
+  <style>
+    body {
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    /* Dark mode overrides for native elements */
+    .dark-mode body {
+      background-color: #0f172a;
+    }
+
+    .vlan-card {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .vlan-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .topbar {
+      animation: slideDown 0.4s ease;
+    }
+
+    .animate-in {
+      animation: fadeInUp 0.4s ease backwards;
+      animation-delay: 0.1s;
+    }
+
+    .vlan-card {
+      animation: fadeInUp 0.4s ease backwards;
+      animation-delay: 0.2s;
+    }
+
+    .table-row {
+      animation: rowSlideIn 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1) both;
+    }
+
+    .table-row:nth-child(1) { animation-delay: 0.3s; }
+    .table-row:nth-child(2) { animation-delay: 0.35s; }
+    .table-row:nth-child(3) { animation-delay: 0.4s; }
+
+    .animate-in.slide-in-from-right {
+      animation: fadeInRight 0.4s ease backwards;
+      animation-delay: 0.5s;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes rowSlideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes fadeInRight {
+      from {
+        opacity: 0;
+        transform: translateX(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    /* Dark mode specific enhancements */
+    .dark-mode .card,
+    .dark-mode .bg-white {
+      background-color: #1e293b !important;
+      border-color: #334155 !important;
+    }
+
+    .dark-mode .bg-slate-50,
+    .dark-mode .bg-slate-50\/80 {
+      background-color: #0f172a !important;
+    }
+
+    .dark-mode .bg-slate-100 {
+      background-color: #1e293b !important;
+    }
+
+    .dark-mode .text-slate-800,
+    .dark-mode .text-slate-700 {
+      color: #f1f5f9 !important;
+    }
+
+    .dark-mode .text-slate-500,
+    .dark-mode .text-slate-400,
+    .dark-mode .text-slate-600 {
+      color: #94a3b8 !important;
+    }
+
+    .dark-mode .border-slate-200,
+    .dark-mode .border-slate-100 {
+      border-color: #334155 !important;
+    }
+
+    .dark-mode .shadow-xl,
+    .dark-mode .shadow-slate-200\/50,
+    .dark-mode .shadow-slate-200\/30 {
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .dark-mode .hover\:bg-slate-50\/80:hover {
+      background-color: rgba(30, 41, 59, 0.8) !important;
+    }
+
+    .dark-mode .bg-indigo-50\/40 {
+      background-color: rgba(99, 102, 241, 0.15) !important;
+    }
+
+    .dark-mode .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+      border-color: #334155;
+    }
+
+    .dark-mode input,
+    .dark-mode select {
+      background-color: #0f172a;
+      border-color: #334155;
+      color: #f1f5f9;
+    }
+
+    .dark-mode input:focus,
+    .dark-mode select:focus {
+      border-color: #6366f1;
+      outline: none;
+    }
+
+    .dark-mode .bg-slate-100\/50 {
+      background-color: rgba(30, 41, 59, 0.5);
+    }
+
+    .dark-mode .border-dashed {
+      border-color: #334155;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen app-body">
+  <div class="app-shell">
+    <aside id="sidebar-root" class="sidebar-host" data-page="vlan"></aside>
+
+    <main class="main">
+      <div id="topbar-root" data-title="VLAN Management" data-subtitle="Gestion dÃ©diÃ©e des VLANs et des ports associÃ©s." data-notifications="3"></div>
 
       <section class="content">
         <div id="vlan-root" class="page-block"></div>
@@ -330,11 +908,11 @@
             switchUser: newVlan.switchUser,
             switchPass: newVlan.switchPass
           });
-          showToast(`VLAN créé avec succès sur ${createdVlan.switchName || newVlan.switchName} !`);
+          showToast(`VLAN crÃ©Ã© avec succÃ¨s sur ${createdVlan.switchName || newVlan.switchName} !`);
           notifyVlanUpdated();
         } catch (error) {
           console.error('Erreur creation VLAN:', error);
-          showToast(error.message || 'Erreur réseau: Impossible de joindre Flask.', 'error');
+          showToast(error.message || 'Erreur rÃ©seau: Impossible de joindre Flask.', 'error');
         } finally {
           setIsCreating(false);
         }
@@ -345,7 +923,7 @@
           <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end mb-8">
             <div>
               <h1 className="text-3xl font-bold text-slate-800 tracking-tight dark-mode:text-slate-100">VLAN Management</h1>
-              <p className="text-slate-500 mt-1 dark-mode:text-slate-400">Gérez la segmentation réseau et la sécurité des ports Cisco.</p>
+              <p className="text-slate-500 mt-1 dark-mode:text-slate-400">GÃ©rez la segmentation rÃ©seau et la sÃ©curitÃ© des ports Cisco.</p>
             </div>
             <div className="flex flex-wrap gap-3">
               <button
@@ -433,7 +1011,7 @@
                     : '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02)'
                 }}>
                   <div className="flex justify-between items-start mb-6">
-                    <h2 className="text-xl font-bold text-slate-800 dark-mode:text-slate-100">Détails de {selectedVlan.name}</h2>
+                    <h2 className="text-xl font-bold text-slate-800 dark-mode:text-slate-100">DÃ©tails de {selectedVlan.name}</h2>
                     <span className="text-xs font-mono bg-slate-100 px-2 py-1 rounded text-slate-500 dark-mode:bg-slate-700 dark-mode:text-slate-400">ID: {selectedVlan.id}</span>
                   </div>
 
@@ -441,7 +1019,7 @@
                     {selectedVlan.status === 'Alert' && (
                       <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl dark-mode:bg-rose-950/30 dark-mode:border-rose-800">
                         <h4 className="text-rose-700 font-bold text-xs uppercase flex items-center gap-2 mb-2 dark-mode:text-rose-400">
-                          Alerte Sécurité (Snort)
+                          Alerte SÃ©curitÃ© (Snort)
                         </h4>
                         <p className="text-rose-600 text-sm leading-relaxed dark-mode:text-rose-300">{selectedVlan.reason}</p>
                         <div className="mt-3 py-2 px-3 bg-white rounded-lg border border-rose-100 text-[10px] font-mono text-rose-500 dark-mode:bg-slate-900 dark-mode:border-rose-800 dark-mode:text-rose-400">
@@ -499,7 +1077,7 @@
               ) : (
                 <div className="h-64 flex flex-col items-center justify-center bg-slate-100/50 border-2 border-dashed border-slate-200 rounded-[2rem] text-slate-400 dark-mode:bg-slate-800/30 dark-mode:border-slate-700">
                   <span className="text-4xl mb-3">[]</span>
-                  <p className="text-sm font-medium">Sélectionnez un VLAN pour voir les détails</p>
+                  <p className="text-sm font-medium">SÃ©lectionnez un VLAN pour voir les dÃ©tails</p>
                 </div>
               )}
             </div>
@@ -531,7 +1109,7 @@
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Mot de passe</label>
-                        <input type="password" value={newVlan.switchPass} onChange={(e) => setNewVlan({...newVlan, switchPass: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="****" />
+                        <input type="password" value={newVlan.switchPass} onChange={(e) => setNewVlan({...newVlan, switchPass: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="â€¢â€¢â€¢â€¢" />
                       </div>
                     </div>
                   </div>
@@ -574,7 +1152,7 @@
                       boxShadow: isDarkMode
                         ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
                         : '0 4px 6px -1px rgba(99, 102, 241, 0.2), 0 2px 4px -1px rgba(99, 102, 241, 0.1)'
-                    }}>{isCreating ? 'Création...' : 'Create'}</button>
+                    }}>{isCreating ? 'CrÃ©ation...' : 'Create'}</button>
                   </div>
                 </div>
               </div>
