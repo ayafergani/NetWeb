@@ -37,8 +37,8 @@
     input:checked + .slider { background-color: #6366f1; }
     input:checked + .slider:before { transform: translateX(18px); }
     
-    .type-badge-access { background: #e0e7ff; color: #4338ca; }
     .type-badge-uplink { background: #fef3c7; color: #92400e; }
+    .type-badge-access { background: #e0e7ff; color: #4338ca; }
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen app-body">
@@ -70,7 +70,7 @@
       const ports = [];
       let interfaceId = 1;
 
-      // Ports cuivre (type = "access")
+      // Ports Access
       for (let i = 1; i <= 24; i++) {
         const isConfigured = i <= 4 || i === 24;
         const preferredVlan = i === 3 ? '20' : (i === 24 ? '30' : (isConfigured ? '10' : '1'));
@@ -80,8 +80,8 @@
           equipement_id: null,
           status: i <= 4 ? 'UP' : 'DOWN',
           vlan: pickDefaultAccessVlan(availableVlans, preferredVlan),
-          mode: 'access',           // Configuration logicielle
-          type: 'access',            // Type physique (port cuivre)
+          mode: 'access',
+          type: 'access',
           speed: i <= 4 ? '1Gb' : '-',
           devices: i <= 4 ? 1 : 0,
           alert: i === 4,
@@ -97,7 +97,7 @@
         });
       }
 
-      // Ports fibre SFP+ (type = "uplink")
+      // Ports Uplink
       for (let i = 1; i <= 4; i++) {
         const isConfigured = i <= 2;
         ports.push({
@@ -106,8 +106,8 @@
           equipement_id: null,
           status: i === 1 ? 'UP' : 'DOWN',
           vlan: isConfigured ? 'All' : pickDefaultAccessVlan(availableVlans, '1'),
-          mode: isConfigured ? 'trunk' : 'access',  // Configuration logicielle
-          type: 'uplink',                           // Type physique (fibre SFP+)
+          mode: isConfigured ? 'trunk' : 'access',
+          type: 'uplink',
           speed: i === 1 ? '10Gb' : '-',
           devices: 0,
           alert: false,
@@ -332,7 +332,7 @@
       };
 
       const getTypeDisplay = (type) => {
-        return type === 'uplink' ? '🔗 Uplink SFP+' : '🔌 Access Port';
+        return type === 'uplink' ? 'Uplink' : 'Access';
       };
 
       const PhysicalSwitch = () => {
@@ -347,7 +347,7 @@
 
             <div className="flex gap-8 items-center w-full justify-center overflow-x-auto pb-4">
               <div className="flex flex-col gap-2 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                <span className="text-[9px] font-mono text-slate-500 text-center uppercase tracking-widest mb-1">Access Ports (Cuivre - Type Access)</span>
+                <span className="text-[9px] font-mono text-slate-500 text-center uppercase tracking-widest mb-1">Access Ports</span>
                 <div className="grid grid-cols-12 gap-1.5">
                   {Array.from({ length: 24 }).map((_, i) => {
                     const portId = `Gi1/0/${i + 1}`;
@@ -374,7 +374,7 @@
                         key={portId}
                         onClick={() => portData && setSelectedPortId(portId)}
                         className={`w-8 h-8 rounded border-b-2 ${bgColor} ${borderColor} ${animation} flex items-center justify-center cursor-pointer hover:scale-110 transition-transform shadow-inner`}
-                        title={`Interface ${portId} (Type: Access Port Cuivre) ${portData && !portData.configured ? '(Non Configuré)' : ''}`}
+                        title={`Interface ${portId} (Access Port)`}
                       >
                         <span className="text-[8px] font-mono text-white/90">{i + 1}</span>
                       </div>
@@ -384,7 +384,7 @@
               </div>
 
               <div className="flex flex-col gap-2 p-3 bg-slate-800/80 rounded-xl border border-slate-700">
-                <span className="text-[9px] font-mono text-cyan-500/70 text-center uppercase tracking-widest mb-1">Uplinks (Fibre SFP+ - Type Uplink)</span>
+                <span className="text-[9px] font-mono text-cyan-500/70 text-center uppercase tracking-widest mb-1">Uplink Ports</span>
                 <div className="grid grid-cols-2 gap-2">
                   {Array.from({ length: 4 }).map((_, i) => {
                     const portId = `Te1/1/${i + 1}`;
@@ -408,7 +408,7 @@
                         key={portId}
                         onClick={() => portData && setSelectedPortId(portId)}
                         className={`w-10 h-8 rounded border-2 ${bgColor} ${borderColor} flex items-center justify-center cursor-pointer hover:scale-105 transition-transform`}
-                        title={`Uplink ${portId} (Type: Fibre SFP+)`}
+                        title={`Uplink Port ${portId}`}
                       >
                         <span className="text-[8px] font-mono text-white/60">T{i + 1}</span>
                       </div>
@@ -443,7 +443,7 @@
                     <thead className="bg-slate-50/80 border-b border-slate-100 sticky top-0 z-10">
                       <tr>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Port</th>
-                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type Physique</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">VLAN</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mode</th>
@@ -540,7 +540,7 @@
                         Source IP: {selectedPort.srcIp}
                       </div>
                       <button onClick={() => isolatePort(selectedPort.id)} className="w-full mt-4 py-2.5 bg-orange-500 text-white text-xs font-bold rounded-xl hover:bg-orange-600 transition-all shadow-md shadow-indigo-600/15 flex items-center justify-center gap-2">
-                        Isolate → VLAN 99
+                        Isoler → VLAN 99
                       </button>
                     </div>
                   )}
@@ -660,7 +660,7 @@
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">CLI Preview</p>
                       <pre className="text-[10px] font-mono text-emerald-400 whitespace-pre-wrap">
 {`interface ${selectedPort.id}
- description ${selectedPort.type === 'uplink' ? 'Uplink Fibre SFP+' : 'Access Port Cuivre'}
+ description ${selectedPort.type === 'uplink' ? 'Uplink Port' : 'Access Port'}
  switchport mode ${selectedPort.mode}
  ${selectedPort.mode === 'access' ? `switchport access vlan ${selectedPort.vlan}` : `switchport trunk allowed vlan ${selectedPort.vlan}`}
  ${selectedPort.portSecurity ? `switchport port-security
