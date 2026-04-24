@@ -190,6 +190,19 @@
 
   <script type="text/babel">
     const { useState, useEffect } = React;
+    const API_BASE_URL = window.location.port === '5000' ? '' : 'http://127.0.0.1:5000';
+
+    const mapApiVlanToUi = (vlan) => ({
+      id: vlan.id ?? vlan.id_vlan,
+      name: vlan.name ?? vlan.nom ?? '',
+      type: vlan.type ?? 'Data',
+      switchName: vlan.switchName ?? '',
+      switchIp: vlan.switchIp ?? '',
+      vlanIp: vlan.vlanIp ?? vlan.gateway ?? '--',
+      ports: vlan.ports ?? '',
+      devices: vlan.devices ?? 0,
+      status: vlan.status ?? 'Active'
+    });
 
     const VLANPage = () => {
       const [selectedVlan, setSelectedVlan] = useState(null);
@@ -200,6 +213,27 @@
       const [newVlan, setNewVlan] = useState({ id: '', name: '', type: 'Data', ports: '', switchName: '', switchIp: '', switchUser: '', switchPass: '', vlanIp: '' });
       const [toastMsg, setToastMsg] = useState(null);
       const [isDarkMode, setIsDarkMode] = useState(false);
+
+      const loadVlans = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/vlan`, {
+            headers: window.NetGuardAuth.getAuthHeaders()
+          });
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || "Erreur lors du chargement des VLANs");
+          }
+
+          const items = (data.vlans || []).map(mapApiVlanToUi);
+          setVlans(items);
+          if (items.length) {
+            setSelectedVlan(items[0]);
+          }
+        } catch (error) {
+          console.error("Erreur chargement VLANs:", error);
+        }
+      };
 
       useEffect(() => {
         const applyTheme = (event) => {
@@ -222,6 +256,7 @@
         };
 
         applyTheme();
+        loadVlans();
         window.addEventListener('themeChanged', applyTheme);
         window.addEventListener('storage', handleStorage);
 
@@ -246,7 +281,7 @@
         setIsCreating(true);
         
         try {
-          const response = await fetch('http://127.0.0.1:5000/api/vlans', {
+          const response = await fetch(`${API_BASE_URL}/api/network/deploy-vlan`, {
             method: 'POST',
             headers: window.NetGuardAuth.getAuthHeaders(),
             body: JSON.stringify(newVlan)
@@ -254,7 +289,9 @@
           
           const data = await response.json();
           if (response.ok) {
-            setVlans([...vlans, { ...newVlan, vlanIp: newVlan.vlanIp || '--', devices: 0, status: 'Active' }]);
+            const createdVlan = mapApiVlanToUi(data.vlan || { ...newVlan, vlanIp: newVlan.vlanIp || '--', devices: 0, status: 'Active' });
+            setVlans((currentVlans) => [...currentVlans, createdVlan]);
+            setSelectedVlan(createdVlan);
             setShowCreateModal(false);
             setNewVlan({ id: '', name: '', type: 'Data', ports: '', switchName: newVlan.switchName, switchIp: newVlan.switchIp, switchUser: newVlan.switchUser, switchPass: newVlan.switchPass, vlanIp: '' });
             setToastMsg(`VLAN créé avec succès sur ${newVlan.switchName} !`);

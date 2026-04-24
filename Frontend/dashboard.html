@@ -125,16 +125,6 @@
       text-align: right;
     }
 
-    .action-link {
-      font-size: 12px;
-      color: #6366f1;
-      font-weight: 600;
-      cursor: pointer;
-      text-decoration: none;
-      margin-top: 5px;
-      display: block;
-    }
-
     .btn-small {
       padding: 6px 12px;
       border-radius: 6px;
@@ -326,22 +316,22 @@
       if (!alerts || alerts.length === 0) {
         return { status: 'Normal', color: '#22c55e', bg: 'bg-green' };
       }
-      
+
       const oneDayAgo = new Date();
       oneDayAgo.setHours(oneDayAgo.getHours() - 24);
-      
-      const criticalAlertsLast24h = alerts.filter(alert => {
+
+      const criticalAlertsLast24h = alerts.filter((alert) => {
         const alertDate = new Date(alert.timestamp);
         return alert.severity === 'critical' && alertDate > oneDayAgo;
       }).length;
-      
+
       if (criticalAlertsLast24h === 0) {
         return { status: 'Normal', color: '#22c55e', bg: 'bg-green' };
-      } else if (criticalAlertsLast24h <= 5) {
-        return { status: 'Attention', color: '#f59e0b', bg: 'bg-amber' };
-      } else {
-        return { status: 'Critique', color: '#ef4444', bg: 'bg-red' };
       }
+      if (criticalAlertsLast24h <= 5) {
+        return { status: 'Attention', color: '#f59e0b', bg: 'bg-amber' };
+      }
+      return { status: 'Critique', color: '#ef4444', bg: 'bg-red' };
     };
 
     function Dashboard() {
@@ -354,8 +344,8 @@
         rate_per_minute: 0
       });
       const [recentAlerts, setRecentAlerts] = useState([]);
-      const [allAlerts, setAllAlerts] = useState([]);
       const [rulesCount, setRulesCount] = useState(0);
+      const [vlanStats, setVlanStats] = useState({ count: 0, latest: [], quarantine: null });
       const [loading, setLoading] = useState(true);
       const [trafficStatus, setTrafficStatus] = useState({ status: 'Normal', color: '#22c55e', bg: 'bg-green' });
       const [lastTriggeredRule, setLastTriggeredRule] = useState(null);
@@ -390,9 +380,7 @@
           const response = await fetch(`${API_BASE_URL}/api/alerts?limit=200&sort=newest`);
           const data = await response.json();
           if (data.success && data.alerts) {
-            setAllAlerts(data.alerts);
-            const status = analyzeTrafficStatus(data.alerts);
-            setTrafficStatus(status);
+            setTrafficStatus(analyzeTrafficStatus(data.alerts));
           }
         } catch (error) {
           console.error('Erreur chargement toutes alertes:', error);
@@ -407,7 +395,26 @@
             setRulesCount(data.count || 0);
           }
         } catch (error) {
-          console.error('Erreur chargement règles:', error);
+          console.error('Erreur chargement regles:', error);
+        }
+      };
+
+      const loadVlans = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/vlan`, {
+            headers: auth.getAuthHeaders()
+          });
+          const data = await response.json();
+          if (response.ok && data.success) {
+            const items = (data.vlans || []).slice().sort((a, b) => Number(b.id_vlan) - Number(a.id_vlan));
+            setVlanStats({
+              count: data.count || items.length,
+              latest: items.slice(0, 3),
+              quarantine: items.find((item) => String(item.status).toLowerCase() === 'alert') || null
+            });
+          }
+        } catch (error) {
+          console.error('Erreur chargement VLANs:', error);
         }
       };
 
@@ -421,7 +428,7 @@
             setLastTriggeredRule(null);
           }
         } catch (error) {
-          console.error('Erreur chargement dernière règle:', error);
+          console.error('Erreur chargement derniere regle:', error);
           setLastTriggeredRule(null);
         }
       };
@@ -429,47 +436,27 @@
       const loadUserActivities = async () => {
         try {
           const token = localStorage.getItem('jwtToken');
-          console.log("🔑 Token pour activités:", token ? "Présent" : "Absent");
-          
           const response = await fetch(`${API_BASE_URL}/api/users/activity`, {
             headers: {
               'Authorization': token ? `Bearer ${token}` : '',
               'Content-Type': 'application/json'
             }
           });
-          
-          console.log("📡 Réponse activités status:", response.status);
           const data = await response.json();
-          console.log("📦 Données activités reçues:", data);
-          
           if (data.success && data.logs) {
             setUserActivities(data.logs);
-          } else {
-            console.log("❌ Aucune activité ou erreur:", data.error);
           }
         } catch (error) {
-          console.error('Erreur chargement activités:', error);
+          console.error('Erreur chargement activites:', error);
         }
       };
 
-      const formatActivityDate = (timestamp) => {
+      const formatDateTime = (timestamp) => {
         if (!timestamp) return '--/--/---- --:--';
         const date = new Date(timestamp);
-        return date.toLocaleDateString('fr-FR', { 
-          day: '2-digit', 
-          month: 'short', 
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }).replace('.', '');
-      };
-
-      const formatAlertDate = (timestamp) => {
-        if (!timestamp) return '--/--/---- --:--';
-        const date = new Date(timestamp);
-        return date.toLocaleDateString('fr-FR', { 
-          day: '2-digit', 
-          month: 'short', 
+        return date.toLocaleDateString('fr-FR', {
+          day: '2-digit',
+          month: 'short',
           year: 'numeric',
           hour: '2-digit',
           minute: '2-digit'
@@ -482,19 +469,40 @@
           loadStats(),
           loadRecentAlerts(),
           loadRulesCount(),
+          loadVlans(),
           loadAllAlerts(),
           loadLastTriggeredRule(),
-          loadUserActivities()  // ← Bien présente !
+          loadUserActivities()
         ]);
         setLoading(false);
       };
 
       useEffect(() => {
         loadAllData();
+
+        const refreshVlans = () => loadVlans();
+        const handleStorage = (event) => {
+          if (event.key === 'netguard-vlan-updated-at') {
+            refreshVlans();
+          }
+        };
+
+        window.addEventListener('storage', handleStorage);
+        window.addEventListener('focus', refreshVlans);
+        window.addEventListener('netguard:vlan-updated', refreshVlans);
+
+        const intervalId = window.setInterval(refreshVlans, 30000);
+
+        return () => {
+          window.removeEventListener('storage', handleStorage);
+          window.removeEventListener('focus', refreshVlans);
+          window.removeEventListener('netguard:vlan-updated', refreshVlans);
+          window.clearInterval(intervalId);
+        };
       }, []);
 
       const getSeverityClass = (severity) => {
-        switch(severity) {
+        switch (severity) {
           case 'critical': return 'bg-red';
           case 'medium': return 'bg-amber';
           default: return 'bg-blue';
@@ -502,7 +510,7 @@
       };
 
       const getSeverityLabel = (severity) => {
-        switch(severity) {
+        switch (severity) {
           case 'critical': return 'Critique';
           case 'medium': return 'Moyen';
           default: return 'Faible';
@@ -524,16 +532,16 @@
             <div className="stat-mini-card">
               <div className="stat-icon bg-blue"><Icon type="vlan" /></div>
               <div className="stat-info">
-                <span className="stat-value">{stats.unique_sources || 0}</span>
-                <span className="stat-label">Sources uniques</span>
-                <span className="stat-badge bg-green">IPs détectées</span>
+                <span className="stat-value">{vlanStats.count}</span>
+                <span className="stat-label">Total VLANs</span>
+                <span className="stat-badge bg-green">Base reseau</span>
               </div>
             </div>
             <div className="stat-mini-card">
               <div className="stat-icon bg-green"><Icon type="ports" /></div>
               <div className="stat-info">
                 <span className="stat-value">{rulesCount}</span>
-                <span className="stat-label">Règles actives</span>
+                <span className="stat-label">Regles actives</span>
                 <span className="stat-badge bg-blue">Snort IDS</span>
               </div>
             </div>
@@ -561,9 +569,21 @@
                 <span className="section-title">VLAN Management</span>
                 <div className="status-indicator" style={{ background: '#22c55e' }}></div>
               </div>
-              <div className="data-row"><span className="data-label">Total VLANs</span><span className="data-value" style={{ color: '#6366f1' }}>3 configured</span></div>
-              <div className="data-row"><span className="data-label">Last created</span><span className="data-value">VLAN 20 - Staff</span></div>
-              <div className="data-row"><span className="data-label">Quarantine VLAN</span><span className="data-value" style={{ color: '#f59e0b' }}>VLAN 99 active</span></div>
+              <div className="data-row"><span className="data-label">Total VLANs</span><span className="data-value" style={{ color: '#6366f1' }}>{vlanStats.count} configured</span></div>
+              <div className="data-row">
+                <span className="data-label">Last created</span>
+                <span className="data-value">{vlanStats.latest[0] ? `VLAN ${vlanStats.latest[0].id_vlan} - ${vlanStats.latest[0].nom}` : 'Aucun VLAN'}</span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Quarantine VLAN</span>
+                <span className="data-value" style={{ color: '#f59e0b' }}>{vlanStats.quarantine ? `VLAN ${vlanStats.quarantine.id_vlan} ${vlanStats.quarantine.status}` : 'Aucune isolation active'}</span>
+              </div>
+              {vlanStats.latest.slice(0, 2).map((vlan) => (
+                <div className="data-row" key={vlan.id_vlan}>
+                  <span className="data-label">{vlan.nom}</span>
+                  <span className="data-value">{vlan.reseau}</span>
+                </div>
+              ))}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '5px' }}>
                 {renderActionButton('vlan', 'View VLANs')}
                 {renderActionButton('interfaces', 'View Interfaces')}
@@ -575,7 +595,7 @@
                 <span className="section-title">Interfaces</span>
                 <div className="status-indicator" style={{ background: '#22c55e' }}></div>
               </div>
-              <div className="data-row"><span className="data-label">Ports UP</span><span className="data-value" style={{ color: '#22c55e' }}>4 active</span></div>
+              <div className="data-row"><span className="data-label">Sources uniques</span><span className="data-value" style={{ color: '#22c55e' }}>{stats.unique_sources || 0}</span></div>
               <div className="data-row"><span className="data-label">Ports DOWN</span><span className="data-value">20 idle</span></div>
               <div className="data-row"><span className="data-label">Trunk links</span><span className="data-value" style={{ color: '#6366f1' }}>2 configured</span></div>
               <div style={{ marginTop: '5px' }}>
@@ -640,13 +660,9 @@
                     <div style={{ textAlign: 'right' }}>
                       <strong style={{ color: '#ef4444' }}>{lastTriggeredRule.name}</strong>
                       <br />
-                      <span style={{ fontSize: '12px', color: '#64748b' }}>
-                        Action: {lastTriggeredRule.action}
-                      </span>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>Action: {lastTriggeredRule.action}</span>
                       <br />
-                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                        {lastTriggeredRule.description}
-                      </span>
+                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>{lastTriggeredRule.description}</span>
                     </div>
                   ) : (
                     <span style={{ color: '#94a3b8' }}>Aucune alerte</span>
@@ -673,61 +689,51 @@
             </div>
           </div>
 
-          {/* ✅ Section des logs récents (User Activities + Alerts) */}
           <div className="logs-section">
             <div className="section-header">
-              <span className="section-title">Logs Récents</span>
+              <span className="section-title">Logs Recents</span>
             </div>
-            
-            {/* Titre des activités utilisateur */}
+
             <div style={{ marginBottom: '8px', marginTop: '4px' }}>
               <span style={{ fontSize: '11px', fontWeight: '600', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                🧑‍💻 Activités utilisateur ({userActivities.length})
+                Activites utilisateur ({userActivities.length})
               </span>
             </div>
-            
-            {/* Activités utilisateur (connexions/déconnexions) */}
+
             {userActivities.length > 0 ? (
               userActivities.map((activity, index) => (
                 <div className="log-row" key={`user-${index}`}>
-                  <span className="log-time">{formatActivityDate(activity.timestamp)}</span>
+                  <span className="log-time">{formatDateTime(activity.timestamp)}</span>
                   <span className="log-msg">
-                    <strong>{activity.username}</strong> - {activity.action === 'login' ? 'connexion' : 'déconnexion'}
+                    <strong>{activity.username}</strong> - {activity.action === 'login' ? 'connexion' : 'deconnexion'}
                   </span>
                   <span className={`log-tag ${activity.action === 'login' ? 'bg-green' : 'bg-red'}`}>
-                    {activity.action === 'login' ? 'Connexion' : 'Déconnexion'}
+                    {activity.action === 'login' ? 'Connexion' : 'Deconnexion'}
                   </span>
                 </div>
               ))
             ) : (
               <div className="log-row">
                 <span className="log-time">--/--/---- --:--</span>
-                <span className="log-msg">Aucune activité utilisateur récente</span>
+                <span className="log-msg">Aucune activite utilisateur recente</span>
                 <span className="log-tag bg-blue">Inactif</span>
               </div>
             )}
 
-            {/* Séparateur */}
-            <div style={{ 
-              margin: '12px 0 8px 0', 
-              height: '1px', 
-              background: 'linear-gradient(90deg, transparent, var(--border), transparent)' 
-            }}></div>
+            <div style={{ margin: '12px 0 8px 0', height: '1px', background: 'linear-gradient(90deg, transparent, var(--border), transparent)' }}></div>
 
-            {/* Titre des alertes récentes */}
             <div style={{ marginBottom: '8px' }}>
               <span style={{ fontSize: '11px', fontWeight: '600', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                🚨 Alertes récentes ({recentAlerts.length})
+                Alertes recentes ({recentAlerts.length})
               </span>
             </div>
 
-            {/* Alertes récentes AVEC DATE COMPLÈTE */}
             {recentAlerts.length > 0 ? (
               recentAlerts.map((alert, index) => (
                 <div className="log-row" key={`alert-${index}`}>
-                  <span className="log-time">{formatAlertDate(alert.timestamp)}</span>
+                  <span className="log-time">{formatDateTime(alert.timestamp)}</span>
                   <span className="log-msg">
-                    <strong>{alert.name}</strong> - {alert.src} → {alert.dst}
+                    <strong>{alert.name}</strong> - {alert.src} -> {alert.dst}
                   </span>
                   <span className={`log-tag ${getSeverityClass(alert.severity)}`}>
                     {getSeverityLabel(alert.severity)}
@@ -737,7 +743,7 @@
             ) : (
               <div className="log-row">
                 <span className="log-time">--/--/---- --:--</span>
-                <span className="log-msg">Aucune alerte récente</span>
+                <span className="log-msg">Aucune alerte recente</span>
                 <span className="log-tag bg-blue">Inactif</span>
               </div>
             )}

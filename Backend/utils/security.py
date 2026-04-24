@@ -5,3 +5,6 @@ def hash_password(password):
 
 def check_password(password, hashed):
     return bcrypt.checkpw(password.encode(), hashed)
+
+
+
