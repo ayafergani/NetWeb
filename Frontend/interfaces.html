@@ -172,6 +172,17 @@
       const [selectedPortId, setSelectedPortId] = useState(null);
       const [isApplying, setIsApplying] = useState(false);
       const [toast, setToast] = useState(null);
+      // 1. La liste de tes switchs (pour le menu déroulant)
+      const [switches, setSwitches] = useState([
+  { id: 1, nom: 'Core-SW', ip: '10.10.10.50' },
+  { id: 2, nom: 'Access-SW-1', ip: '10.10.10.51' }
+]);
+
+// 2. Le switch qui est actuellement sélectionné
+      const [selectedSwitchId, setSelectedSwitchId] = useState(1);
+
+// 3. Les infos de connexion (User et Password) pour Nornir
+      const [connInfo, setConnInfo] = useState({ switchUser: 'admin', switchPass: '' });
 
       const selectedPort = ports.find((p) => p.id === selectedPortId);
       const configuredPorts = ports.filter((p) => p.configured);
@@ -182,55 +193,30 @@
         window.__interfaceToastTimer = window.setTimeout(() => setToast(null), 3500);
       };
 
-      const loadInterfaces = async () => {
-        try {
-          const [interfaceResponse, vlanResponse] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/interface`, {
-              headers: auth.getAuthHeaders()
-            }),
-            fetch(`${API_BASE_URL}/api/vlan`, {
-              headers: auth.getAuthHeaders()
-            })
-          ]);
+      const loadInterfaces = async (swId) => {
+  try {
+    const [intRes, vlanRes] = await Promise.all([
+      fetch(`${API_BASE_URL}/api/interface?switch_id=${swId}`, { headers: auth.getAuthHeaders() }),
+      fetch(`${API_BASE_URL}/api/vlan?switch_id=${swId}`, { headers: auth.getAuthHeaders() })
+    ]);
+    const [intData, vlanData] = await Promise.all([intRes.json(), vlanRes.json()]);
 
-          const [interfaceData, vlanData] = await Promise.all([
-            interfaceResponse.json(),
-            vlanResponse.json()
-          ]);
+    if (vlanData.success) {
+      setAvailableVlans(vlanData.vlans.map(v => String(v.id_vlan ?? v.id)));
+      if (intData.success) {
+        // Logique de merge des interfaces...
+        setPorts(intData.interfaces.map(i => ({...i, id: i.nom, configured: true, dbExists: true})));
+      }
+    }
+  } catch (error) { console.error('Erreur:', error); }
+};
 
-          if (!interfaceResponse.ok || !interfaceData.success) {
-            throw new Error(interfaceData.error || 'Chargement des interfaces impossible');
-          }
-          if (!vlanResponse.ok || !vlanData.success) {
-            throw new Error(vlanData.error || 'Chargement des VLANs impossible');
-          }
+// N'oublie pas de mettre à jour le useEffect pour surveiller selectedSwitchId
+useEffect(() => {
+  loadInterfaces(selectedSwitchId);
+}, [selectedSwitchId]);
 
-          const vlanIds = (vlanData.vlans || []).map((item) => String(item.id_vlan ?? item.id)).filter(Boolean);
-          setAvailableVlans(vlanIds);
-
-          const defaults = generateInitialPorts(vlanIds);
-          const merged = defaults.map((port) => {
-            const dbPort = (interfaceData.interfaces || []).find((item) =>
-              item.id_interface === port.id_interface || item.nom === port.id
-            );
-            return dbPort ? mapDbInterfaceToUi(dbPort, port) : port;
-          });
-
-          setPorts(merged);
-          setSelectedPortId((current) => merged.find((port) => port.id === current)?.id || null);
-          
-          window.dispatchEvent(new CustomEvent('netguard:interface-updated'));
-        } catch (error) {
-          console.error('Erreur chargement interfaces:', error);
-          showToast(error.message || 'Impossible de charger les interfaces', 'error');
-        }
-      };
-
-      useEffect(() => {
-        auth.requirePageAccess('interfaces');
-        loadInterfaces();
-        return () => window.clearTimeout(window.__interfaceToastTimer);
-      }, []);
+      
 
       const persistPort = async (port, successMessage, fallbackMessage = 'Enregistrement impossible') => {
         const payload = buildInterfacePayload(port);
@@ -303,29 +289,55 @@
         updatePortLocally(id, updates);
       };
 
-      const handleApplyChanges = async (id) => {
-        const currentPort = getPort(id);
-        if (!currentPort) return;
-        if (currentPort.mode === 'access') {
-          if (!currentPort.vlan) {
-            showToast('Selectionnez un VLAN valide avant d\'enregistrer.', 'error');
-            return;
-          }
-          if (!availableVlans.includes(String(currentPort.vlan))) {
-            showToast(`Le VLAN ${currentPort.vlan} n'existe pas encore. Creez-le d'abord dans la page VLAN.`, 'error');
-            return;
-          }
-        }
+  const handleApplyChanges = async (id) => {
+  // 1. Blocage si le mot de passe est vide (Sécurité)
+  if (!connInfo.switchPass) {
+    showToast("Le mot de passe SSH est requis pour modifier la configuration réelle.", "error");
+    return;
+  }
 
-        setIsApplying(true);
-        try {
-          await persistPort({ ...currentPort, configured: true }, `Configuration appliquée sur ${id}.`);
-        } catch (error) {
-          showToast(error.message, 'error');
-        } finally {
-          setIsApplying(false);
-        }
-      };
+  const currentPort = getPort(id);
+  if (!currentPort) return;
+
+  // Validation VLAN (ton code d'origine)
+  if (currentPort.mode === 'access') {
+    if (!currentPort.vlan) {
+      showToast('Sélectionnez un VLAN valide avant d\'enregistrer.', 'error');
+      return;
+    }
+    if (!availableVlans.includes(String(currentPort.vlan))) {
+      showToast(`Le VLAN ${currentPort.vlan} n'existe pas encore. Créez-le d'abord dans la page VLAN.`, 'error');
+      return;
+    }
+  }
+
+  // 2. Récupération du switch sélectionné pour avoir l'IP cible
+  const activeSwitch = switches.find(s => String(s.id) === String(selectedSwitchId));
+
+  setIsApplying(true);
+  try {
+    // 3. On envoie tout au backend : les paramètres du port + les accès SSH
+    await persistPort(
+      { 
+        ...currentPort, 
+        configured: true,
+        switch_ip: activeSwitch?.ip,        // Ajout de l'IP pour Nornir
+        switch_user: connInfo.switchUser,   // Ajout du user
+        switch_pass: connInfo.switchPass    // Ajout du password
+      }, 
+      `Configuration appliquée avec succès sur ${id} (${activeSwitch?.nom}).`
+    );
+
+    // 4. Succès : On vide le champ mot de passe par sécurité
+    setConnInfo({ ...connInfo, switchPass: '' });
+
+  } catch (error) {
+    // Gestion des erreurs (Timeout SSH, mauvais pass, etc.)
+    showToast(error.message, 'error');
+  } finally {
+    setIsApplying(false);
+  }
+};
 
       const getModeDisplay = (mode) => {
         return mode === 'trunk' ? 'Trunk' : 'Access';
@@ -423,6 +435,20 @@
 
       return (
         <div className="p-2 md:p-4 max-w-[1600px] mx-auto animate-in">
+          {/* --- SÉLECTEUR DE SWITCH --- */}
+<div className="mb-6 flex items-center gap-4 bg-white dark-mode:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark-mode:border-slate-700 shadow-sm animate-in">
+  <div className="p-2 bg-indigo-50 dark-mode:bg-indigo-900/30 rounded-lg text-indigo-600 text-xl">📡</div>
+  <label className="text-sm font-bold text-slate-500 uppercase tracking-wider">Switch Actif :</label>
+  <select 
+    value={selectedSwitchId} 
+    onChange={(e) => setSelectedSwitchId(e.target.value)} 
+    className="bg-transparent border-none font-bold text-indigo-600 outline-none cursor-pointer text-lg"
+  >
+    {switches.map(sw => (
+      <option key={sw.id} value={sw.id}>{sw.nom} ({sw.ip})</option>
+    ))}
+  </select>
+</div>
           <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-8 gap-4">
             <div>
               <h1 className="page-title text-3xl font-bold text-slate-800 tracking-tight">Interfaces Management</h1>
@@ -546,6 +572,31 @@
                   )}
 
                   <div className="space-y-5">
+                    {/* --- SECTION CONNEXION AU SWITCH --- */}
+<div className="p-4 bg-slate-50 dark-mode:bg-slate-700/30 rounded-2xl border border-slate-200 dark-mode:border-slate-600 mb-4">
+  <h3 className="text-xs font-bold text-indigo-600 mb-3 uppercase tracking-wider dark-mode:text-indigo-400">Identification Switch</h3>
+  <div className="grid grid-cols-2 gap-3">
+    <div>
+      <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Utilisateur</label>
+      <input 
+        type="text" 
+        value={connInfo.switchUser} 
+        onChange={(e) => setConnInfo({...connInfo, switchUser: e.target.value})} 
+        className="w-full border border-slate-200 rounded-lg p-2 text-sm dark-mode:bg-slate-800 dark-mode:text-white outline-none focus:ring-1 ring-indigo-500" 
+      />
+    </div>
+    <div>
+      <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">SSH Password</label>
+      <input 
+        type="password" 
+        value={connInfo.switchPass} 
+        onChange={(e) => setConnInfo({...connInfo, switchPass: e.target.value})} 
+        className="w-full border border-slate-200 rounded-lg p-2 text-sm dark-mode:bg-slate-800 dark-mode:text-white outline-none focus:ring-1 ring-indigo-500" 
+        placeholder="••••" 
+      />
+    </div>
+  </div>
+</div>
                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
                       <div>
                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Port Status</p>
@@ -655,6 +706,7 @@
                         {isApplying ? 'Envoi...' : 'Apply Changes'}
                       </button>
                     </div>
+                    
 
                     <div className="mt-4 p-3 bg-slate-800 rounded-xl">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">CLI Preview</p>
