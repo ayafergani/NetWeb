@@ -217,6 +217,171 @@
 2026-04-25 19:38:02,374 [INFO] [ALERTE] 🟡 MOYEN | XSS | 192.168.59.67:45678 → 192.168.59.9:443 (TCP)
 2026-04-25 19:38:02,398 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
 2026-04-25 19:38:02,407 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
-YEN | XSS | 192.168.59.67:45678 → 192.168.59.9:443 (TCP)
-2026-04-25 19:38:02,398 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
-2026-04-25 19:38:02,407 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 21:38:12,462 [ERROR] ❌ Erreur connexion/écoute : server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+ — reconnexion dans 10 s
+2026-04-25 21:38:24,680 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:38:37,136 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:38:49,263 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:39:01,371 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:39:13,452 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:39:25,522 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:39:37,655 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:39:49,734 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:40:01,820 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:40:13,880 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:40:26,010 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:40:38,116 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:40:50,214 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:41:02,327 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:41:14,401 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:41:26,687 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:41:38,794 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:41:50,863 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:42:02,942 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:42:15,009 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:42:27,239 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:42:39,394 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:42:51,466 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:43:03,546 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:43:15,603 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:43:27,697 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:43:39,774 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:43:51,869 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:44:03,952 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:44:16,066 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:44:28,161 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:44:40,243 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:44:52,459 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:45:04,538 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:45:16,604 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:45:28,701 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:45:40,780 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:45:52,844 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:46:05,018 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:46:17,093 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:46:29,189 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:46:41,447 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 21:46:51,588 [INFO] ✅ En attente de notifications…
+2026-04-25 21:47:04,646 [INFO] 📨 NOTIFY reçu  pid=12536  payload='{"id" : 358, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.10:54321", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-25 21:47:02.801939+02"}'
+2026-04-25 21:47:04,647 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.10:54321 → 192.168.59.9:22 (TCP)
+2026-04-25 21:47:04,648 [INFO] 📨 NOTIFY reçu  pid=12536  payload='{"id" : 359, "name" : "Port Scan", "severity" : "medium", "src" : "192.168.59.15:48921", "dst" : "192.168.59.9:8080", "proto" : "TCP", "timestamp" : "2026-04-25 21:47:02.801939+02"}'
+2026-04-25 21:47:04,648 [INFO] [ALERTE] 🟡 MOYEN | Port Scan | 192.168.59.15:48921 → 192.168.59.9:8080 (TCP)
+2026-04-25 21:47:04,652 [INFO] 📨 NOTIFY reçu  pid=12536  payload='{"id" : 360, "name" : "Brute Force SSH", "severity" : "critical", "src" : "10.0.0.45:60123", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-25 21:47:02.801939+02"}'
+2026-04-25 21:47:04,654 [INFO] [ALERTE] 🔴 CRITIQUE | Brute Force SSH | 10.0.0.45:60123 → 192.168.59.9:22 (TCP)
+2026-04-25 21:47:04,654 [INFO] 📨 NOTIFY reçu  pid=12536  payload='{"id" : 361, "name" : "DDoS", "severity" : "critical", "src" : "203.0.113.88:33445", "dst" : "192.168.59.9:443", "proto" : "UDP", "timestamp" : "2026-04-25 21:47:02.801939+02"}'
+2026-04-25 21:47:04,655 [INFO] [ALERTE] 🔴 CRITIQUE | DDoS | 203.0.113.88:33445 → 192.168.59.9:443 (UDP)
+2026-04-25 21:47:04,656 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 21:47:04,656 [INFO] 📨 NOTIFY reçu  pid=12536  payload='{"id" : 362, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.30:37812", "dst" : "192.168.59.9:80", "proto" : "TCP", "timestamp" : "2026-04-25 21:47:02.801939+02"}'
+2026-04-25 21:47:04,657 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.30:37812 → 192.168.59.9:80 (TCP)
+2026-04-25 21:47:04,657 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-25 21:47:04,660 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 21:47:04,661 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 21:47:04,669 [INFO] 📨 NOTIFY reçu  pid=12536  payload='{"id" : 363, "name" : "XSS", "severity" : "medium", "src" : "192.168.59.67:45678", "dst" : "192.168.59.9:443", "proto" : "TCP", "timestamp" : "2026-04-25 21:47:02.801939+02"}'
+2026-04-25 21:47:04,669 [INFO] [ALERTE] 🟡 MOYEN | XSS | 192.168.59.67:45678 → 192.168.59.9:443 (TCP)
+2026-04-25 21:47:04,679 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-25 21:47:04,684 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 22:02:08,163 [ERROR] ❌ Erreur connexion/écoute : server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+ — reconnexion dans 10 s
+2026-04-25 22:34:10,928 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: No route to host (0x00002751/10065)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 22:34:41,982 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection timed out (0x0000274C/10060)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 22:35:13,246 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection timed out (0x0000274C/10060)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+t (0x0000274C/10060)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 22:35:13,246 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection timed out (0x0000274C/10060)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
