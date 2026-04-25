@@ -85,6 +85,17 @@
             </svg>
           </button>
           <span id="topbar-notif-count" class="notif-count"></span>
+
+          <!-- Dropdown alertes -->
+          <div id="topbar-alerts-dropdown" class="alerts-dropdown" hidden>
+            <div class="alerts-dropdown-header">
+              <span class="alerts-dropdown-title">Alertes récentes</span>
+              <a href="alerts.html" class="alerts-dropdown-viewall">Voir tout</a>
+            </div>
+            <div id="topbar-alerts-list" class="alerts-dropdown-list">
+              <div class="alerts-dropdown-empty">Aucune alerte</div>
+            </div>
+          </div>
         </div>
 
         <button type="button" id="topbar-theme-toggle" class="icon-button theme-toggle" aria-label="Changer le theme">
@@ -397,6 +408,131 @@
   document.addEventListener('click', function (e) {
     if (userMenu && !userMenu.contains(e.target) && e.target !== userButton) closeUserMenu();
   });
+
+  // ========== ALERTES TEMPS RÉEL ==========
+  var _lastAlertCount = null;
+  var _alertsDropdown = document.getElementById('topbar-alerts-dropdown');
+  var _alertsList     = document.getElementById('topbar-alerts-list');
+  var _notifButton    = document.getElementById('topbar-notif-button');
+
+  function _severityColor(severity) {
+    var s = (severity || '').toLowerCase();
+    if (s === 'critique' || s === 'critical' || s === 'high' || s === '1') return '#ef4444';
+    if (s === 'moyen'    || s === 'medium'   || s === 'moderate' || s === '2') return '#f59e0b';
+    return '#22c55e';
+  }
+
+  function _severityLabel(severity) {
+    var s = (severity || '').toLowerCase();
+    if (s === 'critique' || s === 'critical' || s === 'high' || s === '1') return 'Critique';
+    if (s === 'moyen'    || s === 'medium'   || s === 'moderate' || s === '2') return 'Moyen';
+    return 'Faible';
+  }
+
+  function _renderAlertsList(alerts) {
+    if (!_alertsList) return;
+    if (!alerts || alerts.length === 0) {
+      _alertsList.innerHTML = '<div class="alerts-dropdown-empty">Aucune alerte récente</div>';
+      return;
+    }
+    _alertsList.innerHTML = alerts.slice(0, 8).map(function(a) {
+      var color = _severityColor(a.severity || a.priority || a.gravite || '');
+      var label = _severityLabel(a.severity || a.priority || a.gravite || '');
+      var msg   = a.message || a.msg || a.classification || a.description || 'Alerte détectée';
+      var src   = a.src_ip  || a.source_ip || a.source || '';
+      var ts    = a.timestamp || a.date || a.created_at || '';
+      var time  = '';
+      if (ts) {
+        try {
+          var d = new Date(ts);
+          time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        } catch(e) { time = ts; }
+      }
+      return '<div class="alerts-dropdown-item">' +
+        '<span class="alert-dot" style="background:' + color + '"></span>' +
+        '<div class="alert-item-body">' +
+          '<span class="alert-item-msg">' + msg + '</span>' +
+          '<span class="alert-item-meta">' +
+            '<span class="alert-item-badge" style="color:' + color + ';border-color:' + color + '40;background:' + color + '12">' + label + '</span>' +
+            (src  ? '<span class="alert-item-ip">'   + src  + '</span>' : '') +
+            (time ? '<span class="alert-item-time">'  + time + '</span>' : '') +
+          '</span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function _toggleAlertsDropdown(e) {
+    e.stopPropagation();
+    if (!_alertsDropdown) return;
+    var isHidden = _alertsDropdown.hidden;
+    _alertsDropdown.hidden = !isHidden;
+    if (!isHidden) return;
+    // Marquer comme lu : reset badge
+    updateNotificationCount(0);
+    _lastAlertCount = null; // sera recalculé au prochain poll
+  }
+
+  function _closeAlertsDropdown() {
+    if (_alertsDropdown) _alertsDropdown.hidden = true;
+  }
+
+  if (_notifButton) {
+    _notifButton.addEventListener('click', _toggleAlertsDropdown);
+  }
+
+  document.addEventListener('click', function(e) {
+    if (_alertsDropdown && !_alertsDropdown.hidden) {
+      if (!_alertsDropdown.contains(e.target) && e.target !== _notifButton) {
+        _closeAlertsDropdown();
+      }
+    }
+  });
+
+  // Poll API alertes toutes les 5 secondes
+  async function _pollAlerts() {
+    try {
+      var token = localStorage.getItem('jwtToken');
+      var headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+
+      // Récupérer les alertes récentes
+      var res = await fetch('http://localhost:5000/api/alerts?limit=8&sort=desc', { headers: headers });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var data = await res.json();
+
+      var alerts = data.alerts || data.data || data.results || [];
+      _renderAlertsList(alerts);
+
+      // Récupérer le total pour le badge
+      var statsRes = await fetch('http://localhost:5000/api/stats', { headers: headers });
+      var statsData = await statsRes.json();
+      if (statsData.success || statsData.stats) {
+        var total = parseInt((statsData.stats || statsData).total) || 0;
+        if (_lastAlertCount === null) {
+          _lastAlertCount = total;
+        }
+        var newCount = Math.max(0, total - _lastAlertCount);
+        // Si dropdown ouvert, ne pas changer le badge
+        if (_alertsDropdown && _alertsDropdown.hidden) {
+          updateNotificationCount(newCount);
+        }
+      }
+    } catch(e) {
+      // Silencieux — API peut être indisponible
+    }
+  }
+
+  _pollAlerts();
+  setInterval(_pollAlerts, 5000);
+
+  // API publique : permet à alerts.html de réinitialiser le badge topbar
+  window.resetTopbarAlertBadge = function() {
+    fetch('http://localhost:5000/api/stats').then(function(r) { return r.json(); }).then(function(d) {
+      if (d.success || d.stats) _lastAlertCount = parseInt((d.stats || d).total) || 0;
+    }).catch(function(){});
+    updateNotificationCount(0);
+  };
 
   // ========== API PUBLIQUE ==========
   window.setPageTitle = function (title, subtitle) {

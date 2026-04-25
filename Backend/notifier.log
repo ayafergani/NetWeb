@@ -72,4 +72,151 @@
 2026-04-24 21:35:24,895 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 315, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.10:54321", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-24 21:35:24.50733+02"}'
 2026-04-24 21:35:24,895 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.10:54321 → 192.168.59.9:22 (TCP)
 2026-04-24 21:35:24,946 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
--24 21:35:24,946 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 22:19:50,574 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 316, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.10:54321", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-24 22:19:50.311998+02"}'
+2026-04-24 22:19:50,574 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.10:54321 → 192.168.59.9:22 (TCP)
+2026-04-24 22:19:50,575 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 317, "name" : "Port Scan", "severity" : "medium", "src" : "192.168.59.15:48921", "dst" : "192.168.59.9:8080", "proto" : "TCP", "timestamp" : "2026-04-24 22:19:50.311998+02"}'
+2026-04-24 22:19:50,576 [INFO] [ALERTE] 🟡 MOYEN | Port Scan | 192.168.59.15:48921 → 192.168.59.9:8080 (TCP)
+2026-04-24 22:19:50,580 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 318, "name" : "Brute Force SSH", "severity" : "critical", "src" : "10.0.0.45:60123", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-24 22:19:50.311998+02"}'
+2026-04-24 22:19:50,581 [INFO] [ALERTE] 🔴 CRITIQUE | Brute Force SSH | 10.0.0.45:60123 → 192.168.59.9:22 (TCP)
+2026-04-24 22:19:50,581 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 22:19:50,582 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 319, "name" : "DDoS", "severity" : "critical", "src" : "203.0.113.88:33445", "dst" : "192.168.59.9:443", "proto" : "UDP", "timestamp" : "2026-04-24 22:19:50.311998+02"}'
+2026-04-24 22:19:50,583 [INFO] [ALERTE] 🔴 CRITIQUE | DDoS | 203.0.113.88:33445 → 192.168.59.9:443 (UDP)
+2026-04-24 22:19:50,585 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 320, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.30:37812", "dst" : "192.168.59.9:80", "proto" : "TCP", "timestamp" : "2026-04-24 22:19:50.311998+02"}'
+2026-04-24 22:19:50,585 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.30:37812 → 192.168.59.9:80 (TCP)
+2026-04-24 22:19:50,587 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 321, "name" : "XSS", "severity" : "medium", "src" : "192.168.59.67:45678", "dst" : "192.168.59.9:443", "proto" : "TCP", "timestamp" : "2026-04-24 22:19:50.311998+02"}'
+2026-04-24 22:19:50,587 [INFO] [ALERTE] 🟡 MOYEN | XSS | 192.168.59.67:45678 → 192.168.59.9:443 (TCP)
+2026-04-24 22:19:50,596 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-24 22:19:50,602 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-24 22:19:50,605 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 22:19:50,606 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 22:19:50,608 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 22:31:54,601 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 322, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.10:54321", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-24 22:31:54.360224+02"}'
+2026-04-24 22:31:54,601 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.10:54321 → 192.168.59.9:22 (TCP)
+2026-04-24 22:31:54,602 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 323, "name" : "Port Scan", "severity" : "medium", "src" : "192.168.59.15:48921", "dst" : "192.168.59.9:8080", "proto" : "TCP", "timestamp" : "2026-04-24 22:31:54.360224+02"}'
+2026-04-24 22:31:54,603 [INFO] [ALERTE] 🟡 MOYEN | Port Scan | 192.168.59.15:48921 → 192.168.59.9:8080 (TCP)
+2026-04-24 22:31:54,603 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 324, "name" : "Brute Force SSH", "severity" : "critical", "src" : "10.0.0.45:60123", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-24 22:31:54.360224+02"}'
+2026-04-24 22:31:54,604 [INFO] [ALERTE] 🔴 CRITIQUE | Brute Force SSH | 10.0.0.45:60123 → 192.168.59.9:22 (TCP)
+2026-04-24 22:31:54,604 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 325, "name" : "DDoS", "severity" : "critical", "src" : "203.0.113.88:33445", "dst" : "192.168.59.9:443", "proto" : "UDP", "timestamp" : "2026-04-24 22:31:54.360224+02"}'
+2026-04-24 22:31:54,604 [INFO] [ALERTE] 🔴 CRITIQUE | DDoS | 203.0.113.88:33445 → 192.168.59.9:443 (UDP)
+2026-04-24 22:31:54,606 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 22:31:54,606 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 326, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.30:37812", "dst" : "192.168.59.9:80", "proto" : "TCP", "timestamp" : "2026-04-24 22:31:54.360224+02"}'
+2026-04-24 22:31:54,607 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.30:37812 → 192.168.59.9:80 (TCP)
+2026-04-24 22:31:54,607 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-24 22:31:54,608 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 22:31:54,608 [INFO] 📨 NOTIFY reçu  pid=15036  payload='{"id" : 327, "name" : "XSS", "severity" : "medium", "src" : "192.168.59.67:45678", "dst" : "192.168.59.9:443", "proto" : "TCP", "timestamp" : "2026-04-24 22:31:54.360224+02"}'
+2026-04-24 22:31:54,608 [INFO] [ALERTE] 🟡 MOYEN | XSS | 192.168.59.67:45678 → 192.168.59.9:443 (TCP)
+2026-04-24 22:31:54,609 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 22:31:54,611 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-24 22:31:54,617 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-25 00:32:04,692 [ERROR] ❌ Erreur connexion/écoute : server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+ — reconnexion dans 10 s
+2026-04-25 00:32:14,922 [INFO] ✅ En attente de notifications…
+2026-04-25 00:44:03,074 [ERROR] ❌ Erreur connexion/écoute : server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+ — reconnexion dans 10 s
+2026-04-25 00:44:17,952 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 00:44:28,485 [INFO] ✅ En attente de notifications…
+2026-04-25 00:44:42,391 [ERROR] ❌ Erreur connexion/écoute : server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+ — reconnexion dans 10 s
+2026-04-25 00:45:17,689 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 00:45:28,058 [INFO] ✅ En attente de notifications…
+2026-04-25 05:28:34,072 [ERROR] ❌ Erreur connexion/écoute : server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+ — reconnexion dans 10 s
+2026-04-25 16:59:42,941 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 16:59:54,409 [INFO] ✅ En attente de notifications…
+2026-04-25 17:12:17,626 [ERROR] ❌ Erreur connexion/écoute : server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+ — reconnexion dans 10 s
+2026-04-25 18:51:04,447 [ERROR] ❌ Erreur connexion/écoute : connection to server at "192.168.1.2", port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+ — reconnexion dans 10 s
+2026-04-25 18:51:14,754 [INFO] ✅ En attente de notifications…
+2026-04-25 19:10:29,055 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 334, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.10:54321", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-25 19:10:27.584457+02"}'
+2026-04-25 19:10:29,055 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.10:54321 → 192.168.59.9:22 (TCP)
+2026-04-25 19:10:29,057 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 335, "name" : "Port Scan", "severity" : "medium", "src" : "192.168.59.15:48921", "dst" : "192.168.59.9:8080", "proto" : "TCP", "timestamp" : "2026-04-25 19:10:27.584457+02"}'
+2026-04-25 19:10:29,059 [INFO] [ALERTE] 🟡 MOYEN | Port Scan | 192.168.59.15:48921 → 192.168.59.9:8080 (TCP)
+2026-04-25 19:10:29,060 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 336, "name" : "Brute Force SSH", "severity" : "critical", "src" : "10.0.0.45:60123", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-25 19:10:27.584457+02"}'
+2026-04-25 19:10:29,061 [INFO] [ALERTE] 🔴 CRITIQUE | Brute Force SSH | 10.0.0.45:60123 → 192.168.59.9:22 (TCP)
+2026-04-25 19:10:29,062 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 337, "name" : "DDoS", "severity" : "critical", "src" : "203.0.113.88:33445", "dst" : "192.168.59.9:443", "proto" : "UDP", "timestamp" : "2026-04-25 19:10:27.584457+02"}'
+2026-04-25 19:10:29,063 [INFO] [ALERTE] 🔴 CRITIQUE | DDoS | 203.0.113.88:33445 → 192.168.59.9:443 (UDP)
+2026-04-25 19:10:29,065 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 338, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.30:37812", "dst" : "192.168.59.9:80", "proto" : "TCP", "timestamp" : "2026-04-25 19:10:27.584457+02"}'
+2026-04-25 19:10:29,065 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.30:37812 → 192.168.59.9:80 (TCP)
+2026-04-25 19:10:29,067 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 339, "name" : "XSS", "severity" : "medium", "src" : "192.168.59.67:45678", "dst" : "192.168.59.9:443", "proto" : "TCP", "timestamp" : "2026-04-25 19:10:27.584457+02"}'
+2026-04-25 19:10:29,068 [INFO] [ALERTE] 🟡 MOYEN | XSS | 192.168.59.67:45678 → 192.168.59.9:443 (TCP)
+2026-04-25 19:10:29,081 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-25 19:10:29,083 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:10:29,085 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:10:29,087 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:10:29,085 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-25 19:10:29,091 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:27:14,490 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 340, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.10:54321", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-25 19:27:13.115558+02"}'
+2026-04-25 19:27:14,490 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.10:54321 → 192.168.59.9:22 (TCP)
+2026-04-25 19:27:14,491 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 341, "name" : "Port Scan", "severity" : "medium", "src" : "192.168.59.15:48921", "dst" : "192.168.59.9:8080", "proto" : "TCP", "timestamp" : "2026-04-25 19:27:13.115558+02"}'
+2026-04-25 19:27:14,492 [INFO] [ALERTE] 🟡 MOYEN | Port Scan | 192.168.59.15:48921 → 192.168.59.9:8080 (TCP)
+2026-04-25 19:27:14,492 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 342, "name" : "Brute Force SSH", "severity" : "critical", "src" : "10.0.0.45:60123", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-25 19:27:13.115558+02"}'
+2026-04-25 19:27:14,493 [INFO] [ALERTE] 🔴 CRITIQUE | Brute Force SSH | 10.0.0.45:60123 → 192.168.59.9:22 (TCP)
+2026-04-25 19:27:14,494 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 343, "name" : "DDoS", "severity" : "critical", "src" : "203.0.113.88:33445", "dst" : "192.168.59.9:443", "proto" : "UDP", "timestamp" : "2026-04-25 19:27:13.115558+02"}'
+2026-04-25 19:27:14,495 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:27:14,495 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-25 19:27:14,495 [INFO] [ALERTE] 🔴 CRITIQUE | DDoS | 203.0.113.88:33445 → 192.168.59.9:443 (UDP)
+2026-04-25 19:27:14,496 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 344, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.30:37812", "dst" : "192.168.59.9:80", "proto" : "TCP", "timestamp" : "2026-04-25 19:27:13.115558+02"}'
+2026-04-25 19:27:14,496 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.30:37812 → 192.168.59.9:80 (TCP)
+2026-04-25 19:27:14,497 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:27:14,497 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 345, "name" : "XSS", "severity" : "medium", "src" : "192.168.59.67:45678", "dst" : "192.168.59.9:443", "proto" : "TCP", "timestamp" : "2026-04-25 19:27:13.115558+02"}'
+2026-04-25 19:27:14,497 [INFO] [ALERTE] 🟡 MOYEN | XSS | 192.168.59.67:45678 → 192.168.59.9:443 (TCP)
+2026-04-25 19:27:14,499 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:27:14,500 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:27:14,510 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-25 19:30:31,926 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 346, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.10:54321", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-25 19:30:30.559148+02"}'
+2026-04-25 19:30:31,927 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.10:54321 → 192.168.59.9:22 (TCP)
+2026-04-25 19:30:31,927 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 347, "name" : "Port Scan", "severity" : "medium", "src" : "192.168.59.15:48921", "dst" : "192.168.59.9:8080", "proto" : "TCP", "timestamp" : "2026-04-25 19:30:30.559148+02"}'
+2026-04-25 19:30:31,928 [INFO] [ALERTE] 🟡 MOYEN | Port Scan | 192.168.59.15:48921 → 192.168.59.9:8080 (TCP)
+2026-04-25 19:30:31,929 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 348, "name" : "Brute Force SSH", "severity" : "critical", "src" : "10.0.0.45:60123", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-25 19:30:30.559148+02"}'
+2026-04-25 19:30:31,930 [INFO] [ALERTE] 🔴 CRITIQUE | Brute Force SSH | 10.0.0.45:60123 → 192.168.59.9:22 (TCP)
+2026-04-25 19:30:31,930 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 349, "name" : "DDoS", "severity" : "critical", "src" : "203.0.113.88:33445", "dst" : "192.168.59.9:443", "proto" : "UDP", "timestamp" : "2026-04-25 19:30:30.559148+02"}'
+2026-04-25 19:30:31,930 [INFO] [ALERTE] 🔴 CRITIQUE | DDoS | 203.0.113.88:33445 → 192.168.59.9:443 (UDP)
+2026-04-25 19:30:31,931 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 350, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.30:37812", "dst" : "192.168.59.9:80", "proto" : "TCP", "timestamp" : "2026-04-25 19:30:30.559148+02"}'
+2026-04-25 19:30:31,932 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.30:37812 → 192.168.59.9:80 (TCP)
+2026-04-25 19:30:31,932 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:30:31,934 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-25 19:30:31,934 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 351, "name" : "XSS", "severity" : "medium", "src" : "192.168.59.67:45678", "dst" : "192.168.59.9:443", "proto" : "TCP", "timestamp" : "2026-04-25 19:30:30.559148+02"}'
+2026-04-25 19:30:31,934 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:30:31,935 [INFO] [ALERTE] 🟡 MOYEN | XSS | 192.168.59.67:45678 → 192.168.59.9:443 (TCP)
+2026-04-25 19:30:31,936 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:30:31,937 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:30:31,950 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-25 19:38:02,358 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 352, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.10:54321", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-25 19:38:00.984541+02"}'
+2026-04-25 19:38:02,360 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.10:54321 → 192.168.59.9:22 (TCP)
+2026-04-25 19:38:02,361 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 353, "name" : "Port Scan", "severity" : "medium", "src" : "192.168.59.15:48921", "dst" : "192.168.59.9:8080", "proto" : "TCP", "timestamp" : "2026-04-25 19:38:00.984541+02"}'
+2026-04-25 19:38:02,361 [INFO] [ALERTE] 🟡 MOYEN | Port Scan | 192.168.59.15:48921 → 192.168.59.9:8080 (TCP)
+2026-04-25 19:38:02,362 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 354, "name" : "Brute Force SSH", "severity" : "critical", "src" : "10.0.0.45:60123", "dst" : "192.168.59.9:22", "proto" : "TCP", "timestamp" : "2026-04-25 19:38:00.984541+02"}'
+2026-04-25 19:38:02,362 [INFO] [ALERTE] 🔴 CRITIQUE | Brute Force SSH | 10.0.0.45:60123 → 192.168.59.9:22 (TCP)
+2026-04-25 19:38:02,363 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 355, "name" : "DDoS", "severity" : "critical", "src" : "203.0.113.88:33445", "dst" : "192.168.59.9:443", "proto" : "UDP", "timestamp" : "2026-04-25 19:38:00.984541+02"}'
+2026-04-25 19:38:02,364 [INFO] [ALERTE] 🔴 CRITIQUE | DDoS | 203.0.113.88:33445 → 192.168.59.9:443 (UDP)
+2026-04-25 19:38:02,364 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:38:02,365 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 356, "name" : "Auto-SQL-Injection", "severity" : "critical", "src" : "192.168.59.30:37812", "dst" : "192.168.59.9:80", "proto" : "TCP", "timestamp" : "2026-04-25 19:38:00.984541+02"}'
+2026-04-25 19:38:02,365 [INFO] [ALERTE] 🔴 CRITIQUE | Auto-SQL-Injection | 192.168.59.30:37812 → 192.168.59.9:80 (TCP)
+2026-04-25 19:38:02,366 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-25 19:38:02,367 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:38:02,369 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+2026-04-25 19:38:02,374 [INFO] 📨 NOTIFY reçu  pid=11344  payload='{"id" : 357, "name" : "XSS", "severity" : "medium", "src" : "192.168.59.67:45678", "dst" : "192.168.59.9:443", "proto" : "TCP", "timestamp" : "2026-04-25 19:38:00.984541+02"}'
+2026-04-25 19:38:02,374 [INFO] [ALERTE] 🟡 MOYEN | XSS | 192.168.59.67:45678 → 192.168.59.9:443 (TCP)
+2026-04-25 19:38:02,398 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-25 19:38:02,407 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
+YEN | XSS | 192.168.59.67:45678 → 192.168.59.9:443 (TCP)
+2026-04-25 19:38:02,398 [INFO] ✅ Notification envoyée: 🟡 IDS — MOYEN
+2026-04-25 19:38:02,407 [INFO] ✅ Notification envoyée: 🔴 IDS — CRITIQUE
