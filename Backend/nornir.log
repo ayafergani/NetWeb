@@ -1,0 +1,4 @@
+2026-04-26 12:57:28,265 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 180 - IT' with args {'config_commands': ['vlan 180', 'name IT', 'exit']} on 1 hosts
+2026-04-26 12:57:32,501 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-04-26 12:57:53,944 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 190 - IT' with args {'config_commands': ['vlan 190', 'name IT', 'exit']} on 1 hosts
+2026-04-26 12:57:56,116 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts

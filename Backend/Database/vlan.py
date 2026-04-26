@@ -6,6 +6,8 @@ import psycopg2.extras
 vlan_bp = Blueprint("vlan", __name__)
 
 
+# ─── Helpers ─────────────────────────────────────────────────────────────────
+
 def get_vlan_columns(conn):
     cur = conn.cursor()
     try:
@@ -22,7 +24,6 @@ def get_vlan_columns(conn):
 def derive_network_from_gateway(gateway):
     if not gateway:
         return ""
-
     try:
         return str(ipaddress.ip_network(f"{gateway}/24", strict=False))
     except ValueError:
@@ -32,19 +33,19 @@ def derive_network_from_gateway(gateway):
 def build_vlan_response(row):
     gateway = row.get("gateway") or ""
     return {
-        "id_vlan": row.get("id_vlan"),
-        "id": row.get("id_vlan"),
-        "nom": row.get("nom"),
-        "name": row.get("nom"),
-        "reseau": row.get("reseau") or "",
-        "gateway": gateway,
-        "vlanIp": gateway or "--",
-        "type": row.get("type") or "Data",
-        "ports": row.get("ports") or "",
-        "status": row.get("status") or "Active",
+        "id_vlan":    row.get("id_vlan"),
+        "id":         row.get("id_vlan"),
+        "nom":        row.get("nom"),
+        "name":       row.get("nom"),
+        "reseau":     row.get("reseau") or "",
+        "gateway":    gateway,
+        "vlanIp":     gateway or "--",
+        "type":       row.get("type") or "Data",
+        "ports":      row.get("ports") or "",
+        "status":     row.get("status") or "Active",
         "switchName": row.get("switch_name") or "",
-        "switchIp": row.get("switch_ip") or "",
-        "devices": 0,
+        "switchIp":   row.get("switch_ip") or "",
+        "devices":    0,
     }
 
 
@@ -56,79 +57,54 @@ def normalize_vlan_payload(data, forced_vlan_id=None):
     try:
         id_vlan = int(raw_id)
     except (TypeError, ValueError):
-        raise ValueError("id_vlan doit etre un entier")
+        raise ValueError("id_vlan doit être un entier")
 
     gateway = str(data.get("gateway", data.get("vlanIp", data.get("vlan_ip", "")))).strip()
-    reseau = str(data.get("reseau", "")).strip()
+    reseau  = str(data.get("reseau", "")).strip()
     if not reseau and gateway:
         reseau = derive_network_from_gateway(gateway)
 
     payload = {
-        "id_vlan": id_vlan,
-        "nom": str(data.get("nom", data.get("name", data.get("vlan_name", "")))).strip(),
-        "reseau": reseau,
-        "gateway": gateway,
-        "type": str(data.get("type", "Data")).strip() or "Data",
-        "ports": str(data.get("ports", "")).strip(),
-        "status": str(data.get("status", "Active")).strip() or "Active",
+        "id_vlan":     id_vlan,
+        "nom":         str(data.get("nom", data.get("name", data.get("vlan_name", "")))).strip(),
+        "reseau":      reseau,
+        "gateway":     gateway,
+        "type":        str(data.get("type", "Data")).strip() or "Data",
+        "ports":       str(data.get("ports", "")).strip(),
+        "status":      str(data.get("status", "Active")).strip() or "Active",
         "switch_name": str(data.get("switchName", data.get("switch_name", ""))).strip(),
-        "switch_ip": str(data.get("switchIp", data.get("switch_ip", ""))).strip(),
-        "switch_user": str(data.get("switchUser", data.get("switch_user", ""))).strip(),
-        "switch_pass": str(data.get("switchPass", data.get("switch_password", ""))).strip(),
+        "switch_ip":   str(data.get("switchIp",   data.get("switch_ip",   ""))).strip(),
     }
 
     if not payload["nom"]:
         raise ValueError("Le nom du VLAN est requis")
-    if not payload["switch_name"]:
-        raise ValueError("Le nom du switch est requis")
-    if not payload["switch_ip"]:
-        raise ValueError("L'IP du switch est requise")
-    if not payload["switch_user"]:
-        raise ValueError("L'utilisateur SSH est requis")
-    if not payload["switch_pass"]:
-        raise ValueError("Le mot de passe SSH est requis")
 
     if payload["gateway"]:
         try:
             ipaddress.ip_address(payload["gateway"])
         except ValueError:
-            raise ValueError("gateway doit etre une adresse IP valide")
+            raise ValueError("gateway doit être une adresse IP valide")
 
     if payload["reseau"]:
         try:
             ipaddress.ip_network(payload["reseau"], strict=False)
         except ValueError:
-            raise ValueError("reseau doit etre au format CIDR, ex: 192.168.10.0/24")
+            raise ValueError("reseau doit être au format CIDR, ex: 192.168.10.0/24")
 
     return payload
 
 
 def get_returning_fields(columns):
-    fields = [
-        "id_vlan",
-        "nom",
-        "reseau",
-        "gateway",
-        "type",
-        "ports",
-        "status",
-    ]
-
-    if "switch_name" in columns:
-        fields.append("switch_name")
-    else:
-        fields.append("NULL AS switch_name")
-
-    if "switch_ip" in columns:
-        fields.append("switch_ip")
-    else:
-        fields.append("NULL AS switch_ip")
-
+    fields = ["id_vlan", "nom", "reseau", "gateway", "type", "ports", "status"]
+    fields.append("switch_name" if "switch_name" in columns else "NULL AS switch_name")
+    fields.append("switch_ip"   if "switch_ip"   in columns else "NULL AS switch_ip")
     return fields
 
 
+# ─── Routes CRUD ─────────────────────────────────────────────────────────────
+
 @vlan_bp.route("/api/vlan", methods=["GET"])
-@vlan_bp.route("/vlan", methods=["GET"])
+@vlan_bp.route("/vlan",     methods=["GET"])
 def get_vlans():
     conn = get_db_connection()
     try:
@@ -139,7 +115,7 @@ def get_vlans():
             FROM vlan
             ORDER BY id_vlan ASC
         """)
-        rows = cur.fetchall()
+        rows  = cur.fetchall()
         vlans = [build_vlan_response(row) for row in rows]
         return jsonify({"success": True, "count": len(vlans), "vlans": vlans})
     except Exception as e:
@@ -148,25 +124,35 @@ def get_vlans():
         conn.close()
 
 
-@vlan_bp.route("/api/vlan", methods=["POST"])
-@vlan_bp.route("/vlan", methods=["POST"])
-@vlan_bp.route("/api/network/deploy-vlan", methods=["POST"])
+# ─── Route principale : Create VLAN (BDD + déploiement SSH automatique) ──────
+
+@vlan_bp.route("/api/vlan",                    methods=["POST"])
+@vlan_bp.route("/vlan",                        methods=["POST"])
+@vlan_bp.route("/api/network/deploy-vlan",     methods=["POST"])
 def create_vlan():
+    """
+    Crée un VLAN en base de données ET le déploie sur le switch via SSH.
+    Les identifiants SSH sont lus automatiquement depuis network/hosts.yaml.
+    Le frontend n'envoie que : id_vlan, nom, gateway (opt), type, ports,
+    switchName (opt), switchIp (opt).
+    """
     try:
         payload = normalize_vlan_payload(request.get_json())
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
 
+    # ── 1. Sauvegarde en BDD ──────────────────────────────────────────────────
     conn = get_db_connection()
     try:
         columns = get_vlan_columns(conn)
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
         cur.execute("SELECT 1 FROM vlan WHERE id_vlan = %s", (payload["id_vlan"],))
         if cur.fetchone():
-            return jsonify({"success": False, "error": f"Le VLAN {payload['id_vlan']} existe deja"}), 409
+            return jsonify({"success": False, "error": f"Le VLAN {payload['id_vlan']} existe déjà"}), 409
 
         insert_columns = ["id_vlan", "nom", "reseau", "gateway", "type", "ports", "status"]
-        insert_values = [
+        insert_values  = [
             payload["id_vlan"],
             payload["nom"],
             payload["reseau"] or None,
@@ -179,7 +165,6 @@ def create_vlan():
         if "switch_name" in columns:
             insert_columns.append("switch_name")
             insert_values.append(payload["switch_name"])
-
         if "switch_ip" in columns:
             insert_columns.append("switch_ip")
             insert_values.append(payload["switch_ip"])
@@ -192,20 +177,45 @@ def create_vlan():
         """, insert_values)
         row = cur.fetchone()
         conn.commit()
-        return jsonify({
-            "success": True,
-            "message": "VLAN cree avec succes",
-            "vlan": build_vlan_response(row),
-        }), 201
+
     except Exception as e:
         conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
         conn.close()
 
+    # ── 2. Déploiement SSH sur le switch (hosts.yaml) ─────────────────────────
+    deploy_result = {"success": False, "error": "Déploiement non tenté"}
+    try:
+        from network.deploy_vlan import run_deploy
+        deploy_result = run_deploy(payload["id_vlan"], payload["nom"])
+    except ImportError:
+        deploy_result = {"success": False, "error": "Module network.deploy_vlan introuvable"}
+    except Exception as e:
+        deploy_result = {"success": False, "error": str(e)}
+
+    # ── 3. Réponse unifiée ────────────────────────────────────────────────────
+    response = {
+        "success":     True,
+        "message":     "VLAN créé en base de données.",
+        "vlan":        build_vlan_response(row),
+        "ssh_deploy":  deploy_result,
+    }
+
+    if not deploy_result.get("success"):
+        # VLAN sauvegardé en BDD mais déploiement SSH échoué → avertissement
+        response["warning"] = (
+            f"VLAN enregistré en BDD mais le déploiement SSH a échoué : "
+            f"{deploy_result.get('error', 'Erreur inconnue')}"
+        )
+
+    return jsonify(response), 201
+
+
+# ─── PUT / DELETE ─────────────────────────────────────────────────────────────
 
 @vlan_bp.route("/api/vlan/<int:id_vlan>", methods=["PUT"])
-@vlan_bp.route("/vlan/<int:id_vlan>", methods=["PUT"])
+@vlan_bp.route("/vlan/<int:id_vlan>",     methods=["PUT"])
 def update_vlan(id_vlan):
     try:
         payload = normalize_vlan_payload(request.get_json() or {}, forced_vlan_id=id_vlan)
@@ -217,33 +227,18 @@ def update_vlan(id_vlan):
         columns = get_vlan_columns(conn)
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        set_clauses = [
-            "nom = %s",
-            "reseau = %s",
-            "gateway = %s",
-            "type = %s",
-            "ports = %s",
-            "status = %s",
-        ]
-        values = [
-            payload["nom"],
-            payload["reseau"] or None,
-            payload["gateway"] or None,
-            payload["type"],
-            payload["ports"],
-            payload["status"],
-        ]
+        set_clauses = ["nom = %s", "reseau = %s", "gateway = %s", "type = %s", "ports = %s", "status = %s"]
+        values      = [payload["nom"], payload["reseau"] or None, payload["gateway"] or None,
+                       payload["type"], payload["ports"], payload["status"]]
 
         if "switch_name" in columns:
             set_clauses.append("switch_name = %s")
             values.append(payload["switch_name"])
-
         if "switch_ip" in columns:
             set_clauses.append("switch_ip = %s")
             values.append(payload["switch_ip"])
 
         values.append(id_vlan)
-
         cur.execute(f"""
             UPDATE vlan
             SET {", ".join(set_clauses)}
@@ -256,11 +251,7 @@ def update_vlan(id_vlan):
             return jsonify({"success": False, "error": "VLAN introuvable"}), 404
 
         conn.commit()
-        return jsonify({
-            "success": True,
-            "message": f"VLAN {id_vlan} mis a jour avec succes",
-            "vlan": build_vlan_response(row),
-        })
+        return jsonify({"success": True, "message": f"VLAN {id_vlan} mis à jour.", "vlan": build_vlan_response(row)})
     except Exception as e:
         conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
@@ -269,15 +260,14 @@ def update_vlan(id_vlan):
 
 
 @vlan_bp.route("/api/vlan/<int:id_vlan>", methods=["DELETE"])
-@vlan_bp.route("/vlan/<int:id_vlan>", methods=["DELETE"])
+@vlan_bp.route("/vlan/<int:id_vlan>",     methods=["DELETE"])
 def delete_vlan(id_vlan):
     conn = get_db_connection()
     try:
         columns = get_vlan_columns(conn)
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(f"""
-            DELETE FROM vlan
-            WHERE id_vlan = %s
+            DELETE FROM vlan WHERE id_vlan = %s
             RETURNING {", ".join(get_returning_fields(columns))}
         """, (id_vlan,))
         row = cur.fetchone()
@@ -286,11 +276,7 @@ def delete_vlan(id_vlan):
             return jsonify({"success": False, "error": "VLAN introuvable"}), 404
 
         conn.commit()
-        return jsonify({
-            "success": True,
-            "message": f"VLAN {id_vlan} supprime avec succes",
-            "vlan": build_vlan_response(row),
-        })
+        return jsonify({"success": True, "message": f"VLAN {id_vlan} supprimé.", "vlan": build_vlan_response(row)})
     except Exception as e:
         conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500

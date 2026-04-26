@@ -209,8 +209,11 @@
       const [showCreateModal, setShowCreateModal] = useState(false);
       const [isCreating, setIsCreating] = useState(false);
       
-      // AJOUT : switchName
-      const [newVlan, setNewVlan] = useState({ id: '', name: '', type: 'Data', ports: '', switchName: '', switchIp: '', switchUser: '', switchPass: '', vlanIp: '' });
+      const [newVlan, setNewVlan] = useState({ id: '', name: '', type: 'Data', ports: '', switchName: '', vlanIp: '' });
+      // État du switch chargé depuis hosts.yaml
+      const [switchCfg, setSwitchCfg] = useState({ host_key: 'switch_cible', hostname: '', username: '', password: '', port: 22, secret: '' });
+      const [switchCfgLoaded, setSwitchCfgLoaded] = useState(false);
+      const [isSavingSwitch, setIsSavingSwitch] = useState(false);
       const [toastMsg, setToastMsg] = useState(null);
       const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -257,6 +260,7 @@
 
         applyTheme();
         loadVlans();
+        loadSwitchConfig();
         window.addEventListener('themeChanged', applyTheme);
         window.addEventListener('storage', handleStorage);
 
@@ -274,35 +278,105 @@
       ]);
 
       const handleCreateVlan = async () => {
-        // Validation avec switchName
-        if (!newVlan.id || !newVlan.name || !newVlan.switchIp || !newVlan.switchName || !newVlan.switchUser || !newVlan.switchPass) {
-          return alert("Veuillez remplir tous les champs (VLAN et informations du Switch).");
+        // Validation : seulement ID et nom requis — SSH est géré par hosts.yaml côté serveur
+        if (!newVlan.id || !newVlan.name) {
+          return alert("Veuillez renseigner au minimum l'ID et le nom du VLAN.");
         }
         setIsCreating(true);
-        
+
+        const payload = {
+          id_vlan:    parseInt(newVlan.id),
+          nom:        newVlan.name,
+          type:       newVlan.type,
+          ports:      newVlan.ports,
+          gateway:    newVlan.vlanIp,
+          switchName: newVlan.switchName,
+        };
+
         try {
           const response = await fetch(`${API_BASE_URL}/api/network/deploy-vlan`, {
             method: 'POST',
             headers: window.NetGuardAuth.getAuthHeaders(),
-            body: JSON.stringify(newVlan)
+            body: JSON.stringify(payload)
           });
-          
+
           const data = await response.json();
           if (response.ok) {
-            const createdVlan = mapApiVlanToUi(data.vlan || { ...newVlan, vlanIp: newVlan.vlanIp || '--', devices: 0, status: 'Active' });
+            const createdVlan = mapApiVlanToUi(data.vlan || { ...payload, vlanIp: newVlan.vlanIp || '--', devices: 0, status: 'Active' });
             setVlans((currentVlans) => [...currentVlans, createdVlan]);
             setSelectedVlan(createdVlan);
             setShowCreateModal(false);
-            setNewVlan({ id: '', name: '', type: 'Data', ports: '', switchName: newVlan.switchName, switchIp: newVlan.switchIp, switchUser: newVlan.switchUser, switchPass: newVlan.switchPass, vlanIp: '' });
-            setToastMsg(`VLAN créé avec succès sur ${newVlan.switchName} !`);
-            setTimeout(() => setToastMsg(null), 4000);
+            setNewVlan({ id: '', name: '', type: 'Data', ports: '', switchName: '', vlanIp: '' });
+
+            // Affiche un avertissement si le déploiement SSH a échoué malgré la sauvegarde BDD
+            if (data.warning) {
+              setToastMsg(`⚠️ ${data.warning}`);
+            } else {
+              const sshOk = data.ssh_deploy?.success;
+              setToastMsg(sshOk
+                ? `VLAN ${newVlan.id} déployé avec succès sur le switch !`
+                : `VLAN enregistré en BDD. Vérifiez la connexion SSH au switch.`
+              );
+            }
+            setTimeout(() => setToastMsg(null), 5000);
+          } else {
+            alert("Erreur: " + (data.error || "Erreur inconnue"));
+          }
+        } catch (error) {
+          alert("Erreur réseau : Impossible de joindre le serveur Flask.");
+        } finally {
+          setIsCreating(false);
+        }
+      };
+
+      // Charge les infos SSH depuis hosts.yaml via le backend
+      const loadSwitchConfig = async () => {
+        try {
+          const resp = await fetch(`${API_BASE_URL}/api/network/switch-config`, {
+            headers: window.NetGuardAuth.getAuthHeaders()
+          });
+          const data = await resp.json();
+          if (data.success && data.switches && data.switches.length > 0) {
+            const sw = data.switches[0];
+            setSwitchCfg({
+              host_key: sw.host_key || 'switch_cible',
+              hostname: sw.hostname || '',
+              username: sw.username || '',
+              password: sw.password || '',
+              port:     sw.port     || 22,
+              secret:   sw.secret   || '',
+            });
+          }
+        } catch (e) {
+          console.warn("Impossible de charger hosts.yaml:", e);
+        } finally {
+          setSwitchCfgLoaded(true);
+        }
+      };
+
+      // Sauvegarde les infos SSH dans hosts.yaml via le backend
+      const saveSwitchConfig = async () => {
+        if (!switchCfg.hostname || !switchCfg.username) {
+          return alert("L'IP et le nom d'utilisateur du switch sont requis.");
+        }
+        setIsSavingSwitch(true);
+        try {
+          const resp = await fetch(`${API_BASE_URL}/api/network/switch-config`, {
+            method: 'POST',
+            headers: window.NetGuardAuth.getAuthHeaders(),
+            body: JSON.stringify(switchCfg)
+          });
+          const data = await resp.json();
+          if (data.success) {
+            setToastMsg("✅ Configuration du switch sauvegardée dans hosts.yaml !");
+            setTimeout(() => setToastMsg(null), 3500);
           } else {
             alert("Erreur: " + data.error);
           }
-        } catch (error) {
-          alert("Erreur réseau: Impossible de joindre Flask.");
+        } catch (e) {
+          alert("Erreur réseau lors de la sauvegarde.");
         } finally {
-          setIsCreating(false);
+          setIsSavingSwitch(false);
         }
       };
 
@@ -483,26 +557,67 @@
                 <h2 className="text-2xl font-bold text-slate-800 mb-6 dark-mode:text-slate-100">Create New VLAN</h2>
                 <div className="space-y-5">
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 dark-mode:bg-slate-700/30 dark-mode:border-slate-600 mb-4">
-                    <h3 className="text-xs font-bold text-indigo-600 mb-3 uppercase tracking-wider dark-mode:text-indigo-400">Connexion au Switch Cible</h3>
-                    {/* AJOUT : Champ pour le Nom du Switch dans le grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Nom du Switch</label>
-                        <input type="text" value={newVlan.switchName} onChange={(e) => setNewVlan({...newVlan, switchName: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="Core-SW" />
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🔒</span>
+                        <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-wider dark-mode:text-indigo-400">Switch Cible (hosts.yaml)</h3>
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">IP du Switch</label>
-                        <input type="text" value={newVlan.switchIp} onChange={(e) => setNewVlan({...newVlan, switchIp: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="192.168.1.200" />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Utilisateur SSH</label>
-                        <input type="text" value={newVlan.switchUser} onChange={(e) => setNewVlan({...newVlan, switchUser: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="admin" />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Mot de passe</label>
-                        <input type="password" value={newVlan.switchPass} onChange={(e) => setNewVlan({...newVlan, switchPass: e.target.value})} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100" placeholder="••••" />
-                      </div>
+                      <button
+                        onClick={saveSwitchConfig}
+                        disabled={isSavingSwitch}
+                        className="text-[10px] font-bold px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all"
+                      >
+                        {isSavingSwitch ? 'Sauvegarde...' : '💾 Sauvegarder'}
+                      </button>
                     </div>
+                    {!switchCfgLoaded ? (
+                      <p className="text-[11px] text-slate-400 italic">Chargement depuis hosts.yaml...</p>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">IP du Switch</label>
+                          <input type="text" value={switchCfg.hostname}
+                            onChange={(e) => setSwitchCfg({...switchCfg, hostname: e.target.value})}
+                            className="w-full border border-slate-200 rounded-lg p-2 text-sm font-mono outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100"
+                            placeholder="10.10.10.50" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Utilisateur SSH</label>
+                          <input type="text" value={switchCfg.username}
+                            onChange={(e) => setSwitchCfg({...switchCfg, username: e.target.value})}
+                            className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100"
+                            placeholder="admin" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Mot de passe SSH</label>
+                          <input type="password" value={switchCfg.password}
+                            onChange={(e) => setSwitchCfg({...switchCfg, password: e.target.value})}
+                            className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100"
+                            placeholder="••••••" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Enable Secret</label>
+                          <input type="password" value={switchCfg.secret}
+                            onChange={(e) => setSwitchCfg({...switchCfg, secret: e.target.value})}
+                            className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100"
+                            placeholder="enable secret" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Port SSH</label>
+                          <input type="number" value={switchCfg.port}
+                            onChange={(e) => setSwitchCfg({...switchCfg, port: parseInt(e.target.value)||22})}
+                            className="w-full border border-slate-200 rounded-lg p-2 text-sm font-mono outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100"
+                            placeholder="22" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1 dark-mode:text-slate-400">Nom inventaire</label>
+                          <input type="text" value={switchCfg.host_key}
+                            onChange={(e) => setSwitchCfg({...switchCfg, host_key: e.target.value})}
+                            className="w-full border border-slate-200 rounded-lg p-2 text-sm font-mono outline-none focus:border-indigo-500 dark-mode:bg-slate-800 dark-mode:border-slate-600 dark-mode:text-slate-100"
+                            placeholder="switch_cible" />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
