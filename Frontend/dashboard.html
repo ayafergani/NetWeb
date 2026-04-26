@@ -348,7 +348,7 @@
       const [rulesCount, setRulesCount] = useState(0);
       const [vlanStats, setVlanStats] = useState({ count: 0, lastCreated: null, quarantine: null });
       const [interfaceStats, setInterfaceStats] = useState({ 
-        total: 0, up: 0, down: 0, trunk: 0, access: 0, uplink: 0, securePorts: 0, hasAlert: false 
+        total: 0, up: 0, down: 0, securePorts: 0, hasAlert: false 
       });
       const [loading, setLoading] = useState(true);
       const [trafficStatus, setTrafficStatus] = useState({ status: 'Normal', color: '#22c55e', bg: 'bg-green' });
@@ -432,12 +432,9 @@
             const items = data.interfaces || [];
             const up = items.filter((item) => String(item.status).toUpperCase() === 'UP').length;
             const down = items.filter((item) => String(item.status).toUpperCase() !== 'UP').length;
-            const trunk = items.filter((item) => String(item.mode).toLowerCase() === 'trunk').length;
-            const access = items.filter((item) => String(item.mode).toLowerCase() === 'access').length;
-            const uplink = items.filter((item) => String(item.type).toLowerCase() === 'uplink').length;
             const securePorts = items.filter((item) => Boolean(item.port_security) === true).length;
             const hasAlert = items.some((item) => Boolean(item.port_security) === false && String(item.status).toUpperCase() === 'UP');
-            setInterfaceStats({ total: items.length, up, down, trunk, access, uplink, securePorts, hasAlert });
+            setInterfaceStats({ total: items.length, up, down, securePorts, hasAlert });
           }
         } catch (error) {
           console.error('Erreur chargement interfaces:', error);
@@ -639,21 +636,6 @@
                 <span className="data-value">{interfaceStats.down}</span>
               </div>
               <div className="data-row">
-                <span className="data-label">Mode Trunk</span>
-                <span className="data-value" style={{ color: '#8b5cf6' }}>{interfaceStats.trunk}</span>
-              </div>
-              <div className="data-row">
-                <span className="data-label">Mode Access</span>
-                <span className="data-value" style={{ color: '#3b82f6' }}>{interfaceStats.access}</span>
-              </div>
-              <div className="data-row">
-                <span className="data-label">Ports physiques</span>
-                <div className="data-value" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                  <span style={{ color: '#0891b2' }}>🔌 {interfaceStats.total - interfaceStats.uplink}</span>
-                  <span style={{ color: '#d97706' }}>🔗 {interfaceStats.uplink}</span>
-                </div>
-              </div>
-              <div className="data-row">
                 <span className="data-label">Port security active</span>
                 <span className="data-value" style={{ color: interfaceStats.securePorts > 0 ? '#22c55e' : '#94a3b8' }}>{interfaceStats.securePorts}</span>
               </div>
@@ -739,8 +721,6 @@
                 <div className="status-indicator" style={{ background: '#22c55e' }}></div>
               </div>
               <div className="data-row"><span className="data-label">Interfaces tracked</span><span className="data-value">{interfaceStats.total}</span></div>
-              <div className="data-row"><span className="data-label">Uplink ports</span><span className="data-value" style={{ color: '#d97706' }}>{interfaceStats.uplink}</span></div>
-              <div className="data-row"><span className="data-label">Access ports</span><span className="data-value" style={{ color: '#0891b2' }}>{interfaceStats.total - interfaceStats.uplink}</span></div>
               <div className="data-row"><span className="data-label">Config backup</span><span className="data-value" style={{ color: '#22c55e' }}>Up to date</span></div>
               <div style={{ marginTop: '5px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                 {renderActionButton('users', 'Manage Users')}
