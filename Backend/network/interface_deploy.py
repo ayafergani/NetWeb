@@ -1,148 +1,200 @@
 from nornir import InitNornir
-from nornir.core.inventory import Inventory, Host, Hosts, Groups, Defaults, ConnectionOptions
-from nornir.core.plugins.inventory import InventoryPluginRegister
 from nornir_netmiko.tasks import netmiko_send_config, netmiko_save_config
 from nornir_utils.plugins.functions import print_result
+import os
 
-# ─────────────────────────────────────────
-#         CONFIGURATION SSH
-# ─────────────────────────────────────────
-SWITCH_IP     = "10.10.10.50"
-SWITCH_USER   = "admin"
-SWITCH_PASS   = "admin123"
-SWITCH_SECRET = "cisco1"
 
-# ─────────────────────────────────────────
-#   CHOISIS TON INTERFACE ICI
-#   Exemples : "GigabitEthernet1/0/1" ... "GigabitEthernet1/0/24"
-# ─────────────────────────────────────────
-INTERFACE  = "GigabitEthernet1/0/1"
-VLAN_ID    = 17       # VLAN à assigner (10=reseau, 20=servers, 99=Quarantine...)
-SHUTDOWN   = True      # True=shutdown 🔴  /  False=no shutdown 🟢
+def build_nornir():
+    """
+    Initialise Nornir en lisant automatiquement hosts.yaml situé dans le même
+    dossier que ce fichier. Aucune info SSH manuelle n'est nécessaire.
+    """
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    hosts_file    = os.path.join(base_dir, "hosts.yaml")
+    groups_file   = os.path.join(base_dir, "groups.yaml")
+    defaults_file = os.path.join(base_dir, "defaults.yaml")
 
-# ─────────────────────────────────────────
-#         PORT SECURITY
-# ─────────────────────────────────────────
-PORT_SECURITY_ENABLE = True
-MAX_MAC              = 2
-VIOLATION_MODE       = "restrict"   # protect / restrict / shutdown
-BPDU_GUARD           = True
+    inventory_options = {"host_file": hosts_file}
+    if os.path.exists(groups_file):
+        inventory_options["group_file"] = groups_file
+    if os.path.exists(defaults_file):
+        inventory_options["defaults_file"] = defaults_file
 
-# ─────────────────────────────────────────
-#   Construction des commandes
-# ─────────────────────────────────────────
-def build_commands():
-    cmds = [
-        f"interface {INTERFACE}",
-        "switchport mode access",
-        f"switchport access vlan {VLAN_ID}",
-        "shutdown" if SHUTDOWN else "no shutdown",
-    ]
+    return InitNornir(
+        runner={"plugin": "threaded", "options": {"num_workers": 1}},
+        inventory={"plugin": "YAMLInventory", "options": inventory_options},
+    )
 
-    if PORT_SECURITY_ENABLE:
+
+def build_commands(interface_name, mode, vlan_id, status,
+                   port_security=False, max_mac=1, violation_mode="shutdown",
+                   bpdu_guard=False, allowed_vlans=None, description=None):
+    """
+    Construit la liste de commandes IOS à envoyer pour configurer une interface.
+
+    Paramètres :
+        interface_name  : ex. "GigabitEthernet1/0/1"
+        mode            : "access" ou "trunk"
+        vlan_id         : int (ex. 17) — ignoré si mode=trunk
+        status          : "UP" → no shutdown  /  "DOWN" → shutdown
+        port_security   : bool — activer le port-security
+        max_mac         : int  — max adresses MAC autorisées
+        violation_mode  : "protect" | "restrict" | "shutdown"
+        bpdu_guard      : bool — activer le BPDU Guard
+        allowed_vlans   : str  — VLANs autorisés en trunk (ex. "10,20,30" ou "all")
+        description     : str  — description de l'interface (optionnel)
+    """
+    cmds = [f"interface {interface_name}"]
+
+    if description:
+        cmds.append(f"description {description}")
+
+    if mode == "trunk":
+        cmds.append("switchport mode trunk")
+        trunk_vlans = str(allowed_vlans).strip() if allowed_vlans else "all"
+        if trunk_vlans.lower() == "all":
+            cmds.append("switchport trunk allowed vlan all")
+        else:
+            cmds.append(f"switchport trunk allowed vlan {trunk_vlans}")
+    else:
+        cmds.append("switchport mode access")
+        if vlan_id:
+            cmds.append(f"switchport access vlan {vlan_id}")
+
+    # Port Security (access uniquement)
+    if port_security and mode == "access":
         cmds += [
             "switchport port-security",
-            f"switchport port-security maximum {MAX_MAC}",
-            f"switchport port-security violation {VIOLATION_MODE}",
+            f"switchport port-security maximum {max_mac}",
+            f"switchport port-security violation {violation_mode}",
             "switchport port-security mac-address sticky",
         ]
 
-    if BPDU_GUARD:
+    # BPDU Guard
+    if bpdu_guard:
         cmds.append("spanning-tree bpduguard enable")
+    else:
+        cmds.append("no spanning-tree bpduguard enable")
+
+    # Statut du port
+    cmds.append("shutdown" if status == "DOWN" else "no shutdown")
 
     cmds.append("exit")
     return cmds
 
-# ─────────────────────────────────────────
-#   Plugin inventaire en mémoire
-# ─────────────────────────────────────────
-class InMemoryInventory:
-    def __init__(self, **kwargs): pass
 
-    def load(self) -> Inventory:
-        defaults = Defaults()
-        h = Host(
-            name="switch_cible",
-            hostname=SWITCH_IP,
-            username=SWITCH_USER,
-            password=SWITCH_PASS,
-            platform="ios",
-            port=22,
-            data={},
-            groups=[],
-            defaults=defaults,
-            connection_options={
-                "netmiko": ConnectionOptions(
-                    extras={
-                        "secret": SWITCH_SECRET,
-                        "global_delay_factor": 2,
-                        "disabled_algorithms": {
-                            "pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]
-                        },
-                    }
-                )
-            },
-        )
-        return Inventory(
-            hosts=Hosts({"switch_cible": h}),
-            groups=Groups(),
-            defaults=defaults,
-        )
+def run_deploy(interface_name, mode="access", vlan_id=1, status="UP",
+               port_security=False, max_mac=1, violation_mode="shutdown",
+               bpdu_guard=False, allowed_vlans=None, description=None):
+    """
+    Déploie la configuration d'une interface sur le switch Cisco via SSH/Netmiko.
 
-InventoryPluginRegister.register("InMemoryInventory", InMemoryInventory)
+    Les identifiants SSH sont lus AUTOMATIQUEMENT depuis hosts.yaml.
 
-# ─────────────────────────────────────────
-#   Déploiement
-# ─────────────────────────────────────────
-def run_deploy():
-    commands = build_commands()
+    Retourne : {"success": bool, "message"/"error": str, "commands": list}
+    """
+    commands = build_commands(
+        interface_name=interface_name,
+        mode=mode,
+        vlan_id=vlan_id,
+        status=status,
+        port_security=port_security,
+        max_mac=max_mac,
+        violation_mode=violation_mode,
+        bpdu_guard=bpdu_guard,
+        allowed_vlans=allowed_vlans,
+        description=description,
+    )
 
-    print(f"\n{'='*52}")
-    print(f"  🔌 Connexion SSH via Nornir → {SWITCH_IP}")
-    print(f"{'='*52}")
-    print(f"  Interface  : {INTERFACE}")
-    print(f"  VLAN       : {VLAN_ID}")
-    print(f"  État       : {'SHUTDOWN 🔴' if SHUTDOWN else 'NO SHUTDOWN 🟢'}")
-    print(f"  Port Sec   : {'✅ Activé' if PORT_SECURITY_ENABLE else '❌ Désactivé'}")
-    if PORT_SECURITY_ENABLE:
-        print(f"  Max MAC    : {MAX_MAC}")
-        print(f"  Violation  : {VIOLATION_MODE.upper()}")
-    print(f"  BPDU Guard : {'✅ Activé' if BPDU_GUARD else '❌ Désactivé'}")
-    print(f"{'='*52}\n")
-
-    print("📋 Commandes à envoyer :")
+    print(f"\n{'='*55}")
+    print(f"  🔌 Connexion SSH → switch (source : hosts.yaml)")
+    print(f"{'='*55}")
+    print(f"  Interface  : {interface_name}")
+    print(f"  Mode       : {mode.upper()}")
+    if mode == "access":
+        print(f"  VLAN       : {vlan_id}")
+    else:
+        print(f"  VLANs trunk: {allowed_vlans or 'all'}")
+    print(f"  Statut     : {'NO SHUTDOWN 🟢' if status == 'UP' else 'SHUTDOWN 🔴'}")
+    print(f"  Port Sec   : {'✅ Activé' if port_security else '❌ Désactivé'}")
+    if port_security and mode == "access":
+        print(f"  Max MAC    : {max_mac}")
+        print(f"  Violation  : {violation_mode.upper()}")
+    print(f"  BPDU Guard : {'✅ Activé' if bpdu_guard else '❌ Désactivé'}")
+    print(f"{'='*55}")
+    print(f"\n📋 Commandes à envoyer :")
     for c in commands:
         print(f"   {c}")
     print()
 
     try:
-        nr = InitNornir(
-            runner={"plugin": "threaded", "options": {"num_workers": 1}},
-            inventory={"plugin": "InMemoryInventory"},
-        )
+        nr = build_nornir()
 
-        print("✅ Nornir initialisé ! Envoi de la configuration...")
+        if not nr.inventory.hosts:
+            return {
+                "success": False,
+                "error": "Aucun host trouvé dans hosts.yaml. Vérifiez le fichier d'inventaire.",
+                "commands": commands,
+            }
+
+        print(f"✅ Inventaire chargé. Switches : {list(nr.inventory.hosts.keys())}")
+        print(f"📡 Envoi de la config interface {interface_name}...")
+
         result = nr.run(
             task=netmiko_send_config,
             config_commands=commands,
-            name=f"Config {INTERFACE} → VLAN {VLAN_ID}",
+            name=f"Config {interface_name}",
         )
 
         if result.failed:
-            exc = result["switch_cible"][0].exception
-            print(f"❌ Erreur SSH : {exc}")
-            return
+            errors = []
+            for host, host_result in result.items():
+                if host_result.failed:
+                    exc = host_result[0].exception
+                    print(f"❌ Erreur SSH sur {host} : {exc}")
+                    errors.append(f"Erreur SSH sur {host} : {exc}")
+            return {
+                "success": False,
+                "error": " | ".join(errors) or "Erreur inconnue.",
+                "commands": commands,
+            }
 
-        print("\n--- RÉSULTAT DU SWITCH ---")
+        print("\n--- RÉSULTAT SWITCH ---")
         print_result(result)
-        print("--------------------------\n")
+        print("-----------------------")
 
         print("💾 Sauvegarde (write memory)...")
         nr.run(task=netmiko_save_config)
-        print("🎉 Configuration appliquée et sauvegardée avec succès !")
+
+        print(f"🎉 Interface {interface_name} configurée et sauvegardée !")
+        return {
+            "success": True,
+            "message": f"Interface {interface_name} configurée et sauvegardée sur le switch.",
+            "commands": commands,
+        }
+
+    except FileNotFoundError as e:
+        msg = f"Fichier d'inventaire introuvable : {e}"
+        print(f"❌ {msg}")
+        return {"success": False, "error": msg, "commands": commands}
 
     except Exception as e:
         print(f"❌ Erreur critique : {e}")
+        return {"success": False, "error": str(e), "commands": commands}
 
+
+# ─── Test manuel ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    run_deploy()
+    # Configure GigabitEthernet1/0/1 en access VLAN 17 avec port-security
+    result = run_deploy(
+        interface_name="GigabitEthernet1/0/1",
+        mode="access",
+        vlan_id=17,
+        status="UP",
+        port_security=True,
+        max_mac=2,
+        violation_mode="restrict",
+        bpdu_guard=True,
+        description="Access Port - Test",
+    )
+    print(result)
