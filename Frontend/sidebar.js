@@ -22,7 +22,7 @@
     { id: 'traffic', label: 'Traffic', href: 'traffic.html', icon: 'traffic' },
     { id: 'configuration', label: 'Configuration', href: 'Configuration.html', icon: 'config' },
     { id: 'users', label: 'Users', href: 'users.html', icon: 'users' },
-    { id: 'equipements', label: 'Équipements', href: 'equipement.html', icon: 'switch' },
+    { id: 'equipements', label: 'Équipements', href: 'equipements.html', icon: 'switch' },
     { id: 'logs', label: 'Logs', href: 'logs.html', icon: 'logs' }
   ].filter((link) => {
     if (link.id === 'equipements' && !isAdmin) return false;
