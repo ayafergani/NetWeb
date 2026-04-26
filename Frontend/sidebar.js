@@ -11,6 +11,9 @@
     return;
   }
 
+  const session = window.NetGuardAuth.getSession();
+  const isAdmin = session && (session.role === 'admin' || session.role === 'ADMIN');
+
   const links = [
     { id: 'dashboard', label: 'Dashboard', href: 'dashboard.html', icon: 'monitor' },
     { id: 'vlan', label: 'VLAN', href: 'vlan.html', icon: 'vlan' },
@@ -19,10 +22,12 @@
     { id: 'traffic', label: 'Traffic', href: 'traffic.html', icon: 'traffic' },
     { id: 'configuration', label: 'Configuration', href: 'Configuration.html', icon: 'config' },
     { id: 'users', label: 'Users', href: 'users.html', icon: 'users' },
+    { id: 'equipements', label: 'Équipements', href: 'equipement.html', icon: 'switch' },
     { id: 'logs', label: 'Logs', href: 'logs.html', icon: 'logs' }
-  ].filter((link) => window.NetGuardAuth.canAccessPage(link.id));
-
-  const session = window.NetGuardAuth.getSession();
+  ].filter((link) => {
+    if (link.id === 'equipements' && !isAdmin) return false;
+    return window.NetGuardAuth.canAccessPage(link.id);
+  });
 
   const icons = {
     vlan: '<path d="M21 5H3a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM21 13H3a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"></path>',
@@ -32,38 +37,14 @@
     traffic: '<path d="M3 12h4l2-6 4 12 2-6h6"></path>',
     config: '<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"></path><path d="M18.37 7.29l1.65-1.65a1 1 0 0 0 0-1.41l-1.25-1.25a1 1 0 0 0-1.41 0L15.71 4.63a7.09 7.09 0 0 0-7.42 0L6.64 2.98a1 1 0 0 0-1.41 0L3.98 4.23a1 1 0 0 0 0 1.41L5.63 7.29a7.09 7.09 0 0 0 0 7.42L3.98 16.36a1 1 0 0 0 0 1.41l1.25 1.25a1 1 0 0 0 1.41 0l1.65-1.65a7.09 7.09 0 0 0 7.42 0l1.65 1.65a1 1 0 0 0 1.41 0l1.25-1.25a1 1 0 0 0 0-1.41l-1.65-1.65a7.09 7.09 0 0 0 0-7.42z"></path>',
     users: '<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6"></path><path d="M23 11h-6"></path>',
-    logs: '<path d="M9 3h6"></path><path d="M10 7h4"></path><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 12h8"></path><path d="M8 16h8"></path>'
+    logs: '<path d="M9 3h6"></path><path d="M10 7h4"></path><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 12h8"></path><path d="M8 16h8"></path>',
+    switch: '<rect x="2" y="4" width="20" height="6" rx="1" ry="1"></rect><rect x="2" y="14" width="20" height="6" rx="1" ry="1"></rect><line x1="6" y1="7" x2="6.01" y2="7"></line><line x1="6" y1="17" x2="6.01" y2="17"></line>'
   };
 
   const renderIcon = (type) =>
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
     icons[type] +
     '</svg>';
-
-  // ✅ Fonction de déconnexion corrigée
-  const handleLogout = async () => {
-    try {
-      const token = localStorage.getItem('jwtToken');
-      
-      // Appeler l'API de déconnexion pour enregistrer last_logout
-      if (token) {
-        await fetch('http://127.0.0.1:5000/logout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        console.log('✅ Déconnexion enregistrée');
-      }
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
-    } finally {
-      // Nettoyer la session et rediriger
-      window.NetGuardAuth.clearSession();
-      window.location.href = 'login.html';
-    }
-  };
 
   host.innerHTML = `
     <aside class="app-sidebar">
@@ -80,15 +61,6 @@
           `
         ).join('')}
       </nav>
-      <button class="sidebar-link sidebar-link-logout" type="button" aria-label="Logout">
-        ${renderIcon('logs')}
-        <span>Logout</span>
-      </button>
     </aside>
   `;
-
-  const logoutButton = host.querySelector('.sidebar-link-logout');
-  if (logoutButton) {
-    logoutButton.addEventListener('click', handleLogout);
-  }
 })();
