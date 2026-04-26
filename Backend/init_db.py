@@ -30,6 +30,32 @@ def init_database():
             ("admin", "admin@netguard.local", hashed_pw, "ADMIN")
         )
 
+        print("Creation de la table 'switch'...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS switch (
+                id_switch SERIAL PRIMARY KEY,
+                nom VARCHAR(100) UNIQUE NOT NULL,
+                ip VARCHAR(50) UNIQUE NOT NULL,
+                masque VARCHAR(50),
+                username VARCHAR(100) NOT NULL,
+                password BYTEA NOT NULL,
+                nb_ports INT DEFAULT 24,
+                statut VARCHAR(20) DEFAULT 'UNKNOWN'
+            );
+        """)
+
+        print("Creation de la table 'utilisateurs_ssh'...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS utilisateurs_ssh (
+                id_ssh_user SERIAL PRIMARY KEY,
+                id_switch INT NOT NULL REFERENCES switch(id_switch) ON DELETE CASCADE,
+                username VARCHAR(100) NOT NULL,
+                password BYTEA NOT NULL,
+                privilege INT DEFAULT 15,
+                UNIQUE(id_switch, username)
+            );
+        """)
+
         conn.commit()
         cursor.close()
         conn.close()
