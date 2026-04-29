@@ -4,33 +4,42 @@ import re
 import json
 import os
 from datetime import datetime
-
+ 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
-
+ 
 # Chemin vers votre fichier de logs
-LOG_FILE = r"C:\Users\HP\Downloads\NetWeb\Backend\notifier.log"
+# Option 1 : chemin relatif (dans le meme dossier que server.py)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_FILE = os.path.join(BASE_DIR, "notifier.log")
+ 
+# Option 2 : chemin absolu - decommenter et adapter si besoin
+# LOG_FILE = r"C:\Users\HP\Downloads\NetWeb\Backend\notifier.log"
+ 
 aggregated = {}
-
+last_modified = 0
+ 
 def parse_log_file():
-    """Lit et agrège les logs"""
-    global aggregated
+    global aggregated, last_modified
     
     if not os.path.exists(LOG_FILE):
-        print(f"⚠️ Fichier non trouvé: {LOG_FILE}")
+        print(f"Fichier non trouve: {LOG_FILE}")
         return
     
-    print(f"📖 Lecture du fichier: {LOG_FILE}")
+    current_mtime = os.path.getmtime(LOG_FILE)
+    if current_mtime == last_modified:
+        return
+    last_modified = current_mtime
+    
     new_aggregated = {}
-    total_lines = 0
     
     with open(LOG_FILE, 'r', encoding='utf-8', errors='replace') as f:
         content = f.read()
     
     lines = content.split('\n')
+    total_lines = 0
     
     for line in lines:
-        # Chercher payload='{...}'
         match = re.search(r"payload='(\{.*?\})'", line)
         if not match:
             continue
@@ -85,21 +94,14 @@ def parse_log_file():
             print(f"Erreur parsing: {e}")
     
     aggregated = new_aggregated
-    print(f"✅ {total_lines} alertes trouvées → {len(aggregated)} signatures uniques")
-    
-    # Afficher quelques stats
-    for key, value in list(aggregated.items())[:5]:
-        print(f"   - {value['src_ip']}: {value['name']} ({value['count']} fois)")
-
+    print(f"{total_lines} alertes -> {len(aggregated)} signatures uniques")
+ 
 @app.route('/api/logs')
 def get_logs():
-    """Retourne les logs agrégés"""
     parse_log_file()
     logs = list(aggregated.values())
     logs.sort(key=lambda x: x['last_seen'], reverse=True)
-    
     total_raw = sum(l['count'] for l in logs)
-    
     return jsonify({
         'success': True,
         'raw_count': total_raw,
@@ -108,13 +110,13 @@ def get_logs():
         'rate_per_minute': len(logs),
         'logs': logs
     })
-
+ 
 @app.route('/api/reset', methods=['POST'])
 def reset():
     global aggregated
     aggregated = {}
     return jsonify({'success': True})
-
+ 
 @app.route('/api/status')
 def status():
     return jsonify({
@@ -123,17 +125,8 @@ def status():
         'file_path': LOG_FILE,
         'aggregated_count': len(aggregated)
     })
-
+ 
 if __name__ == '__main__':
-    print("=" * 60)
-    print("  🛡️  SNORT IDS - SERVEUR AUTOMATIQUE")
-    print("=" * 60)
-    print(f"  📁 Fichier surveillé: {LOG_FILE}")
-    print(f"  🔗 API: http://localhost:5050/api/logs")
-    print("=" * 60)
-    print("  ✅ Démarrage du serveur...")
-    print("  🚀 Ouvrez http://localhost:5051 pour l'interface")
-    print("  ⚡ CTRL+C pour arrêter")
-    print("=" * 60)
-    
-    app.run(host='0.0.0.0', port=5050, debug=False)
+    print(f"Fichier surveille: {LOG_FILE}")
+    print(f"API: http://localhost:5050/api/logs")
+    app.run(host='0.0.0.0', port=5050, debug=False, use_reloader=False)
