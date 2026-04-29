@@ -14,3 +14,99 @@
 2026-04-26 14:21:37,709 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
 2026-04-26 14:56:08,769 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 54 - IP' with args {'config_commands': ['vlan 54', 'name IP', 'exit']} on 1 hosts
 2026-04-26 14:56:11,923 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-04-29 11:26:25,774 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 46 - sec' with args {'config_commands': ['vlan 46', 'name sec', 'exit']} on 1 hosts
+2026-04-29 11:26:29,070 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-04-29 11:29:08,486 -  nornir.core -     INFO -        run() - Running task 'Config Gi1/0/7' with args {'config_commands': ['interface Gi1/0/7', 'description Access Port', 'switchport mode access', 'switchport access vlan 30', 'switchport port-security', 'switchport port-security maximum 5', 'switchport port-security violation protect', 'switchport port-security mac-address sticky', 'spanning-tree bpduguard enable', 'no shutdown', 'exit']} on 1 hosts
+2026-04-29 11:29:26,835 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'Config Gi1/0/7' failed with traceback:
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\task.py", line 98, in start
+    r = self.task(self, **self.params)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir_netmiko\tasks\netmiko_send_config.py", line 38, in netmiko_send_config
+    result = net_connect.send_config_set(config_commands=config_commands, **kwargs)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 111, in wrapper_decorator
+    return_val = func(self, *args, **kwargs)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 2341, in send_config_set
+    output += self.read_until_pattern(
+              ~~~~~~~~~~~~~~~~~~~~~~~^
+        pattern=pattern, read_timeout=read_timeout, re_flags=re.M
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 755, in read_until_pattern
+    raise ReadTimeout(msg)
+netmiko.exceptions.ReadTimeout: 
+
+Pattern not detected: '(?:switch1.*$|#.*$)' in output.
+
+Things you might try to fix this:
+1. Adjust the regex pattern to better identify the terminating string. Note, in
+many situations the pattern is automatically based on the network device's prompt.
+2. Increase the read_timeout to a larger value.
+
+You can also look at the Netmiko session_log or debug log for more information.
+
+
+
+2026-04-29 11:29:43,432 -  nornir.core -     INFO -        run() - Running task 'Config Gi1/0/7' with args {'config_commands': ['interface Gi1/0/7', 'description Access Port', 'switchport mode access', 'switchport access vlan 30', 'switchport port-security', 'switchport port-security maximum 5', 'switchport port-security violation protect', 'switchport port-security mac-address sticky', 'spanning-tree bpduguard enable', 'no shutdown', 'exit']} on 1 hosts
+2026-04-29 11:29:53,496 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'Config Gi1/0/7' failed with traceback:
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 1146, in establish_connection
+    self.remote_conn_pre.connect(**ssh_connect_params)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\paramiko\client.py", line 384, in connect
+    sock.connect(addr)
+    ~~~~~~~~~~~~^^^^^^
+TimeoutError: timed out
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\task.py", line 98, in start
+    r = self.task(self, **self.params)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir_netmiko\tasks\netmiko_send_config.py", line 28, in netmiko_send_config
+    net_connect = task.host.get_connection(CONNECTION_NAME, task.nornir.config)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\inventory.py", line 476, in get_connection
+    self.open_connection(
+    ~~~~~~~~~~~~~~~~~~~~^
+        connection=connection,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        extras=conn.extras,
+        ^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\inventory.py", line 528, in open_connection
+    conn_obj.open(
+    ~~~~~~~~~~~~~^
+        hostname=hostname,
+        ^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        configuration=configuration,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir_netmiko\connections\netmiko.py", line 59, in open
+    connection = ConnectHandler(**parameters)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\ssh_dispatcher.py", line 460, in ConnectHandler
+    return ConnectionClass(*args, **kwargs)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 495, in __init__
+    self._open()
+    ~~~~~~~~~~^^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 500, in _open
+    self.establish_connection()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 1168, in establish_connection
+    raise NetmikoTimeoutException(msg)
+netmiko.exceptions.NetmikoTimeoutException: TCP connection to device failed.
+
+Common causes of this problem are:
+1. Incorrect hostname or IP address.
+2. Wrong TCP port.
+3. Intermediate firewall blocking access.
+
+Device settings: cisco_ios 10.10.10.50:22
+
+
+
+2026-04-29 11:38:41,183 -  nornir.core -     INFO -        run() - Running task 'Config Gi1/0/1' with args {'config_commands': ['interface Gi1/0/1', 'description Access Port', 'switchport mode access', 'switchport access vlan 129', 'switchport port-security', 'switchport port-security maximum 10', 'switchport port-security violation restrict', 'switchport port-security mac-address sticky', 'spanning-tree bpduguard enable', 'no shutdown', 'exit']} on 1 hosts
+2026-04-29 11:38:44,222 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
