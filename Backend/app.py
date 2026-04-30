@@ -9,6 +9,8 @@ from Database.vlan import vlan_bp
 from Database.interface import interface_bp, initialize_default_interfaces
 # from vlan_api import vlan_bp # <-- Importer le nouveau fichier
 from network_api import network_bp
+from equipements_api import equipements_bp
+
 import os
 import logging
 from flask_cors import CORS
@@ -38,6 +40,7 @@ except Exception as e:
 
 # app.register_blueprint(vlan_bp)      # <-- Enregistrer la nouvelle route
 app.register_blueprint(network_bp)   # ← routes /api/network
-
+# app.register_blueprint(equipements_bp)  # ← routes /api/equipements
+app.register_blueprint(equipements_bp)
 if __name__ == "__main__":
     app.run(debug=True, host='127.0.0.1', port=5000)
