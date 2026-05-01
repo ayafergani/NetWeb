@@ -106,18 +106,71 @@ def get_returning_fields(columns):
 @vlan_bp.route("/api/vlan", methods=["GET"])
 @vlan_bp.route("/vlan",     methods=["GET"])
 def get_vlans():
+    # Filtrage optionnel par switch (switch_name ou switch_id)
+    filter_switch_name = request.args.get("switch_name", "").strip()
+    filter_switch_id   = request.args.get("switch_id", "").strip()
+
     conn = get_db_connection()
     try:
         columns = get_vlan_columns(conn)
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        where_clauses = []
+        params = []
+
+        if filter_switch_name:
+            where_clauses.append("switch_name = %s")
+            params.append(filter_switch_name)
+        elif filter_switch_id:
+            # Résoudre le nom du switch depuis son id
+            cur2 = conn.cursor()
+            cur2.execute("SELECT nom FROM switchs WHERE id_switch = %s", (filter_switch_id,))
+            sw_row = cur2.fetchone()
+            cur2.close()
+            if sw_row:
+                where_clauses.append("switch_name = %s")
+                params.append(sw_row[0])
+
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
         cur.execute(f"""
             SELECT {", ".join(get_returning_fields(columns))}
             FROM vlan
+            {where_sql}
             ORDER BY id_vlan ASC
-        """)
+        """, params)
         rows  = cur.fetchall()
         vlans = [build_vlan_response(row) for row in rows]
         return jsonify({"success": True, "count": len(vlans), "vlans": vlans})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+@vlan_bp.route("/api/switchs", methods=["GET"])
+@vlan_bp.route("/switchs",     methods=["GET"])
+def get_switchs():
+    """Retourne la liste de tous les switches depuis la table switchs."""
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT id_switch, nom, ip, status
+            FROM switchs
+            ORDER BY nom ASC
+        """)
+        rows = cur.fetchall()
+        switchs = [
+            {
+                "id":     row["id_switch"],
+                "nom":    row["nom"],
+                "ip":     row["ip"],
+                "status": row.get("status") or "Active",
+            }
+            for row in rows
+        ]
+        return jsonify({"success": True, "switchs": switchs})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
