@@ -138,6 +138,7 @@ def api_deploy_interface():
     bpdu_guard    = bool(data.get("bpdu_guard", False))
     allowed_vlans = data.get("allowed_vlans") or None
     description   = data.get("description") or None
+    static_mac    = (data.get("static_mac") or "").strip() or None
 
     # Validation basique
     if mode not in ("access", "trunk"):
@@ -166,8 +167,78 @@ def api_deploy_interface():
             bpdu_guard=bpdu_guard,
             allowed_vlans=allowed_vlans,
             description=description,
+            static_mac=static_mac,
         )
         http_code = 200 if result.get("success") else 500
         return jsonify(result), http_code
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ── Suppression / Reset d'une interface sur le switch ────────────────────────
+@network_bp.route("/api/network/reset-interface", methods=["POST"])
+def api_reset_interface():
+    """
+    Remet une interface à sa configuration par défaut sur le switch Cisco.
+    Supprime : port-security, BPDU guard, description, remet en access VLAN 1, shutdown.
+
+    Body JSON attendu :
+        interface_name  (str)  ex. "GigabitEthernet1/0/1"
+    """
+    data = request.json or {}
+    interface_name = data.get("interface_name", "").strip()
+    if not interface_name:
+        return jsonify({"success": False, "error": "interface_name est requis."}), 400
+
+    reset_commands = [
+        f"interface {interface_name}",
+        "no description",
+        "switchport mode access",
+        "switchport access vlan 1",
+        "no switchport port-security",
+        "no switchport port-security maximum",
+        "no switchport port-security violation",
+        "no switchport port-security mac-address sticky",
+        "no spanning-tree bpduguard enable",
+        "shutdown",
+        "exit",
+    ]
+
+    try:
+        from network.interface_deploy import build_nornir
+        from nornir_netmiko.tasks import netmiko_send_config, netmiko_save_config
+
+        nr = build_nornir()
+        if not nr.inventory.hosts:
+            return jsonify({
+                "success": False,
+                "error": "Aucun host trouvé dans hosts.yaml.",
+                "commands": reset_commands,
+            }), 500
+
+        result = nr.run(
+            task=netmiko_send_config,
+            config_commands=reset_commands,
+            name=f"Reset {interface_name}",
+        )
+
+        if result.failed:
+            errors = []
+            for host, host_result in result.items():
+                if host_result.failed:
+                    errors.append(f"Erreur SSH sur {host} : {host_result[0].exception}")
+            return jsonify({
+                "success": False,
+                "error": " | ".join(errors) or "Erreur inconnue.",
+                "commands": reset_commands,
+            }), 500
+
+        nr.run(task=netmiko_save_config)
+        return jsonify({
+            "success": True,
+            "message": f"Interface {interface_name} réinitialisée et sauvegardée sur le switch.",
+            "commands": reset_commands,
+        }), 200
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "commands": reset_commands}), 500

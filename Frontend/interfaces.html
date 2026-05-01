@@ -91,6 +91,7 @@
           portSecurity: i <= 3,
           securityViolation: 'shutdown',
           maxMac: 1,
+          staticMac: '',
           bpdu_guard: true,
           configured: isConfigured,
           allowedVlans: '',
@@ -115,6 +116,7 @@
           portSecurity: false,
           securityViolation: 'shutdown',
           maxMac: 1,
+          staticMac: '',
           bpdu_guard: false,
           configured: isConfigured,
           allowedVlans: isConfigured ? 'All' : '',
@@ -141,6 +143,7 @@
       portSecurity: Boolean(row.port_security),
       securityViolation: row.violation_mode || fallbackPort?.securityViolation || 'shutdown',
       maxMac: row.max_mac || fallbackPort?.maxMac || 1,
+      staticMac: row.static_mac || '',
       bpdu_guard: Boolean(row.bpdu_guard),
       configured: true,
       allowedVlans: row.allowed_vlans || '',
@@ -160,6 +163,7 @@
       allowed_vlans: port.mode === 'trunk' ? (port.vlan || port.allowedVlans || 'All') : null,
       port_security: port.portSecurity,
       max_mac: Number(port.maxMac || 1),
+      static_mac: port.staticMac || null,
       violation_mode: port.securityViolation || 'shutdown',
       bpdu_guard: port.bpdu_guard,
     });
@@ -265,6 +269,7 @@
               portSecurity: Boolean(i.port_security),
               securityViolation: i.violation_mode || 'shutdown',
               maxMac: i.max_mac || 1,
+              staticMac: i.static_mac || '',
               vlan: i.mode === 'trunk' ? (i.allowed_vlans || 'All') : String(i.vlan_id ?? '1'),
               allowedVlans: i.allowed_vlans || '',
               alert: false,
@@ -385,6 +390,7 @@
             bpdu_guard:     currentPort.bpdu_guard,
             allowed_vlans:  currentPort.mode === 'trunk' ? (currentPort.vlan || 'All') : null,
             description:    currentPort.type === 'uplink' ? 'Uplink Port' : 'Access Port',
+            static_mac:     currentPort.staticMac || null,
           };
 
           const res = await fetch(`${API_BASE_URL}/api/network/deploy-interface`, {
@@ -411,6 +417,55 @@
 
       const getModeDisplay = (mode)  => mode === 'trunk' ? 'Trunk' : 'Access';
       const getTypeDisplay = (type)  => type === 'uplink' ? 'Uplink' : 'Access';
+
+      // ── Suppression config interface ──────────────────────────────────────
+      const handleDeleteInterface = async (portId, e) => {
+        e.stopPropagation();
+        if (!window.confirm(`Supprimer la configuration de l'interface ${portId} ?\nCela va réinitialiser le port sur le switch (shutdown, VLAN 1, sans sécurité).`)) return;
+
+        showToast(`🔄 Suppression de ${portId} en cours...`);
+
+        // 1. Supprimer en BDD si existant
+        const port = getPort(portId);
+        if (port && port.dbExists && port.id_interface) {
+          try {
+            await fetch(`${API_BASE_URL}/api/interface/${port.id_interface}`, {
+              method: 'DELETE',
+              headers: auth.getAuthHeaders(),
+            });
+          } catch (err) {
+            console.warn('Erreur suppression BDD:', err);
+          }
+        }
+
+        // 2. Reset sur le switch via SSH
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/network/reset-interface`, {
+            method: 'POST',
+            headers: auth.getAuthHeaders(),
+            body: JSON.stringify({ interface_name: portId }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            showToast(`✅ Interface ${portId} supprimée et réinitialisée sur le switch`);
+          } else {
+            showToast(`⚠️ BDD supprimée — Reset SSH échoué : ${data.error || 'Erreur inconnue'}`, 'error');
+          }
+        } catch (err) {
+          showToast(`❌ Erreur réseau lors du reset SSH : ${err.message}`, 'error');
+        }
+
+        // 3. Retirer localement du tableau
+        setPorts(prev => prev.map(p =>
+          p.id === portId
+            ? { ...p, configured: false, dbExists: false, id_interface: null }
+            : p
+        ));
+        if (selectedPortId === portId) {
+          setSelectedPortId(null);
+          setDeployResult(null);
+        }
+      };
 
       const PhysicalSwitch = () => (
         <div className="bg-[#1a1c3a] p-6 rounded-2xl shadow-xl shadow-indigo-600/20 mb-8 border border-slate-200 flex flex-col items-center">
@@ -555,6 +610,15 @@
                           <td className="px-6 py-4 text-right space-x-3">
                             {port.alert && <span className="text-orange-600 text-xs font-bold uppercase mr-2 animate-pulse">⚠️ Menace</span>}
                             <button className="text-slate-400 hover:text-indigo-600 font-semibold text-sm transition-colors">Config</button>
+                            <button
+                              onClick={(e) => handleDeleteInterface(port.id, e)}
+                              title="Supprimer la configuration"
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-400 hover:text-rose-600 transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                              </svg>
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -751,6 +815,21 @@
                               </select>
                             </div>
                           </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                              MAC Statique <span className="text-slate-400 font-normal">(optionnel — sinon sticky)</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedPort.staticMac || ''}
+                              onChange={(e) => updatePortParam(selectedPort.id, 'staticMac', e.target.value)}
+                              placeholder="ex. 00:1A:2B:3C:4D:5E"
+                              className="w-full border border-slate-200 rounded-lg p-2 text-xs font-mono outline-none focus:border-indigo-400 placeholder:text-slate-300"
+                            />
+                            {selectedPort.staticMac && !/^([0-9A-Fa-f]{2}[:\-.]){5}[0-9A-Fa-f]{2}$/.test(selectedPort.staticMac) && (
+                              <p className="mt-1 text-[10px] text-rose-500 font-medium">Format invalide. Ex : 00:1A:2B:3C:4D:5E</p>
+                            )}
+                          </div>
                         </div>
                       )}
                       <div className="flex justify-between items-center mt-4 pt-4 border-t border-indigo-100/50">
@@ -774,7 +853,7 @@
    ? `switchport access vlan ${selectedPort.vlan}`
    : `switchport trunk allowed vlan ${selectedPort.vlan || 'all'}`}
 ${selectedPort.portSecurity && selectedPort.mode === 'access'
-   ? ` switchport port-security\n switchport port-security maximum ${selectedPort.maxMac}\n switchport port-security violation ${selectedPort.securityViolation}\n switchport port-security mac-address sticky`
+   ? ` switchport port-security\n switchport port-security maximum ${selectedPort.maxMac}\n switchport port-security violation ${selectedPort.securityViolation}\n switchport port-security mac-address ${selectedPort.staticMac ? selectedPort.staticMac : 'sticky'}`
    : ''}
  ${selectedPort.bpdu_guard ? 'spanning-tree bpduguard enable' : 'no spanning-tree bpduguard enable'}
  ${selectedPort.status === 'UP' ? 'no shutdown' : 'shutdown'}

@@ -28,7 +28,8 @@ def build_nornir():
 
 def build_commands(interface_name, mode, vlan_id, status,
                    port_security=False, max_mac=1, violation_mode="shutdown",
-                   bpdu_guard=False, allowed_vlans=None, description=None):
+                   bpdu_guard=False, allowed_vlans=None, description=None,
+                   static_mac=None):
     """
     Construit la liste de commandes IOS à envoyer pour configurer une interface.
 
@@ -67,8 +68,13 @@ def build_commands(interface_name, mode, vlan_id, status,
             "switchport port-security",
             f"switchport port-security maximum {max_mac}",
             f"switchport port-security violation {violation_mode}",
-            "switchport port-security mac-address sticky",
         ]
+        # MAC statique prioritaire sur sticky
+        mac_clean = (static_mac or "").strip().replace("-", ".").replace(":", ".")
+        if mac_clean:
+            cmds.append(f"switchport port-security mac-address {mac_clean}")
+        else:
+            cmds.append("switchport port-security mac-address sticky")
 
     # BPDU Guard
     if bpdu_guard:
@@ -85,7 +91,8 @@ def build_commands(interface_name, mode, vlan_id, status,
 
 def run_deploy(interface_name, mode="access", vlan_id=1, status="UP",
                port_security=False, max_mac=1, violation_mode="shutdown",
-               bpdu_guard=False, allowed_vlans=None, description=None):
+               bpdu_guard=False, allowed_vlans=None, description=None,
+               static_mac=None):
     """
     Déploie la configuration d'une interface sur le switch Cisco via SSH/Netmiko.
 
@@ -104,6 +111,7 @@ def run_deploy(interface_name, mode="access", vlan_id=1, status="UP",
         bpdu_guard=bpdu_guard,
         allowed_vlans=allowed_vlans,
         description=description,
+        static_mac=static_mac,
     )
 
     print(f"\n{'='*55}")
@@ -120,6 +128,10 @@ def run_deploy(interface_name, mode="access", vlan_id=1, status="UP",
     if port_security and mode == "access":
         print(f"  Max MAC    : {max_mac}")
         print(f"  Violation  : {violation_mode.upper()}")
+        if static_mac:
+            print(f"  MAC statiq : {static_mac}")
+        else:
+            print(f"  MAC        : sticky")
     print(f"  BPDU Guard : {'✅ Activé' if bpdu_guard else '❌ Désactivé'}")
     print(f"{'='*55}")
     print(f"\n📋 Commandes à envoyer :")
