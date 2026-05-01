@@ -150,7 +150,7 @@ def initialize_default_interfaces():
         cur = conn.cursor()
         
         # On récupère id, nom et le nombre de ports configuré pour chaque switch
-        cur.execute("SELECT id_switch, nom, nb_ports FROM switch")
+        cur.execute("SELECT id_switch, nom, nb_ports FROM switchs")
         switches = cur.fetchall()
         
         available_vlan_ids = fetch_existing_vlan_ids(cur)
