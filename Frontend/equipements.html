@@ -31,13 +31,13 @@
 
     /* ── Status badges ── */
     .badge-status { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-    .badge-up   { background: #ecfdf5; color: #065f46; }
-    .badge-down { background: #fef2f2; color: #991b1b; }
-    .badge-untested { background: #f1f5f9; color: #64748b; }
+    .badge-up      { background: #ecfdf5; color: #065f46; }
+    .badge-down    { background: #fef2f2; color: #991b1b; }
+    .badge-unknown { background: #f1f5f9; color: #64748b; }
     .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    .dot-up { background: #10b981; }
-    .dot-down { background: #ef4444; animation: pulse 1.5s infinite; }
-    .dot-untested { background: #94a3b8; }
+    .dot-up      { background: #10b981; }
+    .dot-down    { background: #ef4444; animation: pulse 1.5s infinite; }
+    .dot-unknown { background: #94a3b8; }
 
     /* ── Privilege badges ── */
     .badge-priv { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
@@ -54,14 +54,13 @@
     .btn-edit:hover { background: #dbeafe; border-color: #93c5fd; }
     .btn-del   { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
     .btn-del:hover { background: #ffe4e6; border-color: #fda4af; }
-    .btn-ssh   { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
-    .btn-ssh:hover { background: #dcfce7; border-color: #86efac; }
 
     /* ── Primary buttons ── */
     .btn-primary { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; background: #4f46e5; color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
     .btn-primary:hover { background: #4338ca; }
     .btn-green { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #16a34a; color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap; align-self: flex-end; }
     .btn-green:hover { background: #15803d; }
+    .btn-green:disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* ── Section card ── */
     .section-card { background: #fff; border-radius: 20px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 1.5rem; }
@@ -100,7 +99,8 @@
     .btn-cancel { padding: 8px 18px; background: #f1f5f9; color: #64748b; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
     .btn-cancel:hover { background: #e2e8f0; }
     .btn-save { padding: 8px 20px; background: #4f46e5; color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
-    .btn-save:hover { background: #4338ca; }
+    .btn-save:hover:not(:disabled) { background: #4338ca; }
+    .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* ── Modal form inputs ── */
     .field label { display: block; font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
@@ -114,11 +114,15 @@
     /* ── User avatar ── */
     .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: #ede9fe; color: #4c1d95; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
 
+    /* ── Loading skeleton ── */
+    .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
     /* ── Toast ── */
     .toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
     .toast { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; color: #fff; animation: slideUp 0.2s ease; min-width: 240px; }
     .toast-success { background: #16a34a; }
-    .toast-error { background: #dc2626; }
+    .toast-error   { background: #dc2626; }
 
     /* ── Dark mode ── */
     .dark-mode .section-card { background: #1e293b; border-color: #334155; }
@@ -140,7 +144,7 @@
     .dark-mode .field-auth { background: #1e1b4b; border-color: #3730a3; }
     .dark-mode .btn-cancel { background: #334155; color: #94a3b8; }
     .dark-mode .btn-cancel:hover { background: #475569; }
-    .dark-mode .badge-untested { background: #1e293b; color: #94a3b8; }
+    .dark-mode .badge-unknown { background: #1e293b; color: #94a3b8; }
     .dark-mode .priv-1 { background: #1e293b; color: #94a3b8; }
   </style>
 </head>
@@ -162,20 +166,29 @@
   </div>
 
   <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+    const { useState, useEffect, useRef, useCallback } = React;
     const API_BASE_URL = window.location.port === '5000' ? '' : 'http://127.0.0.1:5000';
     const auth = window.NetGuardAuth;
 
-    /* ─────────────────────────────── Helpers ─────────────────────────────── */
-    const today = () => new Date().toISOString().split('T')[0];
+    /* ─────────────────────────────── Helpers API ─────────────────────────────── */
+    const apiFetch = async (path, options = {}) => {
+      const res = await fetch(`${API_BASE_URL}${path}`, {
+        headers: { 'Content-Type': 'application/json', ...auth.getAuthHeaders() },
+        ...options,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+      return data;
+    };
 
+    /* ─────────────────────────────── Composants UI ─────────────────────────────── */
     const StatusBadge = ({ status }) => {
       const map = {
-        UP:       { cls: 'badge-up',       dot: 'dot-up',       label: 'En ligne' },
-        DOWN:     { cls: 'badge-down',      dot: 'dot-down',     label: 'Injoignable' },
-        UNTESTED: { cls: 'badge-untested',  dot: 'dot-untested', label: 'Non testé' },
+        UP:      { cls: 'badge-up',      dot: 'dot-up',      label: 'En ligne'     },
+        DOWN:    { cls: 'badge-down',    dot: 'dot-down',    label: 'Injoignable'  },
+        UNKNOWN: { cls: 'badge-unknown', dot: 'dot-unknown', label: 'Non testé'    },
       };
-      const { cls, dot, label } = map[status] || map.UNTESTED;
+      const { cls, dot, label } = map[status] || map.UNKNOWN;
       return (
         <span className={`badge-status ${cls}`}>
           <span className={`dot ${dot}`}></span>
@@ -190,7 +203,6 @@
       return <span className={`badge-priv ${cls}`}>{label}</span>;
     };
 
-    /* ─────────────────────────────── Toast ─────────────────────────────── */
     const Toast = ({ toasts }) => (
       <div className="toast-container">
         {toasts.map(t => (
@@ -205,10 +217,26 @@
       </div>
     );
 
+    /* ─────────────────────── Skeleton chargement ─────────────────────── */
+    const SkeletonRows = ({ cols = 5, rows = 3 }) => (
+      <>
+        {Array.from({ length: rows }).map((_, i) => (
+          <tr key={i}>
+            {Array.from({ length: cols }).map((_, j) => (
+              <td key={j}><div className="skeleton" style={{ height: 14, width: '80%' }}>&nbsp;</div></td>
+            ))}
+          </tr>
+        ))}
+      </>
+    );
+
     /* ─────────────────────── Modal Équipement ─────────────────────── */
-    const EqModal = ({ eq, onClose, onSave }) => {
-      const blank = { nom: '', ip: '', vendor: 'Cisco IOS', port: 22, user: '', password: '', enable: '' };
-      const [form, setForm] = useState(eq ? { ...eq, password: '', enable: '', port: 22 } : blank);
+    const EqModal = ({ eq, onClose, onSave, saving }) => {
+      const blank = { nom: '', ip: '', masque: '255.255.255.0', nb_ports: 24, username: '', password: '' };
+      const [form, setForm] = useState(eq
+        ? { nom: eq.nom, ip: eq.ip, masque: eq.masque || '', nb_ports: eq.nb_ports || 24, username: eq.username, password: '' }
+        : blank
+      );
       const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
       const editing = !!eq;
 
@@ -230,44 +258,42 @@
 
             <div className="modal-grid">
               <div className="field">
-                <label>Vendor / OS</label>
-                <select value={form.vendor} onChange={set('vendor')}>
-                  <option>Cisco IOS</option>
-                  <option>Cisco IOS-XE</option>
-                  <option>Cisco NX-OS</option>
-                  <option>Aruba</option>
-                </select>
+                <label>Masque de sous-réseau</label>
+                <input type="text" value={form.masque} onChange={set('masque')} placeholder="255.255.255.0" className="mono" />
               </div>
               <div className="field">
-                <label>Port SSH</label>
-                <input type="number" value={form.port} onChange={set('port')} />
+                <label>Nombre de ports</label>
+                <input type="number" value={form.nb_ports} onChange={set('nb_ports')} min="1" max="96" />
               </div>
             </div>
 
             <div className="modal-sep" />
             <div className="modal-section-label">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              Authentification de service (Nornir)
+              Authentification SSH de service (Nornir)
             </div>
 
             <div className="field-auth" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="field" style={{ gridColumn: '1/-1' }}>
                 <label>Utilisateur SSH</label>
-                <input type="text" value={form.user} onChange={set('user')} placeholder="admin" />
+                <input type="text" value={form.username} onChange={set('username')} placeholder="admin" />
               </div>
-              <div className="field">
+              <div className="field" style={{ gridColumn: '1/-1' }}>
                 <label>Mot de passe SSH</label>
-                <input type="password" value={form.password} onChange={set('password')} placeholder={editing ? 'Laisser vide pour conserver' : '••••••••'} />
-              </div>
-              <div className="field">
-                <label>Secret enable (optionnel)</label>
-                <input type="password" value={form.enable} onChange={set('enable')} placeholder={editing ? 'Laisser vide pour conserver' : '••••••••'} />
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={set('password')}
+                  placeholder={editing ? 'Laisser vide pour conserver' : '••••••••'}
+                />
               </div>
             </div>
 
             <div className="modal-footer">
-              <button className="btn-cancel" onClick={onClose}>Annuler</button>
-              <button className="btn-save" onClick={() => onSave(form)}>Enregistrer</button>
+              <button className="btn-cancel" onClick={onClose} disabled={saving}>Annuler</button>
+              <button className="btn-save" onClick={() => onSave(form)} disabled={saving}>
+                {saving ? <><span className="spinner" style={{ borderColor: '#fff', borderTopColor: 'transparent' }} /> Enregistrement…</> : 'Enregistrer'}
+              </button>
             </div>
           </div>
         </div>
@@ -275,13 +301,13 @@
     };
 
     /* ─────────────────────── Formulaire inline SSH ─────────────────────── */
-    const AddUserForm = ({ equipements, onAdd }) => {
-      const blank = { username: '', password: '', privilege: 15, eqId: '', deployAll: false };
+    const AddUserForm = ({ equipements, onAdd, deploying }) => {
+      const blank = { username: '', password: '', privilege: 15, id_switch: '', deploy_all: false };
       const [form, setForm] = useState(blank);
 
       useEffect(() => {
-        if (!form.deployAll && equipements.length > 0 && !form.eqId) {
-          setForm(f => ({ ...f, eqId: equipements[0].id }));
+        if (!form.deploy_all && equipements.length > 0 && !form.id_switch) {
+          setForm(f => ({ ...f, id_switch: equipements[0].id }));
         }
       }, [equipements]);
 
@@ -289,10 +315,10 @@
 
       const handleAdd = () => {
         if (!form.username.trim() || !form.password) {
-          onAdd(null, 'Nom d\'utilisateur et mot de passe requis', 'error');
+          onAdd(null, "Nom d'utilisateur et mot de passe requis");
           return;
         }
-        onAdd({ ...form, eqId: form.deployAll ? null : Number(form.eqId) });
+        onAdd({ ...form, id_switch: form.deploy_all ? null : Number(form.id_switch), privilege: Number(form.privilege) });
         setForm(f => ({ ...f, username: '', password: '' }));
       };
 
@@ -307,8 +333,8 @@
             <input
               type="checkbox"
               id="deploy-all"
-              checked={form.deployAll}
-              onChange={e => setForm(f => ({ ...f, deployAll: e.target.checked }))}
+              checked={form.deploy_all}
+              onChange={e => setForm(f => ({ ...f, deploy_all: e.target.checked }))}
             />
             <label htmlFor="deploy-all">Déployer sur tous les switchs</label>
           </div>
@@ -317,10 +343,10 @@
             <div className="form-group">
               <label>Équipement cible</label>
               <select
-                value={form.eqId}
-                onChange={e => setForm(f => ({ ...f, eqId: e.target.value }))}
-                disabled={form.deployAll}
-                style={{ opacity: form.deployAll ? 0.4 : 1 }}
+                value={form.id_switch}
+                onChange={e => setForm(f => ({ ...f, id_switch: e.target.value }))}
+                disabled={form.deploy_all}
+                style={{ opacity: form.deploy_all ? 0.4 : 1 }}
               >
                 {equipements.map(eq => (
                   <option key={eq.id} value={eq.id}>{eq.nom} ({eq.ip})</option>
@@ -329,21 +355,11 @@
             </div>
             <div className="form-group">
               <label>Nom d'utilisateur</label>
-              <input
-                type="text"
-                value={form.username}
-                onChange={set('username')}
-                placeholder="j.dupont"
-              />
+              <input type="text" value={form.username} onChange={set('username')} placeholder="j.dupont" />
             </div>
             <div className="form-group">
               <label>Mot de passe</label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={set('password')}
-                placeholder="••••••••"
-              />
+              <input type="password" value={form.password} onChange={set('password')} placeholder="••••••••" />
             </div>
             <div className="form-group">
               <label>Privilège</label>
@@ -353,9 +369,11 @@
                 <option value={1}>1 — Lecture</option>
               </select>
             </div>
-            <button className="btn-green" onClick={handleAdd}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 2 11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              Déployer
+            <button className="btn-green" onClick={handleAdd} disabled={deploying}>
+              {deploying
+                ? <><span className="spinner" style={{ borderColor: '#fff', borderTopColor: 'transparent' }} /> Déploiement…</>
+                : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 2 11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>Déployer</>
+              }
             </button>
           </div>
         </div>
@@ -364,120 +382,137 @@
 
     /* ─────────────────────── Page principale ─────────────────────── */
     const EquipementsPage = () => {
-      const [equipements, setEquipements] = useState([
-        { id: 1, nom: 'Switch-Core-Bâtiment-A',  ip: '10.10.10.50', vendor: 'Cisco IOS',    user: 'admin',    status: 'UP' },
-        { id: 2, nom: 'Switch-Access-Bâtiment-B', ip: '10.10.10.51', vendor: 'Cisco IOS',    user: 'admin',    status: 'UNTESTED' },
-        { id: 3, nom: 'Switch-Access-Bâtiment-C', ip: '10.10.10.52', vendor: 'Cisco IOS-XE', user: 'netadmin', status: 'DOWN' },
-      ]);
-
-      const [sshUsers, setSshUsers] = useState([
-        { id: 1, username: 'j.dupont', eqId: 1,    privilege: 15, date: '2025-04-20', deployAll: false },
-        { id: 2, username: 'r.martin', eqId: null,  privilege: 7,  date: '2025-04-22', deployAll: true  },
-      ]);
-
-      const [testingIds, setTestingIds] = useState({});
-      const [eqModal, setEqModal] = useState(null);   // null | 'new' | eq object
-      const [toasts, setToasts]   = useState([]);
-      const nextEqId   = useRef(4);
-      const nextUserId = useRef(3);
+      const [equipements, setEquipements] = useState([]);
+      const [sshUsers,    setSshUsers]    = useState([]);
+      const [loading,     setLoading]     = useState(true);
+      const [testingIds,  setTestingIds]  = useState({});
+      const [eqModal,     setEqModal]     = useState(null);   // null | 'new' | eq object
+      const [saving,      setSaving]      = useState(false);
+      const [deploying,   setDeploying]   = useState(false);
+      const [toasts,      setToasts]      = useState([]);
 
       /* ── Toast helper ── */
-      const addToast = (message, type = 'success') => {
+      const addToast = useCallback((message, type = 'success') => {
         const id = Date.now();
         setToasts(t => [...t, { id, message, type }]);
         setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3800);
-      };
-
-      /* ── Préparation : chargement des switchs depuis l'API ──
-      useEffect(() => {
-        const load = async () => {
-          try {
-            const res  = await fetch(`${API_BASE_URL}/api/switches`, { headers: auth.getAuthHeaders() });
-            const data = await res.json();
-            if (data.success) setEquipements(data.switches);
-          } catch (err) { console.error(err); }
-        };
-        load();
       }, []);
-      ── */
+
+      /* ── Chargement initial depuis l'API ── */
+      const loadData = useCallback(async () => {
+        setLoading(true);
+        try {
+          const [swRes, usrRes] = await Promise.all([
+            apiFetch('/api/switches'),
+            apiFetch('/api/ssh-users'),
+          ]);
+          if (swRes.success)  setEquipements(swRes.switches);
+          if (usrRes.success) setSshUsers(usrRes.users);
+        } catch (err) {
+          addToast(`Erreur de chargement : ${err.message}`, 'error');
+        } finally {
+          setLoading(false);
+        }
+      }, [addToast]);
+
+      useEffect(() => { loadData(); }, [loadData]);
 
       /* ── 1. Tester la connexion SSH ── */
       const handleTest = async (id, ip) => {
         setTestingIds(p => ({ ...p, [id]: true }));
         try {
-          // const res = await fetch(`${API_BASE_URL}/api/equipements/${id}/test`, { headers: auth.getAuthHeaders() });
-          // const data = await res.json();
-          await new Promise(r => setTimeout(r, 1800));
-          const ok = Math.random() > 0.3;
-          setEquipements(eqs => eqs.map(e => e.id === id ? { ...e, status: ok ? 'UP' : 'DOWN' } : e));
+          const res = await apiFetch(`/api/switches/${id}/test`, { method: 'POST' });
+          setEquipements(eqs => eqs.map(e => e.id === id ? { ...e, statut: res.status } : e));
           addToast(
-            ok ? `Connexion SSH réussie sur ${ip}` : `SSH injoignable sur ${ip} — identifiants incorrects ou hôte injoignable`,
-            ok ? 'success' : 'error'
+            res.reachable
+              ? `SSH joignable sur ${ip}`
+              : `Injoignable sur ${ip} — vérifiez l'hôte et le port 22`,
+            res.reachable ? 'success' : 'error'
           );
-        } catch {
-          addToast(`Erreur réseau lors du test de ${ip}`, 'error');
+        } catch (err) {
+          addToast(`Erreur réseau lors du test de ${ip} : ${err.message}`, 'error');
         } finally {
           setTestingIds(p => ({ ...p, [id]: false }));
         }
       };
 
       /* ── 2. Sauvegarder un équipement (ajout ou édition) ── */
-      const handleSaveEq = (form) => {
+      const handleSaveEq = async (form) => {
         if (!form.nom.trim() || !form.ip.trim()) {
           addToast('Nom et adresse IP requis', 'error');
           return;
         }
-        if (form.id) {
-          // Édition
-          setEquipements(eqs => eqs.map(e => e.id === form.id
-            ? { ...e, nom: form.nom, ip: form.ip, vendor: form.vendor, user: form.user }
-            : e
-          ));
-          // Appel API : await fetch(`${API_BASE_URL}/api/switches/${form.id}`, { method: 'PUT', ... })
-          addToast(`${form.nom} mis à jour`, 'success');
-        } else {
-          // Ajout
-          const newEq = { id: nextEqId.current++, nom: form.nom, ip: form.ip, vendor: form.vendor, user: form.user, status: 'UNTESTED' };
-          setEquipements(eqs => [...eqs, newEq]);
-          // Appel API : await fetch(`${API_BASE_URL}/api/switches`, { method: 'POST', ... })
-          addToast(`${form.nom} ajouté`, 'success');
+        setSaving(true);
+        try {
+          if (eqModal !== 'new' && eqModal?.id) {
+            // Édition
+            const res = await apiFetch(`/api/switches/${eqModal.id}`, {
+              method: 'PUT',
+              body: JSON.stringify(form),
+            });
+            setEquipements(eqs => eqs.map(e => e.id === eqModal.id ? { ...e, ...res.switch } : e));
+            addToast(`${form.nom} mis à jour`, 'success');
+          } else {
+            // Ajout
+            if (!form.password) { addToast('Mot de passe requis', 'error'); setSaving(false); return; }
+            const res = await apiFetch('/api/switches', {
+              method: 'POST',
+              body: JSON.stringify(form),
+            });
+            setEquipements(eqs => [...eqs, res.switch]);
+            addToast(`${form.nom} ajouté`, 'success');
+          }
+          setEqModal(null);
+        } catch (err) {
+          addToast(`Erreur : ${err.message}`, 'error');
+        } finally {
+          setSaving(false);
         }
-        setEqModal(null);
       };
 
       /* ── 3. Supprimer un équipement ── */
-      const handleDeleteEq = (id) => {
-        if (!confirm('Supprimer cet équipement ? Cette action est irréversible.')) return;
-        setEquipements(eqs => eqs.filter(e => e.id !== id));
-        setSshUsers(us => us.map(u => u.eqId === id ? { ...u, eqId: null, deployAll: true } : u));
-        // Appel API : await fetch(`${API_BASE_URL}/api/switches/${id}`, { method: 'DELETE', ... })
-        addToast('Équipement supprimé', 'success');
+      const handleDeleteEq = async (id, nom) => {
+        if (!confirm(`Supprimer ${nom} ? Cette action supprimera aussi ses utilisateurs SSH.`)) return;
+        try {
+          await apiFetch(`/api/switches/${id}`, { method: 'DELETE' });
+          setEquipements(eqs => eqs.filter(e => e.id !== id));
+          setSshUsers(us => us.filter(u => u.id_switch !== id));
+          addToast(`${nom} supprimé`, 'success');
+        } catch (err) {
+          addToast(`Erreur suppression : ${err.message}`, 'error');
+        }
       };
 
-      /* ── 4. Ajouter un utilisateur SSH (formulaire inline) ── */
-      const handleAddUser = (data, errMsg = null, errType = 'error') => {
-        if (!data) { addToast(errMsg, errType); return; }
-        const newUser = {
-          id: nextUserId.current++,
-          username:  data.username.trim(),
-          eqId:      data.eqId,
-          privilege: data.privilege,
-          date:      today(),
-          deployAll: data.deployAll,
-        };
-        setSshUsers(us => [...us, newUser]);
-        // Appel API : await fetch(`${API_BASE_URL}/api/ssh-users`, { method: 'POST', ... })
-        const targetLabel = data.deployAll
-          ? 'tous les switchs'
-          : equipements.find(e => e.id === data.eqId)?.nom ?? 'switch inconnu';
-        addToast(`Utilisateur ${newUser.username} déployé sur ${targetLabel}`, 'success');
+      /* ── 4. Ajouter un utilisateur SSH ── */
+      const handleAddUser = async (data, errMsg = null) => {
+        if (!data) { addToast(errMsg, 'error'); return; }
+        setDeploying(true);
+        try {
+          const res = await apiFetch('/api/ssh-users', {
+            method: 'POST',
+            body: JSON.stringify(data),
+          });
+          setSshUsers(us => [...us, ...res.users]);
+          const targetLabel = data.deploy_all
+            ? 'tous les switchs'
+            : equipements.find(e => e.id === data.id_switch)?.nom ?? 'switch inconnu';
+          addToast(`Utilisateur ${data.username} déployé sur ${targetLabel}`, 'success');
+        } catch (err) {
+          addToast(`Erreur déploiement : ${err.message}`, 'error');
+        } finally {
+          setDeploying(false);
+        }
       };
 
       /* ── 5. Supprimer un utilisateur SSH ── */
-      const handleDeleteUser = (id) => {
-        setSshUsers(us => us.filter(u => u.id !== id));
-        // Appel API : await fetch(`${API_BASE_URL}/api/ssh-users/${id}`, { method: 'DELETE', ... })
-        addToast('Utilisateur retiré', 'success');
+      const handleDeleteUser = async (id, username) => {
+        try {
+          await apiFetch(`/api/ssh-users/${id}`, { method: 'DELETE' });
+          setSshUsers(us => us.filter(u => u.id !== id));
+          addToast(`Utilisateur ${username} retiré`, 'success');
+        } catch (err) {
+          addToast(`Erreur : ${err.message}`, 'error');
+        }
       };
 
       /* ── Render ── */
@@ -514,57 +549,71 @@
                   <tr>
                     <th>Équipement</th>
                     <th>Adresse IP</th>
-                    <th>OS / Vendor</th>
+                    <th>Masque</th>
                     <th>Compte service</th>
+                    <th>Ports</th>
                     <th>Statut</th>
                     <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {equipements.map((eq, idx) => (
-                    <tr key={eq.id} className="table-row" style={{ animationDelay: `${idx * 0.07}s` }}>
-                      <td className="font-semibold">{eq.nom}</td>
-                      <td>
-                        <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 12, color: '#4f46e5', fontWeight: 600 }}>
-                          {eq.ip}
-                        </span>
-                      </td>
-                      <td>
-                        <span style={{ display: 'inline-block', padding: '2px 8px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 11, fontWeight: 700, color: '#64748b', fontFamily: 'DM Mono, monospace' }}>
-                          {eq.vendor}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>{eq.user}</td>
-                      <td><StatusBadge status={eq.status} /></td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
-                          {/* Tester */}
-                          <button
-                            className="btn-action btn-test"
-                            onClick={() => handleTest(eq.id, eq.ip)}
-                            disabled={!!testingIds[eq.id]}
-                          >
-                            {testingIds[eq.id]
-                              ? <span className="spinner" />
-                              : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                            }
-                            {testingIds[eq.id] ? 'Test…' : 'Tester'}
-                          </button>
+                  {loading
+                    ? <SkeletonRows cols={7} rows={3} />
+                    : equipements.length === 0
+                      ? (
+                        <tr>
+                          <td colSpan={7} style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: '2rem' }}>
+                            Aucun switch enregistré. Cliquez sur « Ajouter un switch » pour commencer.
+                          </td>
+                        </tr>
+                      )
+                      : equipements.map((eq, idx) => (
+                        <tr key={eq.id} className="table-row" style={{ animationDelay: `${idx * 0.07}s` }}>
+                          <td className="font-semibold">{eq.nom}</td>
+                          <td>
+                            <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 12, color: '#4f46e5', fontWeight: 600 }}>
+                              {eq.ip}
+                            </span>
+                          </td>
+                          <td>
+                            <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 11, color: '#64748b' }}>
+                              {eq.masque || '—'}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>{eq.username}</td>
+                          <td style={{ fontSize: 12, color: '#94a3b8' }}>{eq.nb_ports}</td>
+                          <td><StatusBadge status={eq.statut || 'UNKNOWN'} /></td>
+                          <td>
+                            <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
 
-                          {/* Éditer */}
-                          <button className="btn-action btn-edit" onClick={() => setEqModal(eq)}>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                            Éditer
-                          </button>
+                              {/* Tester */}
+                              <button
+                                className="btn-action btn-test"
+                                onClick={() => handleTest(eq.id, eq.ip)}
+                                disabled={!!testingIds[eq.id]}
+                              >
+                                {testingIds[eq.id]
+                                  ? <span className="spinner" />
+                                  : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                }
+                                {testingIds[eq.id] ? 'Test…' : 'Tester'}
+                              </button>
 
-                          {/* Supprimer */}
-                          <button className="btn-action btn-del" onClick={() => handleDeleteEq(eq.id)} title="Supprimer">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                              {/* Éditer */}
+                              <button className="btn-action btn-edit" onClick={() => setEqModal(eq)}>
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                Éditer
+                              </button>
+
+                              {/* Supprimer */}
+                              <button className="btn-action btn-del" onClick={() => handleDeleteEq(eq.id, eq.nom)}>
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                  }
                 </tbody>
               </table>
             </div>
@@ -584,7 +633,7 @@
             </div>
 
             {/* Formulaire inline ajout d'utilisateur */}
-            <AddUserForm equipements={equipements} onAdd={handleAddUser} />
+            <AddUserForm equipements={equipements} onAdd={handleAddUser} deploying={deploying} />
 
             {/* Tableau des utilisateurs */}
             <div className="overflow-x-auto">
@@ -594,50 +643,46 @@
                     <th>Utilisateur</th>
                     <th>Switch cible</th>
                     <th>Privilège</th>
-                    <th>Déployé le</th>
                     <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sshUsers.map((u, idx) => {
-                    const eq = equipements.find(e => e.id === u.eqId);
-                    return (
-                      <tr key={u.id} className="table-row" style={{ animationDelay: `${idx * 0.07}s` }}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span className="user-avatar">{u.username.substring(0, 2).toUpperCase()}</span>
-                            <span style={{ fontWeight: 600 }}>{u.username}</span>
-                          </div>
-                        </td>
-                        <td>
-                          {u.deployAll
-                            ? <span style={{ fontStyle: 'italic', color: '#64748b', fontSize: 12 }}>Tous les switchs</span>
-                            : eq
-                              ? <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 12, color: '#4f46e5', fontWeight: 600 }}>{eq.nom}</span>
-                              : <span style={{ color: '#94a3b8', fontSize: 12 }}>Switch supprimé</span>
-                          }
-                        </td>
-                        <td><PrivBadge level={u.privilege} /></td>
-                        <td style={{ fontSize: 12, color: '#94a3b8' }}>{u.date}</td>
-                        <td>
-                          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button className="btn-action btn-del" onClick={() => handleDeleteUser(u.id)}>
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                              Retirer
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-
-                  {sshUsers.length === 0 && (
-                    <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: '2rem' }}>
-                        Aucun utilisateur SSH déployé. Utilisez le formulaire ci-dessus.
-                      </td>
-                    </tr>
-                  )}
+                  {loading
+                    ? <SkeletonRows cols={4} rows={2} />
+                    : sshUsers.length === 0
+                      ? (
+                        <tr>
+                          <td colSpan={4} style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: '2rem' }}>
+                            Aucun utilisateur SSH déployé. Utilisez le formulaire ci-dessus.
+                          </td>
+                        </tr>
+                      )
+                      : sshUsers.map((u, idx) => (
+                        <tr key={u.id} className="table-row" style={{ animationDelay: `${idx * 0.07}s` }}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span className="user-avatar">{u.username.substring(0, 2).toUpperCase()}</span>
+                              <span style={{ fontWeight: 600 }}>{u.username}</span>
+                            </div>
+                          </td>
+                          <td>
+                            {u.nom_switch
+                              ? <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 12, color: '#4f46e5', fontWeight: 600 }}>{u.nom_switch}</span>
+                              : <span style={{ color: '#94a3b8', fontSize: 12, fontStyle: 'italic' }}>Switch supprimé</span>
+                            }
+                          </td>
+                          <td><PrivBadge level={u.privilege} /></td>
+                          <td>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                              <button className="btn-action btn-del" onClick={() => handleDeleteUser(u.id, u.username)}>
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                Retirer
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                  }
                 </tbody>
               </table>
             </div>
@@ -649,6 +694,7 @@
               eq={eqModal === 'new' ? null : eqModal}
               onClose={() => setEqModal(null)}
               onSave={handleSaveEq}
+              saving={saving}
             />
           )}
 
