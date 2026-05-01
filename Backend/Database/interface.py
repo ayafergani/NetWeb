@@ -33,16 +33,14 @@ def validate_vlan_reference(cur, vlan_id):
         raise ValueError(f"Le VLAN {vlan_id} n'existe pas. Creez-le d'abord dans la page VLAN.")
 
 
-def generate_default_interfaces():
-    """Génère les interfaces par défaut"""
+def generate_default_interfaces(nb_ports=24):
+    """Génère les interfaces par défaut en fonction du nombre de ports du switch"""
     interfaces = []
-    interface_id = 1
 
     # Ports cuivre (type = "access" physique)
-    for port_number in range(1, 25):
+    for port_number in range(1, nb_ports + 1):
         is_configured = port_number <= 4 or port_number == 24
         interfaces.append({
-            "id_interface": interface_id,
             "nom": f"Gi1/0/{port_number}",
             "ip": "192.168.1.10" if port_number == 4 else None,
             "vlan_id": 20 if port_number == 3 else (30 if port_number == 24 else 10 if is_configured else 1),
@@ -57,13 +55,11 @@ def generate_default_interfaces():
             "violation_mode": "shutdown",
             "bpdu_guard": True,
         })
-        interface_id += 1
 
     # Ports fibre SFP+ (type = "uplink" physique)
     for port_number in range(1, 5):
         is_configured = port_number <= 2
         interfaces.append({
-            "id_interface": interface_id,
             "nom": f"Te1/1/{port_number}",
             "ip": None,
             "vlan_id": None if is_configured else 1,
@@ -78,7 +74,6 @@ def generate_default_interfaces():
             "violation_mode": "shutdown",
             "bpdu_guard": False,
         })
-        interface_id += 1
 
     return interfaces
 
@@ -144,73 +139,58 @@ def is_table_empty():
 
 def initialize_default_interfaces():
     """
-    Remplit la table interface UNIQUEMENT SI ELLE EST VIDE
-    Les modifications doivent être faites via l'interface graphique
+    Parcourt tous les switchs et cree les interfaces par defaut pour ceux qui n'en ont pas.
     """
-    # 1. Vérifier/créer le schéma
     ensure_interface_schema()
     
-    # 2. Vérifier si la table est vide
-    if not is_table_empty():
-        logger.info("Table interface deja remplie, aucune initialisation effectuee")
-        return 0
-    
-    # 3. Remplir avec les valeurs par défaut
-    logger.info("Table interface vide, remplissage avec les valeurs par defaut...")
-    default_interfaces = generate_default_interfaces()
     conn = get_db_connection()
     inserted_count = 0
 
     try:
         cur = conn.cursor()
         
-        # Récupérer un équipement par défaut
-        cur.execute("SELECT id_eq FROM equipement ORDER BY id_eq ASC LIMIT 1")
-        equipment_row = cur.fetchone()
-        default_equipment_id = equipment_row[0] if equipment_row else None
+        # On récupère id, nom et le nombre de ports configuré pour chaque switch
+        cur.execute("SELECT id_switch, nom, nb_ports FROM switch")
+        switches = cur.fetchall()
         
-        # Récupérer les VLANs existants
         available_vlan_ids = fetch_existing_vlan_ids(cur)
 
-        for item in default_interfaces:
-            # Vérifier si l'interface existe déjà (normalement non car table vide)
-            cur.execute("SELECT 1 FROM interface WHERE nom = %s", (item["nom"],))
-            if cur.fetchone():
-                logger.warning(f"L'interface {item['nom']} existe deja, insertion ignoree")
-                continue
+        for sw_id, sw_nom, sw_nb_ports in switches:
+            # Vérifier si ce switch spécifique a déjà des interfaces en base
+            cur.execute("SELECT COUNT(*) FROM interface WHERE equipement_id = %s", (sw_id,))
+            if cur.fetchone()[0] > 0:
+                continue 
 
-            resolved_vlan_id = resolve_vlan_id(item["vlan_id"], available_vlan_ids)
-            if item["vlan_id"] != resolved_vlan_id:
-                logger.warning(
-                    "VLAN %s absent pendant l'initialisation de %s, fallback vers %s",
-                    item["vlan_id"],
+            logger.info(f"Initialisation de {sw_nb_ports} ports pour le switch: {sw_nom}")
+            
+            # Générer les interfaces dynamiquement selon le nb_ports du switch
+            switch_interfaces = generate_default_interfaces(sw_nb_ports or 24)
+
+            for item in switch_interfaces:
+                resolved_vlan_id = resolve_vlan_id(item["vlan_id"], available_vlan_ids)
+
+                cur.execute("""
+                    INSERT INTO interface (
+                        nom, ip, vlan_id, equipement_id, status, mode, type,
+                        speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
                     item["nom"],
+                    item["ip"],
                     resolved_vlan_id,
-                )
-
-            cur.execute("""
-                INSERT INTO interface (
-                    id_interface, nom, ip, vlan_id, equipement_id, status, mode, type,
-                    speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                item["id_interface"],
-                item["nom"],
-                item["ip"],
-                resolved_vlan_id,
-                item["equipement_id"] if item["equipement_id"] is not None else default_equipment_id,
-                item["status"],
-                item["mode"],
-                item["type"],
-                item["speed"],
-                item["allowed_vlans"],
-                item["port_security"],
-                item["max_mac"],
-                item["violation_mode"],
-                item["bpdu_guard"],
-            ))
-            inserted_count += 1
+                    sw_id,
+                    item["status"],
+                    item["mode"],
+                    item["type"],
+                    item["speed"],
+                    item["allowed_vlans"],
+                    item["port_security"],
+                    item["max_mac"],
+                    item["violation_mode"],
+                    item["bpdu_guard"],
+                ))
+                inserted_count += 1
 
         conn.commit()
         logger.info("Initialisation terminee: %s interfaces inserees", inserted_count)

@@ -348,9 +348,13 @@ def api_tftp_restore():
             errors = [str(r[0].exception) for _, r in result.items() if r.failed]
             return jsonify({"success": False, "error": " | ".join(errors), "output": "\n".join(all_output)}), 500
 
+        # Sauvegarder la configuration en NVRAM (write memory) pour la persistance
+        from nornir_netmiko.tasks import netmiko_save_config
+        nr.run(task=netmiko_save_config)
+
         return jsonify({
             "success": True,
-            "message": f"Configuration restaurée depuis tftp://{tftp_server}/{filename} → running-config.",
+            "message": f"Configuration restaurée depuis tftp://{tftp_server}/{filename} et sauvegardée en NVRAM.",
             "output": "\n".join(all_output),
         }), 200
 
