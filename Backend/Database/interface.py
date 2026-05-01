@@ -318,15 +318,24 @@ def normalize_interface_payload(data, forced_id=None):
 @interface_bp.route("/api/interface", methods=["GET"])
 def get_interfaces():
     """Récupère toutes les interfaces"""
+    equipement_id = request.args.get('switch_id') or request.args.get('equipement_id')
     conn = get_db_connection()
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("""
+        
+        query = """
             SELECT id_interface, nom, ip, vlan_id, equipement_id, status, mode, type,
                    speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
             FROM interface
-            ORDER BY id_interface ASC
-        """)
+        """
+        
+        if equipement_id:
+            query += " WHERE equipement_id = %s ORDER BY id_interface ASC"
+            cur.execute(query, (equipement_id,))
+        else:
+            query += " ORDER BY id_interface ASC"
+            cur.execute(query)
+            
         rows = cur.fetchall()
         interfaces = [row_to_interface(row) for row in rows]
         return jsonify({"success": True, "count": len(interfaces), "interfaces": interfaces})

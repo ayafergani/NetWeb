@@ -242,3 +242,117 @@ def api_reset_interface():
 
     except Exception as e:
         return jsonify({"success": False, "error": str(e), "commands": reset_commands}), 500
+
+# ── TFTP Backup : copy running-config → serveur TFTP ─────────────────────────
+@network_bp.route("/api/network/tftp-backup", methods=["POST"])
+def api_tftp_backup():
+    """
+    Sauvegarde la running-config du switch vers un serveur TFTP.
+
+    Body JSON attendu :
+        tftp_server  (str)  IP du serveur TFTP  ex. "192.168.1.100"
+        filename     (str)  Nom du fichier       ex. "running-config.cfg"
+    """
+    data        = request.json or {}
+    tftp_server = data.get("tftp_server", "").strip()
+    filename    = data.get("filename",    "running-config.cfg").strip()
+
+    if not tftp_server:
+        return jsonify({"success": False, "error": "tftp_server est requis."}), 400
+
+    try:
+        from network.interface_deploy import build_nornir
+        from nornir.core.task import Task, Result
+
+        nr = build_nornir()
+        if not nr.inventory.hosts:
+            return jsonify({"success": False, "error": "Aucun host dans hosts.yaml."}), 500
+
+        all_output = []
+
+        def tftp_backup_task(task: Task) -> Result:
+            conn = task.host.get_connection("netmiko", task.nornir.config)
+            # Commande non-interactive grâce à l'URL complète
+            cmd = f"copy running-config tftp://{tftp_server}/{filename}"
+            output = conn.send_command_timing(cmd, delay_factor=3, max_loops=150)
+            # Certains IOS demandent encore une confirmation du nom de fichier
+            if "Destination filename" in output or "filename" in output.lower():
+                output += conn.send_command_timing(filename, delay_factor=3, max_loops=150)
+            if "?" in output or "confirm" in output.lower():
+                output += conn.send_command_timing("\n", delay_factor=2)
+            all_output.append(output)
+            if "Error" in output or "error" in output.lower():
+                raise Exception(output.strip())
+            return Result(host=task.host, result=output)
+
+        result = nr.run(task=tftp_backup_task, name="TFTP Backup")
+
+        if result.failed:
+            errors = [str(r[0].exception) for _, r in result.items() if r.failed]
+            return jsonify({"success": False, "error": " | ".join(errors), "output": "\n".join(all_output)}), 500
+
+        return jsonify({
+            "success": True,
+            "message": f"running-config sauvegardée → tftp://{tftp_server}/{filename}",
+            "output": "\n".join(all_output),
+        }), 200
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ── TFTP Restore : copy TFTP → running-config ────────────────────────────────
+@network_bp.route("/api/network/tftp-restore", methods=["POST"])
+def api_tftp_restore():
+    """
+    Restaure la configuration du switch depuis un serveur TFTP.
+
+    Body JSON attendu :
+        tftp_server  (str)  IP du serveur TFTP  ex. "192.168.1.100"
+        filename     (str)  Nom du fichier       ex. "running-config.cfg"
+    """
+    data        = request.json or {}
+    tftp_server = data.get("tftp_server", "").strip()
+    filename    = data.get("filename",    "running-config.cfg").strip()
+
+    if not tftp_server:
+        return jsonify({"success": False, "error": "tftp_server est requis."}), 400
+
+    try:
+        from network.interface_deploy import build_nornir
+        from nornir.core.task import Task, Result
+
+        nr = build_nornir()
+        if not nr.inventory.hosts:
+            return jsonify({"success": False, "error": "Aucun host dans hosts.yaml."}), 500
+
+        all_output = []
+
+        def tftp_restore_task(task: Task) -> Result:
+            conn = task.host.get_connection("netmiko", task.nornir.config)
+            cmd = f"copy tftp://{tftp_server}/{filename} running-config"
+            output = conn.send_command_timing(cmd, delay_factor=3, max_loops=150)
+            # Confirmer le nom de fichier destination si demandé
+            if "Destination filename" in output or "filename" in output.lower():
+                output += conn.send_command_timing("\n", delay_factor=3, max_loops=150)
+            if "confirm" in output.lower() or "?" in output:
+                output += conn.send_command_timing("\n", delay_factor=2)
+            all_output.append(output)
+            if "Error" in output or "error" in output.lower():
+                raise Exception(output.strip())
+            return Result(host=task.host, result=output)
+
+        result = nr.run(task=tftp_restore_task, name="TFTP Restore")
+
+        if result.failed:
+            errors = [str(r[0].exception) for _, r in result.items() if r.failed]
+            return jsonify({"success": False, "error": " | ".join(errors), "output": "\n".join(all_output)}), 500
+
+        return jsonify({
+            "success": True,
+            "message": f"Configuration restaurée depuis tftp://{tftp_server}/{filename} → running-config.",
+            "output": "\n".join(all_output),
+        }), 200
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
