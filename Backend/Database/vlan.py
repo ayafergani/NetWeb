@@ -125,6 +125,7 @@ def get_vlans():
             # Résoudre le nom du switch depuis son id
             cur2 = conn.cursor()
             cur2.execute("SELECT nom FROM switchs WHERE id_switch = %s", (filter_switch_id,))
+            cur2.execute("SELECT nom FROM switch WHERE id_switch = %s", (filter_switch_id,))
             sw_row = cur2.fetchone()
             cur2.close()
             if sw_row:
@@ -158,6 +159,8 @@ def get_switchs():
         cur.execute("""
             SELECT id_switch, nom, ip, status
             FROM switchs
+            SELECT id_switch, nom, ip, status, reference
+            FROM switch
             ORDER BY nom ASC
         """)
         rows = cur.fetchall()
