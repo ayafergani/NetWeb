@@ -32,7 +32,7 @@ def init_database():
 
         print("Creation de la table 'switch'...")
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS switch (
+            CREATE TABLE IF NOT EXISTS switchs (
                 id_switch SERIAL PRIMARY KEY,
                 nom VARCHAR(100) UNIQUE NOT NULL,
                 ip VARCHAR(50) UNIQUE NOT NULL,
@@ -48,7 +48,7 @@ def init_database():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS utilisateurs_ssh (
                 id_ssh_user SERIAL PRIMARY KEY,
-                id_switch INT NOT NULL REFERENCES switch(id_switch) ON DELETE CASCADE,
+                id_switch INT NOT NULL REFERENCES switchs(id_switch) ON DELETE CASCADE,
                 username VARCHAR(100) NOT NULL,
                 password BYTEA NOT NULL,
                 privilege INT DEFAULT 15,

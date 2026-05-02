@@ -44,7 +44,8 @@ def generate_default_interfaces(nb_ports=24):
             "nom": f"Gi1/0/{port_number}",
             "ip": "192.168.1.10" if port_number == 4 else None,
             "vlan_id": 20 if port_number == 3 else (30 if port_number == 24 else 10 if is_configured else 1),
-            "equipement_id": None,
+            "id_switch": None,
+            "equipement_id": None, # Pour les terminaux (PCs)
             "status": "UP" if port_number <= 4 else "DOWN",
             "mode": "access",      # Configuration logicielle (access/trunk)
             "type": "access",      # Type physique (access port cuivre)
@@ -63,7 +64,8 @@ def generate_default_interfaces(nb_ports=24):
             "nom": f"Te1/1/{port_number}",
             "ip": None,
             "vlan_id": None if is_configured else 1,
-            "equipement_id": None,
+            "id_switch": None,
+            "equipement_id": None, # Pour les terminaux (PCs)
             "status": "UP" if port_number == 1 else "DOWN",
             "mode": "trunk" if is_configured else "access",  # Configuration logicielle
             "type": "uplink",      # Type physique (fibre SFP+ uplink)
@@ -114,6 +116,13 @@ def ensure_interface_schema():
             except Exception as rename_error:
                 logger.warning(f"Impossible de renommer la colonne: {rename_error}")
                 conn.rollback()
+        
+        # S'assurer que la colonne id_switch existe pour lier au switch
+        if "id_switch" not in columns:
+            cur.execute("ALTER TABLE interface ADD COLUMN id_switch INT REFERENCES switchs(id_switch) ON DELETE CASCADE")
+            conn.commit()
+            logger.info("Colonne id_switch ajoutee a la table interface")
+        
                 
     except Exception as e:
         conn.rollback()
@@ -149,21 +158,23 @@ def initialize_default_interfaces():
     try:
         cur = conn.cursor()
         
-        # On récupère id, nom et le nombre de ports configuré pour chaque switch
         cur.execute("SELECT id_switch, nom, nb_ports FROM switchs")
         switches = cur.fetchall()
         
+        # Récupération des VLANs existants pour validation
         available_vlan_ids = fetch_existing_vlan_ids(cur)
 
+        # Récupération du prochain ID d'interface disponible
+        cur.execute("SELECT COALESCE(MAX(id_interface), 0) FROM interface")
+        next_id = cur.fetchone()[0] + 1
+        
         for sw_id, sw_nom, sw_nb_ports in switches:
-            # Vérifier si ce switch spécifique a déjà des interfaces en base
-            cur.execute("SELECT COUNT(*) FROM interface WHERE equipement_id = %s", (sw_id,))
+            cur.execute("SELECT COUNT(*) FROM interface WHERE id_switch = %s", (sw_id,))
             if cur.fetchone()[0] > 0:
                 continue 
 
             logger.info(f"Initialisation de {sw_nb_ports} ports pour le switch: {sw_nom}")
             
-            # Générer les interfaces dynamiquement selon le nb_ports du switch
             switch_interfaces = generate_default_interfaces(sw_nb_ports or 24)
 
             for item in switch_interfaces:
@@ -171,15 +182,17 @@ def initialize_default_interfaces():
 
                 cur.execute("""
                     INSERT INTO interface (
-                        nom, ip, vlan_id, equipement_id, status, mode, type,
+                        id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
                         speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
+                    next_id,
                     item["nom"],
                     item["ip"],
                     resolved_vlan_id,
                     sw_id,
+                    None,  # Pas de terminal branché par défaut
                     item["status"],
                     item["mode"],
                     item["type"],
@@ -190,6 +203,7 @@ def initialize_default_interfaces():
                     item["violation_mode"],
                     item["bpdu_guard"],
                 ))
+                next_id += 1
                 inserted_count += 1
 
         conn.commit()
@@ -211,6 +225,7 @@ def row_to_interface(row):
         "nom": row["nom"],
         "ip": row["ip"],
         "vlan_id": row["vlan_id"],
+        "id_switch": row.get("id_switch"),
         "equipement_id": row["equipement_id"],
         "status": row["status"],
         "mode": row["mode"],      # access ou trunk (configuration logicielle)
@@ -243,6 +258,14 @@ def normalize_interface_payload(data, forced_id=None):
         except (TypeError, ValueError):
             raise ValueError("vlan_id doit etre un entier")
 
+    raw_id_switch = data.get("id_switch")
+    id_switch = None if raw_id_switch in (None, "") else raw_id_switch
+    if id_switch is not None:
+        try:
+            id_switch = int(id_switch)
+        except (TypeError, ValueError):
+            raise ValueError("id_switch doit etre un entier")
+
     raw_equipement_id = data.get("equipement_id")
     equipement_id = None if raw_equipement_id in (None, "") else raw_equipement_id
     if equipement_id is not None:
@@ -271,6 +294,7 @@ def normalize_interface_payload(data, forced_id=None):
         "nom": str(data.get("nom", "")).strip(),
         "ip": str(data.get("ip", "")).strip() or None,
         "vlan_id": vlan_id,
+        "id_switch": id_switch,
         "equipement_id": equipement_id,
         "status": str(data.get("status", "DOWN")).strip().upper() or "DOWN",
         "mode": mode_value,
@@ -298,20 +322,20 @@ def normalize_interface_payload(data, forced_id=None):
 @interface_bp.route("/api/interface", methods=["GET"])
 def get_interfaces():
     """Récupère toutes les interfaces"""
-    equipement_id = request.args.get('switch_id') or request.args.get('equipement_id')
+    id_switch = request.args.get('id_switch') or request.args.get('switch_id')
     conn = get_db_connection()
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         query = """
-            SELECT id_interface, nom, ip, vlan_id, equipement_id, status, mode, type,
+            SELECT id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
                    speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
             FROM interface
         """
         
-        if equipement_id:
-            query += " WHERE equipement_id = %s ORDER BY id_interface ASC"
-            cur.execute(query, (equipement_id,))
+        if id_switch:
+            query += " WHERE id_switch = %s ORDER BY id_interface ASC"
+            cur.execute(query, (id_switch,))
         else:
             query += " ORDER BY id_interface ASC"
             cur.execute(query)
@@ -351,17 +375,18 @@ def create_interface():
 
         cur.execute("""
             INSERT INTO interface (
-                id_interface, nom, ip, vlan_id, equipement_id, status, mode, type,
+                id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
                 speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id_interface, nom, ip, vlan_id, equipement_id, status, mode, type,
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
                       speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
         """, (
             payload["id_interface"],
             payload["nom"],
             payload["ip"],
             payload["vlan_id"],
+            payload["id_switch"],
             payload["equipement_id"],
             payload["status"],
             payload["mode"],
@@ -415,6 +440,7 @@ def update_interface(interface_id):
             SET nom = %s,
                 ip = %s,
                 vlan_id = %s,
+                id_switch = %s,
                 equipement_id = %s,
                 status = %s,
                 mode = %s,
@@ -426,12 +452,13 @@ def update_interface(interface_id):
                 violation_mode = %s,
                 bpdu_guard = %s
             WHERE id_interface = %s
-            RETURNING id_interface, nom, ip, vlan_id, equipement_id, status, mode, type,
+            RETURNING id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
                       speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
         """, (
             payload["nom"],
             payload["ip"],
             payload["vlan_id"],
+            payload["id_switch"],
             payload["equipement_id"],
             payload["status"],
             payload["mode"],
