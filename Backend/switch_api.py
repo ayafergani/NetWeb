@@ -14,7 +14,11 @@ def get_switches():
     conn = get_db_connection()
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT id_switch, nom, ip, masque, username, nb_ports, statut FROM switch ORDER BY id_switch ASC")
+        cur.execute("""
+            SELECT id_switch, reference, nom, ip, masque, username, nb_ports, status
+            FROM switchs
+            ORDER BY id_switch ASC
+        """)
         switches = cur.fetchall()
         return jsonify({"success": True, "switches": switches}), 200
     except Exception as e:
@@ -27,6 +31,8 @@ def get_switches():
 def add_switch():
     """Ajoute un switch de manière sécurisée"""
     data = request.json
+    reference = (data.get("reference") or "").strip()
+    masque = data.get("masque") or "255.255.255.0"
     nom, ip, username, password = data.get("nom"), data.get("ip"), data.get("username"), data.get("password")
 
     if not all([nom, ip, username, password]):
@@ -36,8 +42,12 @@ def add_switch():
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO switch (nom, ip, username, password, nb_ports) VALUES (%s, %s, %s, %s, %s) RETURNING id_switch",
-            (nom, ip, username, encrypt_password(password), data.get("nb_ports", 24))
+            """
+            INSERT INTO switchs (reference, nom, ip, masque, username, password, nb_ports, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'UNKNOWN')
+            RETURNING id_switch
+            """,
+            (reference, nom, ip, masque, username, encrypt_password(password), data.get("nb_ports", 24))
         )
         conn.commit()
         return jsonify({"success": True, "message": "Switch ajouté !"}), 201
@@ -53,7 +63,7 @@ def test_switch_connection(switch_id):
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT ip, username, password FROM switch WHERE id_switch = %s", (switch_id,))
+        cur.execute("SELECT ip, username, password FROM switchs WHERE id_switch = %s", (switch_id,))
         switch = cur.fetchone()
         
         if not switch:
@@ -72,12 +82,12 @@ def test_switch_connection(switch_id):
         net_connect = ConnectHandler(**device)
         net_connect.disconnect() # Si on arrive ici, le SSH marche !
 
-        cur.execute("UPDATE switch SET statut = 'UP' WHERE id_switch = %s", (switch_id,))
+        cur.execute("UPDATE switchs SET status = 'UP' WHERE id_switch = %s", (switch_id,))
         conn.commit()
         return jsonify({"success": True, "statut": "UP"}), 200
 
     except Exception as e:
-        cur.execute("UPDATE switch SET statut = 'DOWN' WHERE id_switch = %s", (switch_id,))
+        cur.execute("UPDATE switchs SET status = 'DOWN' WHERE id_switch = %s", (switch_id,))
         conn.commit()
         return jsonify({"success": False, "error": str(e), "statut": "DOWN"}), 400
     finally:

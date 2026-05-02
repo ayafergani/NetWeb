@@ -25,6 +25,7 @@ def _row_to_switch(row):
         "username": row["username"],
         "nb_ports": row["nb_ports"],
         "status":   row["status"] or "UNKNOWN",
+        "reference": row.get("reference", "") or "",
     }
 
 
@@ -60,7 +61,7 @@ def get_switches():
         cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         cur.execute("""
-            SELECT id_switch, nom, ip, masque, username, password, nb_ports, status
+            SELECT id_switch, nom, ip, masque, username, password, nb_ports, status, reference
             FROM switchs
             ORDER BY nom
         """)
@@ -78,6 +79,7 @@ def get_switches():
 def create_switch():
     """Ajoute un nouveau switch."""
     data = request.json or {}
+    reference = (data.get("reference") or "").strip()
     nom      = (data.get("nom") or "").strip()
     ip       = (data.get("ip") or "").strip()
     masque   = (data.get("masque") or "255.255.255.0").strip()
@@ -92,10 +94,10 @@ def create_switch():
         conn = get_db_connection()
         cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute("""
-            INSERT INTO switchs (nom, ip, masque, username, password, nb_ports, status)
-            VALUES (%s, %s, %s, %s, %s, %s, 'UNKNOWN')
-            RETURNING id_switch, nom, ip, masque, username, password, nb_ports, status
-        """, (nom, ip, masque, username, password.encode(), nb_ports))
+            INSERT INTO switchs (reference, nom, ip, masque, username, password, nb_ports, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'UNKNOWN')
+            RETURNING id_switch, nom, ip, masque, username, password, nb_ports, status, reference
+        """, (reference, nom, ip, masque, username, password, nb_ports))
         row = cur.fetchone()
         conn.commit()
         cur.close()
@@ -111,6 +113,7 @@ def create_switch():
 def update_switch(switch_id):
     """Met à jour les informations d'un switch (sans mot de passe si non fourni)."""
     data = request.json or {}
+    reference = (data.get("reference") or "").strip()
     nom      = (data.get("nom") or "").strip()
     ip       = (data.get("ip") or "").strip()
     masque   = (data.get("masque") or "").strip()
@@ -129,21 +132,21 @@ def update_switch(switch_id):
             # Mise à jour avec nouveau mot de passe
             cur.execute("""
                 UPDATE switchs
-                SET nom=%s, ip=%s, masque=%s, username=%s, password=%s,
+                SET reference=%s, nom=%s, ip=%s, masque=%s, username=%s, password=%s,
                     nb_ports=COALESCE(%s, nb_ports)
                 WHERE id_switch=%s
-                RETURNING id_switch, nom, ip, masque, username, password, nb_ports, status
-            """, (nom, ip, masque, username, password.encode(),
+                RETURNING id_switch, nom, ip, masque, username, password, nb_ports, status, reference
+            """, (reference, nom, ip, masque, username, password,
                   nb_ports, switch_id))
         else:
             # Mise à jour sans changer le mot de passe
             cur.execute("""
                 UPDATE switchs
-                SET nom=%s, ip=%s, masque=%s, username=%s,
+                SET reference=%s, nom=%s, ip=%s, masque=%s, username=%s,
                     nb_ports=COALESCE(%s, nb_ports)
                 WHERE id_switch=%s
-                RETURNING id_switch, nom, ip, masque, username, password, nb_ports, status
-            """, (nom, ip, masque, username, nb_ports, switch_id))
+                RETURNING id_switch, nom, ip, masque, username, password, nb_ports, status, reference
+            """, (reference, nom, ip, masque, username, nb_ports, switch_id))
 
         row = cur.fetchone()
         conn.commit()
@@ -199,7 +202,7 @@ def test_switch(switch_id):
 
         ip       = row["ip"]
         username = row["username"]
-        password = bytes(row["password"]).decode("utf-8", errors="ignore")
+        password = row["password"] or ""
 
         # ── Tentative de connexion SSH réelle ─────────────────────
         reachable = False

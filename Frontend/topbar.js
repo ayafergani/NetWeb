@@ -467,6 +467,7 @@
     searchResults.innerHTML = searchMatches.map(function(item, index) {
       return '<button type="button" id="topbar-search-option-' + index + '" class="topbar-search-result" role="option" aria-selected="false" data-index="' + index + '">' +
         '<span class="topbar-search-result-title">' + item.label + '</span>' +
+        '<span class="topbar-search-result-path">' + item.href + '</span>' +
       '</button>';
     }).join('');
 

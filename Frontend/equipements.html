@@ -236,9 +236,9 @@
 
     /* ─────────────────────── Modal Équipement ─────────────────────── */
     const EqModal = ({ eq, onClose, onSave, saving }) => {
-      const blank = { nom: '', ip: '', masque: '255.255.255.0', nb_ports: 24, username: '', password: '' };
+      const blank = { reference: '', nom: '', ip: '', masque: '255.255.255.0', nb_ports: 24, username: '', password: '' };
       const [form, setForm] = useState(eq
-        ? { nom: eq.nom, ip: eq.ip, masque: eq.masque || '', nb_ports: eq.nb_ports || 24, username: eq.username, password: '' }
+        ? { reference: eq.reference || '', nom: eq.nom, ip: eq.ip, masque: eq.masque || '', nb_ports: eq.nb_ports || 24, username: eq.username, password: '' }
         : blank
       );
       const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -248,6 +248,11 @@
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
           <div className="modal">
             <h2>{editing ? `Modifier — ${eq.nom}` : 'Ajouter un équipement'}</h2>
+
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label>RÃ©fÃ©rence</label>
+              <input type="text" value={form.reference} onChange={set('reference')} placeholder="REF-SW-001" />
+            </div>
 
             <div className="modal-grid">
               <div className="field">
@@ -360,7 +365,7 @@
                 style={{ opacity: form.deploy_all ? 0.4 : 1 }}
               >
                 {equipements.map(eq => (
-                  <option key={eq.id} value={eq.id}>{eq.nom} ({eq.ip})</option>
+                  <option key={eq.id} value={eq.id}>{eq.reference ? `${eq.reference} - ` : ''}{eq.nom} ({eq.ip})</option>
                 ))}
               </select>
             </div>
@@ -451,7 +456,7 @@
         setTestingIds(p => ({ ...p, [id]: true }));
         try {
           const res = await apiFetch(`/api/switches/${id}/test`, { method: 'POST' });
-          setEquipements(eqs => eqs.map(e => e.id === id ? { ...e, statut: res.status } : e));
+          setEquipements(eqs => eqs.map(e => e.id === id ? { ...e, status: res.status } : e));
           addToast(
             res.reachable
               ? `SSH joignable sur ${ip}`
@@ -577,6 +582,7 @@
                 <thead>
                   <tr>
                     <th>Équipement</th>
+                    <th>RÃ©fÃ©rence</th>
                     <th>Adresse IP</th>
                     <th>Masque</th>
                     <th>Compte service</th>
@@ -587,11 +593,11 @@
                 </thead>
                 <tbody>
                   {loading
-                    ? <SkeletonRows cols={7} rows={3} />
+                    ? <SkeletonRows cols={8} rows={3} />
                     : equipements.length === 0
                       ? (
                         <tr>
-                          <td colSpan={7} style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: '2rem' }}>
+                          <td colSpan={8} style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: '2rem' }}>
                             Aucun switch enregistré. Cliquez sur « Ajouter un switch » pour commencer.
                           </td>
                         </tr>
@@ -599,6 +605,11 @@
                       : equipements.map((eq, idx) => (
                         <tr key={eq.id} className="table-row" style={{ animationDelay: `${idx * 0.07}s` }}>
                           <td className="font-semibold">{eq.nom}</td>
+                          <td>
+                            <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 12, color: '#64748b', fontWeight: 600 }}>
+                              {eq.reference || '---'}
+                            </span>
+                          </td>
                           <td>
                             <span style={{ fontFamily: 'DM Mono, monospace', fontSize: 12, color: '#4f46e5', fontWeight: 600 }}>
                               {eq.ip}
@@ -611,7 +622,7 @@
                           </td>
                           <td style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>{eq.username}</td>
                           <td style={{ fontSize: 12, color: '#94a3b8' }}>{eq.nb_ports}</td>
-                          <td><StatusBadge status={eq.statut || 'UNKNOWN'} /></td>
+                          <td><StatusBadge status={eq.status || 'UNKNOWN'} /></td>
                           <td>
                             <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
 
