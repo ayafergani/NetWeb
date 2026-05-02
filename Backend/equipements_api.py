@@ -38,6 +38,15 @@ def _row_to_ssh_user(row):
     }
 
 
+def _row_to_app_user(row):
+    return {
+        "id": row["id_user"],
+        "username": row["username"],
+        "role": row.get("role", ""),
+        "email": row.get("email", ""),
+    }
+
+
 # ═══════════════════════════════════════════════════════════════
 #  SWITCHES — CRUD
 # ═══════════════════════════════════════════════════════════════
@@ -49,6 +58,7 @@ def get_switches():
     try:
         conn = get_db_connection()
         cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
         cur.execute("""
             SELECT id_switch, nom, ip, masque, username, password, nb_ports, status
             FROM switchs
@@ -227,6 +237,28 @@ def test_switch(switch_id):
 #  UTILISATEURS SSH — CRUD
 # ═══════════════════════════════════════════════════════════════
 
+@equipements_bp.route("/api/equipement-usernames", methods=["GET"])
+@jwt_required()
+def get_equipement_usernames():
+    """Retourne les utilisateurs applicatifs disponibles pour la combobox."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT id_user, username, role, email
+            FROM utilisateur
+            WHERE username IS NOT NULL AND TRIM(username) <> ''
+            ORDER BY username
+        """)
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return jsonify({"success": True, "users": [_row_to_app_user(r) for r in rows]})
+    except Exception as e:
+        logger.error("GET /api/equipement-usernames : %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @equipements_bp.route("/api/ssh-users", methods=["GET"])
 @jwt_required()
 def get_ssh_users():
@@ -273,6 +305,15 @@ def create_ssh_user():
     try:
         conn = get_db_connection()
         cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cur.execute("SELECT id_user FROM utilisateur WHERE username=%s", (username,))
+        if not cur.fetchone():
+            cur.close()
+            conn.close()
+            return jsonify({
+                "success": False,
+                "error": "Ce nom d'utilisateur n'existe pas dans la base."
+            }), 400
 
         if deploy_all:
             # Récupérer tous les switchs

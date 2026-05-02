@@ -84,6 +84,9 @@
     .form-group select { width: 100%; padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; background: #fff; color: #0f172a; outline: none; font-family: 'DM Sans', sans-serif; transition: border-color 0.15s; }
     .form-group input:focus,
     .form-group select:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+    .form-group input.input-error { border-color: #ef4444; background: #fff1f2; color: #991b1b; }
+    .form-group input.input-error:focus { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.14); }
+    .field-error { margin-top: 4px; font-size: 10px; font-weight: 600; color: #dc2626; }
     .deploy-all-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; color: #64748b; }
     .deploy-all-row input[type=checkbox] { accent-color: #16a34a; width: 14px; height: 14px; cursor: pointer; }
     .deploy-all-row label { cursor: pointer; }
@@ -135,6 +138,7 @@
     .dark-mode .add-user-form { background: #0f172a; border-color: #334155; }
     .dark-mode .form-group input,
     .dark-mode .form-group select { background: #1e293b; border-color: #334155; color: #f1f5f9; }
+    .dark-mode .form-group input.input-error { border-color: #ef4444; background: #450a0a; color: #fecaca; }
     .dark-mode .deploy-all-row { color: #94a3b8; }
     .dark-mode .modal { background: #1e293b; }
     .dark-mode .modal h2 { color: #f1f5f9; }
@@ -301,9 +305,12 @@
     };
 
     /* ─────────────────────── Formulaire inline SSH ─────────────────────── */
-    const AddUserForm = ({ equipements, onAdd, deploying }) => {
+    const AddUserForm = ({ equipements, appUsers, onAdd, deploying }) => {
       const blank = { username: '', password: '', privilege: 15, id_switch: '', deploy_all: false };
       const [form, setForm] = useState(blank);
+      const trimmedUsername = form.username.trim();
+      const usernameExists = appUsers.some(user => user.username === trimmedUsername);
+      const usernameInvalid = trimmedUsername.length > 0 && !usernameExists;
 
       useEffect(() => {
         if (!form.deploy_all && equipements.length > 0 && !form.id_switch) {
@@ -318,7 +325,11 @@
           onAdd(null, "Nom d'utilisateur et mot de passe requis");
           return;
         }
-        onAdd({ ...form, id_switch: form.deploy_all ? null : Number(form.id_switch), privilege: Number(form.privilege) });
+        if (!usernameExists) {
+          onAdd(null, "Ce nom d'utilisateur n'existe pas dans la base");
+          return;
+        }
+        onAdd({ ...form, username: form.username.trim(), id_switch: form.deploy_all ? null : Number(form.id_switch), privilege: Number(form.privilege) });
         setForm(f => ({ ...f, username: '', password: '' }));
       };
 
@@ -355,7 +366,22 @@
             </div>
             <div className="form-group">
               <label>Nom d'utilisateur</label>
-              <input type="text" value={form.username} onChange={set('username')} placeholder="j.dupont" />
+              <input
+                type="text"
+                value={form.username}
+                onChange={set('username')}
+                placeholder="Choisir ou saisir un utilisateur"
+                list="equipement-usernames"
+                className={usernameInvalid ? 'input-error' : ''}
+              />
+              {usernameInvalid && <div className="field-error">Utilisateur introuvable dans la base</div>}
+              <datalist id="equipement-usernames">
+                {appUsers.map(user => (
+                  <option key={user.id} value={user.username}>
+                    {user.role ? `${user.role}${user.email ? ` - ${user.email}` : ''}` : user.email}
+                  </option>
+                ))}
+              </datalist>
             </div>
             <div className="form-group">
               <label>Mot de passe</label>
@@ -369,7 +395,7 @@
                 <option value={1}>1 — Lecture</option>
               </select>
             </div>
-            <button className="btn-green" onClick={handleAdd} disabled={deploying}>
+            <button className="btn-green" onClick={handleAdd} disabled={deploying || usernameInvalid}>
               {deploying
                 ? <><span className="spinner" style={{ borderColor: '#fff', borderTopColor: 'transparent' }} /> Déploiement…</>
                 : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 2 11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>Déployer</>
@@ -384,6 +410,7 @@
     const EquipementsPage = () => {
       const [equipements, setEquipements] = useState([]);
       const [sshUsers,    setSshUsers]    = useState([]);
+      const [appUsers,    setAppUsers]    = useState([]);
       const [loading,     setLoading]     = useState(true);
       const [testingIds,  setTestingIds]  = useState({});
       const [eqModal,     setEqModal]     = useState(null);   // null | 'new' | eq object
@@ -402,12 +429,14 @@
       const loadData = useCallback(async () => {
         setLoading(true);
         try {
-          const [swRes, usrRes] = await Promise.all([
+          const [swRes, usrRes, appUsrRes] = await Promise.all([
             apiFetch('/api/switches'),
             apiFetch('/api/ssh-users'),
+            apiFetch('/api/equipement-usernames'),
           ]);
           if (swRes.success)  setEquipements(swRes.switches);
           if (usrRes.success) setSshUsers(usrRes.users);
+          if (appUsrRes.success) setAppUsers(appUsrRes.users);
         } catch (err) {
           addToast(`Erreur de chargement : ${err.message}`, 'error');
         } finally {
@@ -633,7 +662,7 @@
             </div>
 
             {/* Formulaire inline ajout d'utilisateur */}
-            <AddUserForm equipements={equipements} onAdd={handleAddUser} deploying={deploying} />
+            <AddUserForm equipements={equipements} appUsers={appUsers} onAdd={handleAddUser} deploying={deploying} />
 
             {/* Tableau des utilisateurs */}
             <div className="overflow-x-auto">
