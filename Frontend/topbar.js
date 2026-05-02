@@ -70,13 +70,16 @@
       </div>
 
       <div class="topbar-actions">
-        <label class="topbar-search">
-          <span class="sr-only">Rechercher</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input id="topbar-search-input" class="search-input" type="search" placeholder="Rechercher..." autocomplete="off" />
-        </label>
+        <div class="topbar-search-wrapper">
+          <label class="topbar-search" for="topbar-search-input">
+            <span class="sr-only">Rechercher</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input id="topbar-search-input" class="search-input" type="search" placeholder="Rechercher..." autocomplete="off" aria-controls="topbar-search-results" aria-expanded="false" />
+          </label>
+          <div id="topbar-search-results" class="topbar-search-results" role="listbox" hidden></div>
+        </div>
 
         <div class="notif-wrapper">
           <button type="button" id="topbar-notif-button" class="icon-button" aria-label="Notifications">
@@ -230,6 +233,8 @@
   const logoutBtn    = document.getElementById('topbar-menu-logout');
   const profileBtn   = document.getElementById('topbar-menu-profile');
   const profileModal = document.getElementById('topbar-profile-modal');
+  const searchInput  = document.getElementById('topbar-search-input');
+  const searchResults = document.getElementById('topbar-search-results');
 
   // ========== AVATAR + DROPDOWN ==========
   function initUserAvatar() {
@@ -370,6 +375,140 @@
   function closeUserMenu() { userMenu.hidden = true; }
   function toggleUserMenu() { userMenu.hidden = !userMenu.hidden; }
 
+  // ========== RECHERCHE GLOBALE ==========
+  const SEARCH_ITEMS = [
+    { id: 'dashboard', label: 'Dashboard', href: 'dashboard.html', keywords: ['accueil', 'home', 'overview', 'tableau de bord', 'reseau', 'réseau'] },
+    { id: 'vlan', label: 'VLAN', href: 'vlan.html', keywords: ['vlans', 'reseau vlan', 'réseau vlan', 'quarantine', 'isolation'] },
+    { id: 'interfaces', label: 'Interfaces', href: 'interfaces.html', keywords: ['interface', 'ports', 'port', 'switchport', 'up', 'down', 'port security'] },
+    { id: 'alerts', label: 'Alerts', href: 'alerts.html', keywords: ['alertes', 'alerte', 'snort', 'critique', 'securite', 'sécurité'] },
+    { id: 'traffic', label: 'Traffic', href: 'traffic.html', keywords: ['trafic', 'network traffic', 'monitoring', 'bande passante'] },
+    { id: 'configuration', label: 'Configuration', href: 'Configuration.html', keywords: ['config', 'regles', 'règles', 'rules', 'automation'] },
+    { id: 'users', label: 'Users', href: 'users.html', keywords: ['utilisateurs', 'user', 'roles', 'rôles', 'compte'] },
+    { id: 'equipements', label: 'Equipements', href: 'equipements.html', keywords: ['equipement', 'équipement', 'switch', 'routeur', 'router'] },
+    { id: 'logs', label: 'Logs', href: 'logs.html', keywords: ['journal', 'audit', 'activites', 'activités', 'historique'] }
+  ];
+
+  let searchMatches = [];
+  let activeSearchIndex = -1;
+
+  function normalizeSearchText(value) {
+    return String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function canOpenSearchItem(item) {
+    if (!window.NetGuardAuth || typeof window.NetGuardAuth.canAccessPage !== 'function') {
+      return true;
+    }
+    return window.NetGuardAuth.canAccessPage(item.id);
+  }
+
+  function getSearchableText(item) {
+    return normalizeSearchText([item.label, item.id].concat(item.keywords || []).join(' '));
+  }
+
+  function closeSearchResults() {
+    searchMatches = [];
+    activeSearchIndex = -1;
+    if (searchResults) {
+      searchResults.hidden = true;
+      searchResults.innerHTML = '';
+    }
+    if (searchInput) {
+      searchInput.setAttribute('aria-expanded', 'false');
+      searchInput.removeAttribute('aria-activedescendant');
+    }
+  }
+
+  function openSearchItem(item) {
+    if (!item || !canOpenSearchItem(item)) return;
+    window.location.href = item.href;
+  }
+
+  function setActiveSearchIndex(index) {
+    activeSearchIndex = index;
+    var options = searchResults ? searchResults.querySelectorAll('.topbar-search-result') : [];
+    options.forEach(function(option, optionIndex) {
+      var isActive = optionIndex === activeSearchIndex;
+      option.classList.toggle('active', isActive);
+      option.setAttribute('aria-selected', String(isActive));
+      if (isActive && searchInput) {
+        searchInput.setAttribute('aria-activedescendant', option.id);
+      }
+    });
+  }
+
+  function renderSearchResults(query) {
+    if (!searchInput || !searchResults) return;
+
+    var normalizedQuery = normalizeSearchText(query).trim();
+    if (!normalizedQuery) {
+      closeSearchResults();
+      return;
+    }
+
+    searchMatches = SEARCH_ITEMS
+      .filter(canOpenSearchItem)
+      .filter(function(item) {
+        return getSearchableText(item).includes(normalizedQuery);
+      })
+      .slice(0, 6);
+
+    if (searchMatches.length === 0) {
+      searchResults.innerHTML = '<div class="topbar-search-empty">Aucun resultat</div>';
+      searchResults.hidden = false;
+      searchInput.setAttribute('aria-expanded', 'true');
+      activeSearchIndex = -1;
+      return;
+    }
+
+    searchResults.innerHTML = searchMatches.map(function(item, index) {
+      return '<button type="button" id="topbar-search-option-' + index + '" class="topbar-search-result" role="option" aria-selected="false" data-index="' + index + '">' +
+        '<span class="topbar-search-result-title">' + item.label + '</span>' +
+      '</button>';
+    }).join('');
+
+    searchResults.hidden = false;
+    searchInput.setAttribute('aria-expanded', 'true');
+    setActiveSearchIndex(0);
+  }
+
+  function initGlobalSearch() {
+    if (!searchInput || !searchResults) return;
+
+    searchInput.addEventListener('input', function() {
+      renderSearchResults(searchInput.value);
+    });
+
+    searchInput.addEventListener('focus', function() {
+      renderSearchResults(searchInput.value);
+    });
+
+    searchInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        openSearchItem(searchMatches[activeSearchIndex] || searchMatches[0]);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (searchMatches.length) setActiveSearchIndex((activeSearchIndex + 1) % searchMatches.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (searchMatches.length) setActiveSearchIndex((activeSearchIndex - 1 + searchMatches.length) % searchMatches.length);
+      } else if (e.key === 'Escape') {
+        closeSearchResults();
+      }
+    });
+
+    searchResults.addEventListener('mousedown', function(e) {
+      var result = e.target.closest('.topbar-search-result');
+      if (!result) return;
+      e.preventDefault();
+      openSearchItem(searchMatches[Number(result.dataset.index)]);
+    });
+  }
+
   // ========== INIT ==========
   titleEl.textContent    = titleText;
   subtitleEl.textContent = subtitleText;
@@ -377,6 +516,7 @@
   updateNotificationCount(notificationCount);
   initTheme();
   initUserAvatar();
+  initGlobalSearch();
 
   // ========== ÉVÉNEMENTS ==========
   window.addEventListener('storage', function (e) {
@@ -407,6 +547,7 @@
 
   document.addEventListener('click', function (e) {
     if (userMenu && !userMenu.contains(e.target) && e.target !== userButton) closeUserMenu();
+    if (searchResults && searchInput && !searchResults.contains(e.target) && e.target !== searchInput && !e.target.closest('.topbar-search')) closeSearchResults();
   });
 
   // ========== ALERTES TEMPS RÉEL ==========
