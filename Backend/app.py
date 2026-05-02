@@ -23,6 +23,9 @@ CORS(app)
 
 # Configuration de la cle secrete pour signer les tokens JWT
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-cle-secrete-a-changer-en-production")
+# Token valide 8 heures (une journée de travail)
+from datetime import timedelta
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=8)
 jwt = JWTManager(app)
 
 # Enregistrement des routes modulaires (Blueprints)

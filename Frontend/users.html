@@ -44,16 +44,14 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    const currentSession = window.NetGuardAuth.getSession();
-    const currentUser = currentSession
-      ? { id: currentSession.username, username: currentSession.username, role: currentSession.role }
-      : null;
-
     const UsersPage = () => {
       const [users, setUsers] = useState([]);
       const [searchQuery, setSearchQuery] = useState('');
       const [toast, setToast] = useState(null);
       const [loading, setLoading] = useState(true);
+      // Session dans l'état React pour éviter la race condition au chargement
+      const [currentUser, setCurrentUser] = useState(null);
+      const [sessionChecked, setSessionChecked] = useState(false);
 
       const [isFormModalOpen, setIsFormModalOpen] = useState(false);
       const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -74,29 +72,46 @@
           if (response.ok) {
             const data = await response.json();
             console.log("📦 Utilisateurs reçus:", data);
-            setUsers(data.users.map(u => ({
+            const list = Array.isArray(data) ? data : (data.users || []);
+            setUsers(list.map(u => ({
               ...u, 
               status: "Active",
               lastLogin: u.last_login ? new Date(u.last_login).toLocaleString('fr-FR') : 'Jamais',
               lastLogout: u.last_logout ? new Date(u.last_logout).toLocaleString('fr-FR') : 'Jamais'
             })));
           } else if (response.status === 401) {
-            showToast('Session expirée', 'error');
-            setTimeout(() => window.location.href = 'login.html', 2000);
+            window.NetGuardAuth.clearSession();
+            showToast('Session expirée. Redirection...', 'error');
+            setTimeout(() => window.location.replace('login.html'), 2000);
+          } else {
+            const err = await response.json().catch(() => ({}));
+            showToast(`Erreur ${response.status}: ${err.error || 'Chargement impossible'}`, 'error');
           }
         } catch (error) {
           console.error('Erreur fetchUsers:', error);
-          showToast('Erreur réseau', 'error');
+          showToast(`Erreur réseau: ${error.message}`, 'error');
         } finally {
           setLoading(false);
         }
       };
 
+      // Lire la session dans useEffect garantit que localStorage est disponible
       useEffect(() => {
+        const session = window.NetGuardAuth.getSession();
+        if (session) {
+          setCurrentUser({ id: session.username, username: session.username, role: session.role });
+        }
+        setSessionChecked(true);
+      }, []);
+
+      useEffect(() => {
+        if (!sessionChecked) return;
         if (currentUser && currentUser.role === window.NetGuardAuth.ROLES.ADMIN) {
           fetchUsers();
+        } else {
+          setLoading(false);
         }
-      }, []);
+      }, [sessionChecked, currentUser]);
 
       if (!currentUser || currentUser.role !== window.NetGuardAuth.ROLES.ADMIN) {
         return (
