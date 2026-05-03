@@ -81,7 +81,7 @@ def generate_default_interfaces(nb_ports=24):
 
 
 def ensure_interface_schema():
-    """Vérifie que la colonne type existe (sans supprimer les données)"""
+    """Vérifie que les colonnes requises existent (sans supprimer les données)"""
     conn = get_db_connection()
     try:
         cur = conn.cursor()
@@ -119,10 +119,28 @@ def ensure_interface_schema():
         
         # S'assurer que la colonne id_switch existe pour lier au switch
         if "id_switch" not in columns:
-            cur.execute("ALTER TABLE interface ADD COLUMN id_switch INT REFERENCES switchs(id_switch) ON DELETE CASCADE")
-            conn.commit()
-            logger.info("Colonne id_switch ajoutee a la table interface")
+            try:
+                cur.execute("ALTER TABLE interface ADD COLUMN id_switch INT REFERENCES switchs(id_switch) ON DELETE CASCADE")
+                conn.commit()
+                logger.info("Colonne id_switch ajoutee a la table interface")
+            except Exception as alter_error:
+                logger.warning(f"Impossible d'ajouter la colonne id_switch: {alter_error}")
+                conn.rollback()
         
+        # Ajouter la colonne static_mac pour le port security
+        if "static_mac" not in columns:
+            try:
+                cur.execute("""
+                    ALTER TABLE interface 
+                    ADD COLUMN static_mac VARCHAR(17) DEFAULT NULL
+                """)
+                conn.commit()
+                logger.info("Colonne interface.static_mac ajoutee (adresse MAC statique)")
+            except Exception as alter_error:
+                logger.warning(f"Impossible d'ajouter la colonne static_mac: {alter_error}")
+                conn.rollback()
+        else:
+            logger.info("La colonne static_mac existe deja dans la table interface")
                 
     except Exception as e:
         conn.rollback()
@@ -183,9 +201,9 @@ def initialize_default_interfaces():
                 cur.execute("""
                     INSERT INTO interface (
                         id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
-                        speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
+                        speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard, static_mac
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     next_id,
                     item["nom"],
@@ -202,6 +220,7 @@ def initialize_default_interfaces():
                     item["max_mac"],
                     item["violation_mode"],
                     item["bpdu_guard"],
+                    None,  # static_mac non définie par défaut
                 ))
                 next_id += 1
                 inserted_count += 1
@@ -236,6 +255,7 @@ def row_to_interface(row):
         "max_mac": row["max_mac"],
         "violation_mode": row["violation_mode"],
         "bpdu_guard": row["bpdu_guard"],
+        "static_mac": row.get("static_mac"),  # Adresse MAC statique pour port security
     }
 
 
@@ -289,6 +309,16 @@ def normalize_interface_payload(data, forced_id=None):
     if type_value not in ("access", "uplink"):
         raise ValueError("type doit etre 'access' (port cuivre) ou 'uplink' (port fibre SFP+)")
 
+    # Validation de l'adresse MAC statique (optionnel)
+    static_mac_raw = str(data.get("static_mac", "")).strip() if data.get("static_mac") else None
+    static_mac = None
+    if static_mac_raw:
+        # Format MAC: XX:XX:XX:XX:XX:XX ou XXXXXXXXXXXX
+        if len(static_mac_raw.replace(":", "")) == 12:
+            static_mac = static_mac_raw.upper()
+        else:
+            logger.warning(f"Format MAC invalide: {static_mac_raw}")
+
     payload = {
         "id_interface": id_interface,
         "nom": str(data.get("nom", "")).strip(),
@@ -305,6 +335,7 @@ def normalize_interface_payload(data, forced_id=None):
         "max_mac": max_mac,
         "violation_mode": str(data.get("violation_mode", "shutdown")).strip().lower() or "shutdown",
         "bpdu_guard": bool(data.get("bpdu_guard", False)),
+        "static_mac": static_mac,
     }
 
     if not payload["nom"]:
@@ -329,21 +360,25 @@ def get_interfaces():
         
         query = """
             SELECT id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
-                   speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
+                   speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard, static_mac
             FROM interface
         """
         
         if id_switch:
             query += " WHERE id_switch = %s ORDER BY id_interface ASC"
             cur.execute(query, (id_switch,))
+            logger.info(f"[API] GET interfaces pour switch_id={id_switch}")
         else:
             query += " ORDER BY id_interface ASC"
             cur.execute(query)
+            logger.info(f"[API] GET all interfaces")
             
         rows = cur.fetchall()
         interfaces = [row_to_interface(row) for row in rows]
+        logger.debug(f"[API] Retour: {len(interfaces)} interfaces")
         return jsonify({"success": True, "count": len(interfaces), "interfaces": interfaces})
     except Exception as e:
+        logger.exception(f"[API] Erreur GET interfaces")
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
         conn.close()
@@ -355,6 +390,7 @@ def create_interface():
     try:
         payload = normalize_interface_payload(request.get_json())
     except ValueError as e:
+        logger.warning(f"[API] Erreur validation create_interface: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 400
 
     conn = get_db_connection()
@@ -364,11 +400,13 @@ def create_interface():
         # Vérifier si l'ID existe déjà
         cur.execute("SELECT 1 FROM interface WHERE id_interface = %s", (payload["id_interface"],))
         if cur.fetchone():
+            logger.warning(f"[API] Interface {payload['id_interface']} existe déjà")
             return jsonify({"success": False, "error": f"Interface {payload['id_interface']} existe deja"}), 409
 
         # Vérifier si le nom existe déjà
         cur.execute("SELECT 1 FROM interface WHERE nom = %s", (payload["nom"],))
         if cur.fetchone():
+            logger.warning(f"[API] Interface {payload['nom']} existe déjà")
             return jsonify({"success": False, "error": f"L'interface {payload['nom']} existe deja"}), 409
 
         validate_vlan_reference(cur, payload["vlan_id"])
@@ -376,11 +414,11 @@ def create_interface():
         cur.execute("""
             INSERT INTO interface (
                 id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
-                speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
+                speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard, static_mac
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
-                      speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
+                      speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard, static_mac
         """, (
             payload["id_interface"],
             payload["nom"],
@@ -397,19 +435,12 @@ def create_interface():
             payload["max_mac"],
             payload["violation_mode"],
             payload["bpdu_guard"],
+            payload["static_mac"],
         ))
         row = cur.fetchone()
         conn.commit()
+        logger.info(f"[API] Interface {payload['nom']} créée avec succès")
         
-        # Émettre un événement pour rafraîchir le dashboard
-        try:
-            import sys
-            if 'flask' in sys.modules:
-                from flask import current_app
-                current_app.logger.info("Interface creee avec succes")
-        except:
-            pass
-            
         return jsonify({
             "success": True,
             "message": "Interface creee avec succes",
@@ -417,6 +448,7 @@ def create_interface():
         }), 201
     except Exception as e:
         conn.rollback()
+        logger.exception(f"[API] Erreur create_interface")
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
         conn.close()
@@ -428,6 +460,7 @@ def update_interface(interface_id):
     try:
         payload = normalize_interface_payload(request.get_json() or {}, forced_id=interface_id)
     except ValueError as e:
+        logger.warning(f"[API] Erreur validation update_interface: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 400
 
     conn = get_db_connection()
@@ -450,10 +483,11 @@ def update_interface(interface_id):
                 port_security = %s,
                 max_mac = %s,
                 violation_mode = %s,
-                bpdu_guard = %s
+                bpdu_guard = %s,
+                static_mac = %s
             WHERE id_interface = %s
             RETURNING id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
-                      speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
+                      speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard, static_mac
         """, (
             payload["nom"],
             payload["ip"],
@@ -469,14 +503,17 @@ def update_interface(interface_id):
             payload["max_mac"],
             payload["violation_mode"],
             payload["bpdu_guard"],
+            payload["static_mac"],
             interface_id,
         ))
         row = cur.fetchone()
         if not row:
             conn.rollback()
+            logger.warning(f"[API] Interface {interface_id} introuvable pour update")
             return jsonify({"success": False, "error": "Interface introuvable"}), 404
 
         conn.commit()
+        logger.info(f"[API] Interface {interface_id} mise à jour avec succès")
         return jsonify({
             "success": True,
             "message": f"Interface {interface_id} mise a jour avec succes",
@@ -484,6 +521,7 @@ def update_interface(interface_id):
         })
     except Exception as e:
         conn.rollback()
+        logger.exception(f"[API] Erreur update_interface")
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
         conn.close()
@@ -499,14 +537,16 @@ def delete_interface(interface_id):
             DELETE FROM interface
             WHERE id_interface = %s
             RETURNING id_interface, nom, ip, vlan_id, equipement_id, status, mode, type,
-                      speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
+                      speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard, static_mac
         """, (interface_id,))
         row = cur.fetchone()
         if not row:
             conn.rollback()
+            logger.warning(f"[API] Interface {interface_id} introuvable pour suppression")
             return jsonify({"success": False, "error": "Interface introuvable"}), 404
 
         conn.commit()
+        logger.info(f"[API] Interface {interface_id} supprimée avec succès")
         return jsonify({
             "success": True,
             "message": f"Interface {interface_id} supprimee avec succes",
@@ -514,6 +554,7 @@ def delete_interface(interface_id):
         })
     except Exception as e:
         conn.rollback()
+        logger.exception(f"[API] Erreur delete_interface")
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
         conn.close()
@@ -525,6 +566,7 @@ def reset_interfaces():
     # Vérifier les droits admin
     auth_header = request.headers.get('Authorization')
     if not auth_header:
+        logger.warning(f"[API] Tentative de reset sans authentification")
         return jsonify({"success": False, "error": "Authentification requise"}), 401
     
     conn = get_db_connection()
@@ -534,13 +576,14 @@ def reset_interfaces():
         # Vider la table
         cur.execute("TRUNCATE TABLE interface RESTART IDENTITY")
         conn.commit()
-        logger.info("Table interface videe par demande explicite")
+        logger.info("[API] Table interface vidée par demande explicite")
         
         # Fermer la connexion
         conn.close()
         
         # Réinitialiser avec les valeurs par défaut
         initialize_default_interfaces()
+        logger.info("[API] Interfaces réinitialisées avec les valeurs par défaut")
         
         return jsonify({
             "success": True,
@@ -548,6 +591,8 @@ def reset_interfaces():
         })
     except Exception as e:
         conn.rollback()
+        logger.exception(f"[API] Erreur reset_interfaces")
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
-        conn.close()
+        if not conn.closed:
+            conn.close()

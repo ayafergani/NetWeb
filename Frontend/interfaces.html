@@ -181,6 +181,7 @@
       // TFTP
       const [tftpServer, setTftpServer] = useState('');
       const [tftpFilename, setTftpFilename] = useState('running-config.cfg');
+      const [tftpConfigType, setTftpConfigType] = useState('running'); // 'running' | 'startup'
       const [tftpResult, setTftpResult] = useState(null);
       const [isTftpRunning, setIsTftpRunning] = useState(false);
       const [tftpMode, setTftpMode] = useState('backup'); // 'backup' | 'restore'
@@ -468,12 +469,16 @@
           const res = await fetch(endpoint, {
             method: 'POST',
             headers: auth.getAuthHeaders(),
-            body: JSON.stringify({ tftp_server: tftpServer, filename: tftpFilename }),
+            body: JSON.stringify({ 
+              tftp_server: tftpServer, 
+              filename: tftpFilename,
+              config_type: tftpConfigType  // Ajouter le paramètre config_type
+            }),
           });
           const data = await res.json();
           setTftpResult(data);
           if (data.success) {
-            showToast(tftpMode === 'backup' ? `✅ Config sauvegardée sur ${tftpServer}` : `✅ Config restaurée depuis ${tftpServer}`);
+            showToast(tftpMode === 'backup' ? `✅ ${data.config_type}-config sauvegardée sur ${tftpServer}` : `✅ ${data.config_type}-config restaurée depuis ${tftpServer}`);
           } else {
             showToast(`❌ TFTP échoué : ${data.error || 'Erreur inconnue'}`, 'error');
           }
@@ -662,7 +667,7 @@
                   <p className="text-[11px] text-cyan-600 mt-0.5">Sauvegardez ou restaurez la running-config du switch via un serveur TFTP.</p>
                 </div>
               </div>
-              <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div className="p-5 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 {/* Mode */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Opération</label>
@@ -677,9 +682,23 @@
                     </button>
                   </div>
                   <p className="mt-1.5 text-[10px] text-slate-400 italic">
-                    {tftpMode === 'backup' ? 'copy running-config → TFTP' : 'copy TFTP → running-config'}
+                    {tftpMode === 'backup' ? 'copy config → TFTP' : 'copy TFTP → config'}
                   </p>
                 </div>
+
+                {/* Type de config */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Type Config</label>
+                  <select value={tftpConfigType} onChange={(e) => setTftpConfigType(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl p-2.5 text-sm font-mono outline-none focus:border-cyan-400 bg-white">
+                    <option value="running">running-config</option>
+                    <option value="startup">startup-config</option>
+                  </select>
+                  <p className="mt-1.5 text-[10px] text-slate-400 italic">
+                    {tftpConfigType === 'running' ? 'RAM (live)' : 'NVRAM (persistent)'}
+                  </p>
+                </div>
+
                 {/* IP serveur TFTP */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Serveur TFTP (IP)</label>
@@ -688,6 +707,7 @@
                     placeholder="192.168.1.100"
                     className="w-full border border-slate-200 rounded-xl p-2.5 text-sm font-mono outline-none focus:border-cyan-400" />
                 </div>
+
                 {/* Nom de fichier */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Nom du fichier</label>
