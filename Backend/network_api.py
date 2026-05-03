@@ -332,6 +332,178 @@ def api_reset_interface():
     except Exception as e:
         return jsonify({"success": False, "error": str(e), "commands": reset_commands}), 500
 
+# ── Port Mirroring (SPAN) ────────────────────────────────────────────────────
+@network_bp.route("/api/network/port-mirroring", methods=["POST"])
+def api_port_mirroring():
+    """
+    Configure une session SPAN (port mirroring) sur le switch Cisco.
+
+    Body JSON attendu :
+        session_id             (int)      ex. 1
+        source_vlan            (str|int)  ex. 10
+        destination_interface  (str)      ex. "Gi1/0/19"
+    """
+    data = request.json or {}
+
+    try:
+        session_id = int(data.get("session_id", 1))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "session_id doit être un entier."}), 400
+
+    source_vlan           = str(data.get("source_vlan", "")).strip()
+    destination_interface = str(data.get("destination_interface", "")).strip()
+
+    if not source_vlan:
+        return jsonify({"success": False, "error": "source_vlan est requis."}), 400
+    if not destination_interface:
+        return jsonify({"success": False, "error": "destination_interface est requis."}), 400
+    if not source_vlan.isdigit():
+        return jsonify({"success": False, "error": "source_vlan doit être numérique."}), 400
+
+    span_commands = [
+        f"no monitor session {session_id}",
+        f"monitor session {session_id} source vlan {source_vlan} both",
+        f"monitor session {session_id} destination interface {destination_interface} ingress",
+    ]
+
+    try:
+        from network.interface_deploy import build_nornir
+        from nornir.core.task import Result, Task
+        from nornir_netmiko.tasks import netmiko_save_config
+
+        nr = build_nornir()
+        if not nr.inventory.hosts:
+            return jsonify({
+                "success": False,
+                "error": "Aucun host trouvé dans hosts.yaml.",
+                "commands": span_commands,
+            }), 500
+
+        def port_mirroring_task(task: Task) -> Result:
+            conn = task.host.get_connection("netmiko", task.nornir.config)
+            output = conn.send_config_set(
+                span_commands,
+                read_timeout=30,
+                cmd_verify=False,
+            )
+            verification = conn.send_command(f"show monitor session {session_id}")
+            return Result(host=task.host, result={
+                "output": output,
+                "verification": verification,
+            })
+
+        result = nr.run(task=port_mirroring_task, name=f"Port Mirroring Session {session_id}")
+
+        if result.failed:
+            errors = []
+            for host, host_result in result.items():
+                if host_result.failed:
+                    errors.append(f"Erreur SSH sur {host} : {host_result[0].exception}")
+            return jsonify({
+                "success": False,
+                "error": " | ".join(errors) or "Erreur inconnue.",
+                "commands": span_commands,
+            }), 500
+
+        nr.run(task=netmiko_save_config)
+
+        outputs, verifications = [], []
+        for host, host_result in result.items():
+            payload = host_result[0].result or {}
+            outputs.append(f"[{host}]\n{payload.get('output', '').strip()}".strip())
+            verifications.append(f"[{host}]\n{payload.get('verification', '').strip()}".strip())
+
+        return jsonify({
+            "success": True,
+            "message": f"Session SPAN {session_id} configurée : VLAN {source_vlan} → {destination_interface}.",
+            "commands": span_commands,
+            "output": "\n\n".join(outputs),
+            "verification": "\n\n".join(verifications),
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "commands": span_commands,
+        }), 500
+
+
+# ── Suppression session SPAN ─────────────────────────────────────────────────
+@network_bp.route("/api/network/port-mirroring/delete", methods=["POST"])
+def api_delete_port_mirroring():
+    """
+    Supprime une session SPAN (port mirroring) sur le switch Cisco.
+
+    Body JSON attendu :
+        session_id  (int)  ex. 1
+    """
+    data = request.json or {}
+
+    try:
+        session_id = int(data.get("session_id", 1))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "session_id doit être un entier."}), 400
+
+    delete_commands = [f"no monitor session {session_id}"]
+
+    try:
+        from network.interface_deploy import build_nornir
+        from nornir.core.task import Result, Task
+        from nornir_netmiko.tasks import netmiko_save_config
+
+        nr = build_nornir()
+        if not nr.inventory.hosts:
+            return jsonify({
+                "success": False,
+                "error": "Aucun host trouvé dans hosts.yaml.",
+                "commands": delete_commands,
+            }), 500
+
+        def delete_mirroring_task(task: Task) -> Result:
+            conn = task.host.get_connection("netmiko", task.nornir.config)
+            output = conn.send_config_set(delete_commands, read_timeout=20, cmd_verify=False)
+            verification = conn.send_command(f"show monitor session {session_id}")
+            return Result(host=task.host, result={
+                "output": output,
+                "verification": verification,
+            })
+
+        result = nr.run(task=delete_mirroring_task, name=f"Delete SPAN Session {session_id}")
+
+        if result.failed:
+            errors = []
+            for host, host_result in result.items():
+                if host_result.failed:
+                    errors.append(f"Erreur SSH sur {host} : {host_result[0].exception}")
+            return jsonify({
+                "success": False,
+                "error": " | ".join(errors) or "Erreur inconnue.",
+                "commands": delete_commands,
+            }), 500
+
+        nr.run(task=netmiko_save_config)
+
+        verifications = []
+        for host, host_result in result.items():
+            payload = host_result[0].result or {}
+            verifications.append(f"[{host}]\n{payload.get('verification', '').strip()}".strip())
+
+        return jsonify({
+            "success": True,
+            "message": f"Session SPAN {session_id} supprimée.",
+            "commands": delete_commands,
+            "verification": "\n\n".join(verifications),
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "commands": delete_commands,
+        }), 500
+
+
 # ── TFTP Backup : copy running-config ou startup-config → serveur TFTP ──────
 @network_bp.route("/api/network/tftp-backup", methods=["POST"])
 def api_tftp_backup():
