@@ -201,9 +201,9 @@ def initialize_default_interfaces():
                 cur.execute("""
                     INSERT INTO interface (
                         id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
-                        speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard, static_mac
+                        speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     next_id,
                     item["nom"],
@@ -219,8 +219,7 @@ def initialize_default_interfaces():
                     item["port_security"],
                     item["max_mac"],
                     item["violation_mode"],
-                    item["bpdu_guard"],
-                    None,  # static_mac non définie par défaut
+                    item["bpdu_guard"]
                 ))
                 next_id += 1
                 inserted_count += 1
@@ -255,7 +254,6 @@ def row_to_interface(row):
         "max_mac": row["max_mac"],
         "violation_mode": row["violation_mode"],
         "bpdu_guard": row["bpdu_guard"],
-        "static_mac": row.get("static_mac"),  # Adresse MAC statique pour port security
     }
 
 
@@ -264,10 +262,11 @@ def normalize_interface_payload(data, forced_id=None):
     if not isinstance(data, dict):
         raise ValueError("Le corps JSON est invalide")
 
-    raw_id = forced_id if forced_id is not None else data.get("id_interface")
-    try:
-        id_interface = int(raw_id)
-    except (TypeError, ValueError):
+    # id_interface est optionnel pour la création (POST), mais requis pour la mise à jour (PUT)
+    id_interface = None
+    if forced_id is not None: # C'est une mise à jour (PUT)
+        id_interface = int(forced_id)
+    elif data.get("id_interface") is not None: # id_interface fourni dans le payload (peut être pour un cas spécifique)
         raise ValueError("id_interface doit etre un entier")
 
     raw_vlan_id = data.get("vlan_id")
@@ -309,18 +308,8 @@ def normalize_interface_payload(data, forced_id=None):
     if type_value not in ("access", "uplink"):
         raise ValueError("type doit etre 'access' (port cuivre) ou 'uplink' (port fibre SFP+)")
 
-    # Validation de l'adresse MAC statique (optionnel)
-    static_mac_raw = str(data.get("static_mac", "")).strip() if data.get("static_mac") else None
-    static_mac = None
-    if static_mac_raw:
-        # Format MAC: XX:XX:XX:XX:XX:XX ou XXXXXXXXXXXX
-        if len(static_mac_raw.replace(":", "")) == 12:
-            static_mac = static_mac_raw.upper()
-        else:
-            logger.warning(f"Format MAC invalide: {static_mac_raw}")
-
     payload = {
-        "id_interface": id_interface,
+        "id_interface": id_interface, # Sera None pour les créations
         "nom": str(data.get("nom", "")).strip(),
         "ip": str(data.get("ip", "")).strip() or None,
         "vlan_id": vlan_id,
@@ -335,7 +324,6 @@ def normalize_interface_payload(data, forced_id=None):
         "max_mac": max_mac,
         "violation_mode": str(data.get("violation_mode", "shutdown")).strip().lower() or "shutdown",
         "bpdu_guard": bool(data.get("bpdu_guard", False)),
-        "static_mac": static_mac,
     }
 
     if not payload["nom"]:
@@ -360,7 +348,7 @@ def get_interfaces():
         
         query = """
             SELECT id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
-                   speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard, static_mac
+                   speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
             FROM interface
         """
         
@@ -397,13 +385,10 @@ def create_interface():
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
-        # Vérifier si l'ID existe déjà
-        cur.execute("SELECT 1 FROM interface WHERE id_interface = %s", (payload["id_interface"],))
-        if cur.fetchone():
-            logger.warning(f"[API] Interface {payload['id_interface']} existe déjà")
-            return jsonify({"success": False, "error": f"Interface {payload['id_interface']} existe deja"}), 409
-
-        # Vérifier si le nom existe déjà
+        # Pour la création, on ne doit pas fournir id_interface (il est SERIAL)
+        # On vérifie si le nom de l'interface existe déjà pour ce switch
+        # (Bien que le nom soit unique globalement dans la table, une vérification par switch est plus logique)
+        # Pour l'instant, la contrainte est sur le nom globalement.
         cur.execute("SELECT 1 FROM interface WHERE nom = %s", (payload["nom"],))
         if cur.fetchone():
             logger.warning(f"[API] Interface {payload['nom']} existe déjà")
@@ -412,15 +397,14 @@ def create_interface():
         validate_vlan_reference(cur, payload["vlan_id"])
 
         cur.execute("""
-            INSERT INTO interface (
-                id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
-                speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard, static_mac
+            INSERT INTO interface ( -- id_interface est SERIAL, ne pas l'inclure ici
+                nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
+                speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
-                      speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard, static_mac
+                      speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
         """, (
-            payload["id_interface"],
             payload["nom"],
             payload["ip"],
             payload["vlan_id"],
@@ -434,8 +418,7 @@ def create_interface():
             payload["port_security"],
             payload["max_mac"],
             payload["violation_mode"],
-            payload["bpdu_guard"],
-            payload["static_mac"],
+            payload["bpdu_guard"]
         ))
         row = cur.fetchone()
         conn.commit()
@@ -484,10 +467,9 @@ def update_interface(interface_id):
                 max_mac = %s,
                 violation_mode = %s,
                 bpdu_guard = %s,
-                static_mac = %s
             WHERE id_interface = %s
             RETURNING id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
-                      speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard, static_mac
+                      speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
         """, (
             payload["nom"],
             payload["ip"],
@@ -503,7 +485,6 @@ def update_interface(interface_id):
             payload["max_mac"],
             payload["violation_mode"],
             payload["bpdu_guard"],
-            payload["static_mac"],
             interface_id,
         ))
         row = cur.fetchone()
@@ -537,7 +518,7 @@ def delete_interface(interface_id):
             DELETE FROM interface
             WHERE id_interface = %s
             RETURNING id_interface, nom, ip, vlan_id, equipement_id, status, mode, type,
-                      speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard, static_mac
+                      speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
         """, (interface_id,))
         row = cur.fetchone()
         if not row:

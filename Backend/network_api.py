@@ -142,6 +142,7 @@ def api_deploy_interface():
     allowed_vlans = data.get("allowed_vlans") or None
     description   = data.get("description") or None
     static_mac    = (data.get("static_mac") or "").strip() or None
+    remove_port_security = bool(data.get("remove_port_security", False))
 
     # Validation basique
     if mode not in ("access", "trunk"):
@@ -159,6 +160,27 @@ def api_deploy_interface():
         return jsonify({"success": False, "error": "vlan_id est requis en mode access."}), 400
 
     try:
+        # Si port-security est désactivé, on envoie d'abord les commandes "no" sur le switch
+        if remove_port_security:
+            try:
+                from network.interface_deploy import build_nornir
+                from nornir_netmiko.tasks import netmiko_send_config
+                nr = build_nornir()
+                if nr.inventory.hosts:
+                    no_ps_commands = [
+                        f"interface {interface_name}",
+                        "no switchport port-security",
+                        "no switchport port-security maximum",
+                        "no switchport port-security violation",
+                        "no switchport port-security mac-address sticky",
+                        "exit",
+                    ]
+                    nr.run(task=netmiko_send_config, config_commands=no_ps_commands,
+                           name=f"Remove port-security {interface_name}")
+                    logger.info(f"[deploy-interface] Port-security supprimé sur {interface_name}")
+            except Exception as ps_err:
+                logger.warning(f"[deploy-interface] Avertissement suppression port-security: {ps_err}")
+
         result = run_deploy_interface(
             interface_name=interface_name,
             mode=mode,
@@ -176,6 +198,70 @@ def api_deploy_interface():
         return jsonify(result), http_code
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ── Suppression / Reset d'une interface sur le switch ────────────────────────
+@network_bp.route("/api/network/remove-port-security", methods=["POST"])
+def api_remove_port_security():
+    """
+    Supprime le port-security d'une interface Cisco via SSH.
+    Envoie les commandes 'no switchport port-security ...' sur le switch.
+
+    Body JSON attendu :
+        interface_name  (str)  ex. "GigabitEthernet1/0/1"
+    """
+    data = request.json or {}
+    interface_name = data.get("interface_name", "").strip()
+    if not interface_name:
+        return jsonify({"success": False, "error": "interface_name est requis."}), 400
+
+    remove_commands = [
+        f"interface {interface_name}",
+        "no switchport port-security",
+        "no switchport port-security maximum",
+        "no switchport port-security violation",
+        "no switchport port-security mac-address sticky",
+        "exit",
+    ]
+
+    try:
+        from network.interface_deploy import build_nornir
+        from nornir_netmiko.tasks import netmiko_send_config, netmiko_save_config
+
+        nr = build_nornir()
+        if not nr.inventory.hosts:
+            return jsonify({
+                "success": False,
+                "error": "Aucun host trouvé dans hosts.yaml.",
+                "commands": remove_commands,
+            }), 500
+
+        result = nr.run(
+            task=netmiko_send_config,
+            config_commands=remove_commands,
+            name=f"Remove port-security {interface_name}",
+        )
+
+        if result.failed:
+            errors = []
+            for host, host_result in result.items():
+                if host_result.failed:
+                    errors.append(f"Erreur SSH sur {host} : {host_result[0].exception}")
+            return jsonify({
+                "success": False,
+                "error": " | ".join(errors) or "Erreur inconnue.",
+                "commands": remove_commands,
+            }), 500
+
+        nr.run(task=netmiko_save_config)
+        return jsonify({
+            "success": True,
+            "message": f"Port-security supprimé sur {interface_name}.",
+            "commands": remove_commands,
+        }), 200
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "commands": remove_commands}), 500
 
 
 # ── Suppression / Reset d'une interface sur le switch ────────────────────────
