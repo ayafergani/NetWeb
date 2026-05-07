@@ -778,6 +778,32 @@
                   <p className="text-[11px] text-cyan-600 mt-0.5">Sauvegardez ou restaurez la running-config du switch via un serveur TFTP.</p>
                 </div>
               </div>
+              {/* ── Avertissement ICMP/ACL ── */}
+              <div className="mx-5 mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+                <span className="text-amber-500 text-lg mt-0.5">⚠️</span>
+                <div className="w-full">
+                  <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wide mb-1">Pré-requis TFTP — Ping bloqué ?</p>
+                  <p className="text-[10px] text-amber-700 leading-relaxed mb-2">
+                    Si le switch ne peut pas pinguer le serveur TFTP, le transfert échouera silencieusement. Vérifiez qu'aucune ACL ne bloque ICMP sur l'interface de management, puis testez depuis le switch :
+                  </p>
+                  <pre className="text-[10px] font-mono text-amber-900 bg-amber-100 rounded p-2 whitespace-pre-wrap">{`! 1. Tester la connectivité (depuis le switch en mode enable) :
+ping ${tftpServer || '<IP-serveur-TFTP>'}
+
+! 2. Si le ping échoue → lever l'ACL sur l'interface de management :
+conf t
+  interface vlan 1
+    no ip access-group <nom-acl> in
+    no ip access-group <nom-acl> out
+end
+
+! 3. Vérifier qu'une route existe vers le serveur TFTP :
+show ip route ${tftpServer || '<IP-serveur-TFTP>'}
+
+! 4. Vérifier les ACLs actives :
+show ip access-lists`}</pre>
+                </div>
+              </div>
+
               <div className="p-5 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 {/* Mode */}
                 <div>

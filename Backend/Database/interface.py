@@ -266,8 +266,11 @@ def normalize_interface_payload(data, forced_id=None):
     id_interface = None
     if forced_id is not None: # C'est une mise à jour (PUT)
         id_interface = int(forced_id)
-    elif data.get("id_interface") is not None: # id_interface fourni dans le payload (peut être pour un cas spécifique)
-        raise ValueError("id_interface doit etre un entier")
+    elif data.get("id_interface") is not None:
+        try:
+            id_interface = int(data["id_interface"])
+        except (TypeError, ValueError):
+            raise ValueError("id_interface doit etre un entier")
 
     raw_vlan_id = data.get("vlan_id")
     vlan_id = None if raw_vlan_id in (None, "", "All") else raw_vlan_id
@@ -466,7 +469,7 @@ def update_interface(interface_id):
                 port_security = %s,
                 max_mac = %s,
                 violation_mode = %s,
-                bpdu_guard = %s,
+                bpdu_guard = %s
             WHERE id_interface = %s
             RETURNING id_interface, nom, ip, vlan_id, id_switch, equipement_id, status, mode, type,
                       speed, allowed_vlans, port_security, max_mac, violation_mode, bpdu_guard
