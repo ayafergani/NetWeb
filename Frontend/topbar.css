@@ -231,6 +231,75 @@
   color: currentColor !important;
 }
 
+.detection-btn {
+  border: 1px solid transparent !important;
+  border-radius: 12px !important;
+  min-height: 42px !important;
+  padding: 0 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease !important;
+}
+
+.detection-btn--start {
+  background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+  box-shadow: 0 10px 20px -14px rgba(34, 197, 94, 0.9) !important;
+}
+
+.detection-btn--stop {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  box-shadow: 0 10px 20px -14px rgba(239, 68, 68, 0.9) !important;
+}
+
+.detection-btn:hover:not(:disabled) {
+  transform: translateY(-1px) !important;
+}
+
+.detection-btn:disabled {
+  opacity: 0.65 !important;
+  cursor: not-allowed !important;
+}
+
+.detection-btn svg {
+  width: 15px !important;
+  height: 15px !important;
+  flex-shrink: 0 !important;
+}
+
+.detection-toast {
+  position: fixed !important;
+  top: 84px !important;
+  right: 24px !important;
+  z-index: 10000 !important;
+  max-width: min(360px, calc(100vw - 32px)) !important;
+  padding: 12px 16px !important;
+  border-radius: 14px !important;
+  background: #dcfce7 !important;
+  border: 1px solid #86efac !important;
+  color: #166534 !important;
+  box-shadow: 0 18px 36px -18px rgba(15, 23, 42, 0.35) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.detection-toast[hidden] {
+  display: none !important;
+}
+
+.detection-toast--error {
+  background: #fee2e2 !important;
+  border-color: #fca5a5 !important;
+  color: #991b1b !important;
+}
+
 /* ============================================
    NOTIFICATIONS
    ============================================ */
@@ -352,6 +421,10 @@
   .topbar-search input {
     width: 100% !important;
   }
+
+  .detection-btn {
+    flex: 1 1 160px !important;
+  }
 }
 
 /* FORCE APPLY - S'assure que les styles s'appliquent même après injection JS */
@@ -429,6 +502,12 @@
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
+}
+
+@media (max-width: 880px) {
+  .detection-btn {
+    flex: 1 1 160px !important;
+  }
 }
 /* ============================================================
    MODAL PROFIL — ng-profile-*
@@ -958,4 +1037,18 @@
 .dark-mode .topbar-search-empty,
 .dark .topbar-search-empty {
   color: #94a3b8 !important;
+}
+
+.dark-mode .detection-toast,
+.dark .detection-toast {
+  background: rgba(22, 101, 52, 0.94) !important;
+  border-color: rgba(134, 239, 172, 0.35) !important;
+  color: #dcfce7 !important;
+}
+
+.dark-mode .detection-toast--error,
+.dark .detection-toast--error {
+  background: rgba(127, 29, 29, 0.94) !important;
+  border-color: rgba(252, 165, 165, 0.35) !important;
+  color: #fee2e2 !important;
 }
