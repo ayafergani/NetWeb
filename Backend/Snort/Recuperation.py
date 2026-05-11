@@ -13,17 +13,45 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Database.db import get_db_connection as connect_db
 
 
+REMOTE_SNORT_USER = "Aya"
+REMOTE_SNORT_HOST = "10.10.10.31"
+REMOTE_SNORT_CONFIG = "/etc/snort/snort.conf"
+REMOTE_SNORT_LOG_DIR = "/var/log/snort"
+REMOTE_SNORT_ALERT_FILE = "/var/log/snort/alert"
+SSH_OPTIONS = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10"]
+SAFE_INTERFACE_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]+$")
+
+
+def print_sudo_setup_commands():
+    """Affiche les commandes Ubuntu pour autoriser Snort sans mot de passe."""
+    print(f"""
+# A executer une seule fois sur Ubuntu ({REMOTE_SNORT_HOST}) avec un compte sudo.
+# Cela ne desactive pas sudo globalement: seul l'utilisateur {REMOTE_SNORT_USER}
+# pourra lancer les commandes necessaires sans demande de mot de passe.
+
+SNORT_BIN=$(command -v snort)
+PKILL_BIN=$(command -v pkill)
+IP_BIN=$(command -v ip)
+TAIL_BIN=$(command -v tail)
+
+echo "{REMOTE_SNORT_USER} ALL=(ALL) NOPASSWD: $SNORT_BIN, $PKILL_BIN, $IP_BIN, $TAIL_BIN" | sudo tee /etc/sudoers.d/snort-web
+sudo chmod 440 /etc/sudoers.d/snort-web
+sudo visudo -cf /etc/sudoers.d/snort-web
+""".strip())
+
+
 class SnortManager:
-    def __init__(self, interface="5", log_dir="C:\\Snort\\log"):
+    def __init__(self, interface="enp0s8", log_dir="C:\\Snort\\log"):
         """
         Args:
-            interface: Nom de l'interface réseau Windows (ex: "Ethernet", "Wi-Fi")
-            log_dir: Dossier des logs Snort
+            interface: Nom de l'interface reseau distante (ex: "enp0s8")
+            log_dir: Dossier local conserve pour compatibilite
         """
         self.interface = interface
         self.log_dir = log_dir
         self.alert_file = os.path.join(log_dir, "alert")  # Format fast alert
         self.snort_process = None
+        self.alert_tail_process = None
         self.snort_running = False
         self.alert_count = 0
         self.db_connection = None
@@ -206,40 +234,56 @@ class SnortManager:
             return False
     
     def start_snort(self):
-        """Démarre Snort sur Windows"""
+        """Demarre Snort a distance via SSH sur le serveur Linux"""
         try:
-            # Commande Snort pour Windows (format fast alert)
-            cmd = f'C:\\Snort\\bin\\snort.exe -A console -c C:\\Snort\\etc\\snort.conf -i {self.interface} -l "{self.log_dir}"'
+            # Commande fixe: le backend lance Snort sur le serveur Linux via SSH.
+            if not SAFE_INTERFACE_PATTERN.match(self.interface):
+                print(f"Interface invalide: {self.interface}")
+                return False
+
+            remote_target = f"{REMOTE_SNORT_USER}@{REMOTE_SNORT_HOST}"
+            remote_cmd = (
+                f"sudo -n pkill snort || true; "
+                f"sudo -n ip link set {self.interface} promisc on; "
+                f"sudo -n snort -D -i {self.interface} -A fast "
+                f"-l {REMOTE_SNORT_LOG_DIR} -c {REMOTE_SNORT_CONFIG} -k none"
+            )
+            cmd = ["ssh", *SSH_OPTIONS, remote_target, remote_cmd]
             
             print(f"\n{'=' * 80}")
-            print(f"🔍 SNORT - SURVEILLANCE RÉSEAU (Windows)")
+            print("SNORT - SURVEILLANCE RESEAU (serveur Linux distant)")
             print(f"{'=' * 80}")
-            print(f"📡 Interface: {self.interface}")
-            print(f"📁 Logs: {self.log_dir}")
-            print(f"💾 Base de données: {'✅ Activée' if self.db_connection else '❌ Désactivée'}")
+            print(f"Serveur: {remote_target}")
+            print(f"Interface distante: {self.interface}")
+            print(f"Alertes distantes: {REMOTE_SNORT_ALERT_FILE}")
+            print(f"Base de donnees: {'Activee' if self.db_connection else 'Desactivee'}")
             print(f"{'=' * 80}\n")
             
-            # Démarrer Snort sans fenêtre
-            self.snort_process = subprocess.Popen(
+            # La commande Snort distante est lancee en daemon avec -D.
+            result = subprocess.run(
                 cmd,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+                capture_output=True,
+                text=True,
+                timeout=30
             )
+
+            if result.returncode != 0:
+                print(f"Erreur SSH/Snort: {result.stderr.strip()}")
+                print("Configurez une cle SSH et sudo sans mot de passe pour cette commande.")
+                print("Aide: python Recuperation.py --show-sudo-setup")
+                return False
+
+            self.snort_process = None
             self.snort_running = True
-            
-            # Thread pour surveiller les alertes
+
             thread = threading.Thread(target=self._tail_alerts, daemon=True)
             thread.start()
             
-            # Thread pour les statistiques paquets (Windows)
-            stats_thread = threading.Thread(target=self._update_packet_stats_windows, daemon=True)
-            stats_thread.start()
+            print("Detection active")
             
             return True
         except Exception as e:
-            print(f"❌ Erreur démarrage Snort: {e}")
+            print(f"Erreur demarrage Snort: {e}")
             return False
     
     def _update_packet_stats_windows(self):
@@ -275,6 +319,50 @@ class SnortManager:
     def _tail_alerts(self):
         """Surveille le fichier d'alertes en temps réel"""
         time.sleep(2)
+
+        remote_target = f"{REMOTE_SNORT_USER}@{REMOTE_SNORT_HOST}"
+        cmd = [
+            "ssh",
+            *SSH_OPTIONS,
+            remote_target,
+            f"sudo -n tail -n 0 -F {REMOTE_SNORT_ALERT_FILE}"
+        ]
+
+        try:
+            self.alert_tail_process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+            while self.snort_running and self.alert_tail_process.poll() is None:
+                line = self.alert_tail_process.stdout.readline()
+                if not line:
+                    time.sleep(0.1)
+                    continue
+
+                line = line.strip()
+                if not line or "[**]" not in line:
+                    continue
+
+                self.alert_count += 1
+                alert = self.parse_alert(line, line)
+                severity_text = self.convert_severity(alert['severity'])
+
+                print(f"\nALERTE #{self.alert_count}: {alert['attack_type']} [{severity_text}]")
+                print(f"   {alert['src_ip']}:{alert['src_port']} -> {alert['dst_ip']}:{alert['dst_port']}")
+
+                if self.db_connection:
+                    self.save_to_db(alert)
+
+            if self.snort_running and self.alert_tail_process.returncode:
+                error = self.alert_tail_process.stderr.read().strip()
+                print(f"Erreur lecture alertes distantes: {error}")
+        except Exception as e:
+            print(f"Erreur lecture alertes distantes: {e}")
+
+        return
         
         while self.snort_running and self.snort_process and self.snort_process.poll() is None:
             if os.path.exists(self.alert_file):
@@ -314,6 +402,21 @@ class SnortManager:
     def stop_snort(self):
         """Arrête Snort proprement"""
         try:
+            remote_target = f"{REMOTE_SNORT_USER}@{REMOTE_SNORT_HOST}"
+            subprocess.run(
+                ["ssh", *SSH_OPTIONS, remote_target, "sudo -n pkill snort"],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if self.alert_tail_process:
+                self.alert_tail_process.terminate()
+                try:
+                    self.alert_tail_process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    self.alert_tail_process.kill()
+
             if self.snort_process:
                 self.snort_process.terminate()
                 try:
@@ -345,7 +448,7 @@ class SnortManager:
 _snort_manager = None
 
 
-def start_snort(interface="Ethernet"):
+def start_snort(interface="enp0s8"):
     """Démarre Snort (fonction externe)"""
     global _snort_manager
     if _snort_manager is None:
@@ -379,11 +482,16 @@ def get_alert_count():
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Snort Manager Windows")
-    parser.add_argument("--interface", default="Ethernet", help="Nom de l'interface réseau")
+    parser = argparse.ArgumentParser(description="Snort Manager SSH")
+    parser.add_argument("--interface", default="enp0s8", help="Nom de l'interface reseau distante")
     parser.add_argument("--log-dir", default="C:\\Snort\\log", help="Dossier des logs")
+    parser.add_argument("--show-sudo-setup", action="store_true", help="Afficher les commandes sudoers a executer sur Ubuntu")
     
     args = parser.parse_args()
+
+    if args.show_sudo_setup:
+        print_sudo_setup_commands()
+        sys.exit(0)
     
     manager = SnortManager(interface=args.interface, log_dir=args.log_dir)
     try:

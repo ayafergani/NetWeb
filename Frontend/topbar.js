@@ -81,6 +81,13 @@
           <div id="topbar-search-results" class="topbar-search-results" role="listbox" hidden></div>
         </div>
 
+        <button type="button" id="topbar-detection-toggle" class="detection-btn detection-btn--start" aria-label="Lancer la detection" data-active="false">
+          <svg id="topbar-detection-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M8 5v14l11-7z"></path>
+          </svg>
+          <span id="topbar-detection-label">Start detection</span>
+        </button>
+
         <div class="notif-wrapper">
           <button type="button" id="topbar-notif-button" class="icon-button" aria-label="Notifications">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -132,6 +139,8 @@
         </div>
       </div>
     </header>
+
+    <div id="topbar-detection-toast" class="detection-toast" role="status" aria-live="polite" hidden></div>
 
     <!-- ===================== MODAL PROFIL ===================== -->
     <div id="topbar-profile-modal" class="ng-profile-overlay" role="dialog" aria-modal="true" aria-labelledby="ng-profile-title">
@@ -235,6 +244,8 @@
   const profileModal = document.getElementById('topbar-profile-modal');
   const searchInput  = document.getElementById('topbar-search-input');
   const searchResults = document.getElementById('topbar-search-results');
+  const detectionToggleBtn = document.getElementById('topbar-detection-toggle');
+  const detectionToast     = document.getElementById('topbar-detection-toast');
 
   // ========== AVATAR + DROPDOWN ==========
   function initUserAvatar() {
@@ -339,6 +350,41 @@
     var value = Number(count) || 0;
     countEl.textContent = value > 99 ? '99+' : value;
     countEl.style.display = value > 0 ? 'flex' : 'none';
+  }
+
+  function showDetectionToast(message, isError) {
+    if (!detectionToast) return;
+    detectionToast.textContent = message;
+    detectionToast.classList.toggle('detection-toast--error', !!isError);
+    detectionToast.hidden = false;
+    clearTimeout(showDetectionToast.timer);
+    showDetectionToast.timer = setTimeout(function () {
+      detectionToast.hidden = true;
+    }, 3500);
+  }
+
+  async function callDetection(endpoint, button, loadingText) {
+    var originalHTML = button ? button.innerHTML : '';
+    try {
+      if (button) {
+        button.disabled = true;
+        var labelEl = button.querySelector('#topbar-detection-label') || button.querySelector('span');
+        if (labelEl) labelEl.textContent = loadingText;
+      }
+
+      var res = await fetch('http://localhost:5000' + endpoint, { method: 'POST' });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.message || data.error || 'Erreur serveur');
+
+      showDetectionToast(data.message || 'Action effectuée avec succès', false);
+    } catch (e) {
+      showDetectionToast(e.message || 'Impossible de contacter le serveur', true);
+      // Restaurer le HTML original en cas d'erreur
+      if (button) button.innerHTML = originalHTML;
+      throw e; // Re-throw pour que le .then() du toggle ne soit pas appelé
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
 
   function setTheme(isDark) {
@@ -525,6 +571,44 @@
   });
 
   if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+  if (detectionToggleBtn) {
+    detectionToggleBtn.addEventListener('click', function () {
+      var isActive = detectionToggleBtn.dataset.active === 'true';
+      if (!isActive) {
+        // Passer en mode "actif" → appeler start, switcher vers Stop
+        callDetection('/start-detection', detectionToggleBtn, 'Lancement...').then(function () {
+          detectionToggleBtn.dataset.active = 'true';
+          detectionToggleBtn.classList.remove('detection-btn--start');
+          detectionToggleBtn.classList.add('detection-btn--stop');
+          detectionToggleBtn.setAttribute('aria-label', 'Arrêter la détection');
+          document.getElementById('topbar-detection-label').textContent = 'Stop detection';
+          document.getElementById('topbar-detection-icon').innerHTML =
+            '<rect x="7" y="7" width="10" height="10" rx="1.5"></rect>';
+          document.getElementById('topbar-detection-icon').setAttribute('fill', 'none');
+          document.getElementById('topbar-detection-icon').setAttribute('stroke', 'currentColor');
+          document.getElementById('topbar-detection-icon').setAttribute('stroke-width', '2.4');
+          document.getElementById('topbar-detection-icon').setAttribute('stroke-linecap', 'round');
+          document.getElementById('topbar-detection-icon').setAttribute('stroke-linejoin', 'round');
+        });
+      } else {
+        // Passer en mode "inactif" → appeler stop, switcher vers Start
+        callDetection('/stop-detection', detectionToggleBtn, 'Arrêt...').then(function () {
+          detectionToggleBtn.dataset.active = 'false';
+          detectionToggleBtn.classList.remove('detection-btn--stop');
+          detectionToggleBtn.classList.add('detection-btn--start');
+          detectionToggleBtn.setAttribute('aria-label', 'Lancer la détection');
+          document.getElementById('topbar-detection-label').textContent = 'Start detection';
+          var icon = document.getElementById('topbar-detection-icon');
+          icon.setAttribute('fill', 'currentColor');
+          icon.removeAttribute('stroke');
+          icon.removeAttribute('stroke-width');
+          icon.removeAttribute('stroke-linecap');
+          icon.removeAttribute('stroke-linejoin');
+          icon.innerHTML = '<path d="M8 5v14l11-7z"></path>';
+        });
+      }
+    });
+  }
 
   userButton.addEventListener('click', function (e) {
     e.stopPropagation();

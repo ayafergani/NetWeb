@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify
 from network.deploy_vlan import run_deploy as run_deploy_vlan
 from network.interface_deploy import run_deploy as run_deploy_interface
+import subprocess
+import sys
 import yaml, os
 import logging
 from datetime import datetime
@@ -9,6 +11,7 @@ network_bp = Blueprint('network', __name__)
 logger = logging.getLogger(__name__)
 
 HOSTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "network", "hosts.yaml")
+RECUPERATION_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Snort", "Recuperation.py")
 
 
 def _load_hosts():
@@ -19,6 +22,43 @@ def _load_hosts():
 def _save_hosts(data):
     with open(HOSTS_FILE, "w") as f:
         yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+
+
+@network_bp.route("/start-detection", methods=["POST"])
+def start_detection():
+    """Lance Snort et le script de recuperation sans bloquer Flask."""
+    try:
+        subprocess.Popen([
+            "sudo", "snort", "-D", "-i", "enp0s8", "-c", "/etc/snort/snort.conf"
+        ])
+        subprocess.Popen([sys.executable, RECUPERATION_SCRIPT])
+
+        return jsonify({
+            "status": "ok",
+            "message": "Détection lancée",
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+        }), 500
+
+
+@network_bp.route("/stop-detection", methods=["POST"])
+def stop_detection():
+    """Arrete Snort sans bloquer Flask."""
+    try:
+        subprocess.Popen(["sudo", "pkill", "snort"])
+
+        return jsonify({
+            "status": "ok",
+            "message": "Détection arrêtée",
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+        }), 500
 
 
 # ── Lire la config du switch depuis hosts.yaml ────────────────────────────────
