@@ -967,7 +967,7 @@ show ip access-lists`}</pre>
 {`conf t
 no monitor session ${mirroringSessionId || '1'}
 monitor session ${mirroringSessionId || '1'} source vlan ${mirroringSourceVlan || '10'} both
-monitor session ${mirroringSessionId || '1'} destination interface ${mirroringDestination || 'Gi1/0/19'} ingress
+monitor session ${mirroringSessionId || '1'} destination interface ${mirroringDestination || 'Gi1/0/19'} ingress vlan ${mirroringSourceVlan || '10'}
 end`}
                   </pre>
                 </div>
