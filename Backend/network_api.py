@@ -523,7 +523,7 @@ def api_port_mirroring():
     span_commands = [
         f"no monitor session {session_id}",
         f"monitor session {session_id} source vlan {source_vlan} both",
-        f"monitor session {session_id} destination interface {destination_interface} ingress",
+        f"monitor session {session_id} destination interface {destination_interface} ingress vlan {source_vlan}",
     ]
 
     try:
