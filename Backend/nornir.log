@@ -441,3 +441,7 @@ Device settings: cisco_ios 10.10.10.50:22
 2026-05-13 16:04:39,954 -  nornir.core -     INFO -        run() - Running task 'Port Mirroring Session 1' with args {} on 1 hosts
 2026-05-13 16:04:46,876 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
 2026-05-13 16:06:32,833 -  nornir.core -     INFO -        run() - Running task 'TFTP Backup running-config' with args {} on 1 hosts
+2026-05-13 16:50:31,462 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 175 - secu' with args {'config_commands': ['vlan 175', 'name secu', 'exit']} on 1 hosts
+2026-05-13 16:50:35,649 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-05-13 16:52:26,569 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 110 - meroua' with args {'config_commands': ['vlan 110', 'name meroua', 'exit']} on 1 hosts
+2026-05-13 16:52:28,689 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts

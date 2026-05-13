@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from Database.db import get_db_connection
 import ipaddress
 import psycopg2.extras
+import re
 
 vlan_bp = Blueprint("vlan", __name__)
 
@@ -28,6 +29,81 @@ def derive_network_from_gateway(gateway):
         return str(ipaddress.ip_network(f"{gateway}/24", strict=False))
     except ValueError:
         return ""
+
+
+def split_port_list(ports):
+    if not ports:
+        return []
+    return [item.strip() for item in str(ports).split(",") if item.strip()]
+
+
+def normalize_interface_name(name):
+    value = re.sub(r"\s+", "", str(name or "")).lower()
+
+    gig_match = re.match(r"^(gigabitethernet|gig|gi|g)(\d+/\d+/\d+)$", value)
+    if gig_match:
+        return f"gi{gig_match.group(2)}"
+
+    ten_gig_match = re.match(r"^(tengigabitethernet|tengig|te|t)(\d+/\d+/\d+)$", value)
+    if ten_gig_match:
+        return f"te{ten_gig_match.group(2)}"
+
+    fast_match = re.match(r"^(fastethernet|fa|f)(\d+/\d+)$", value)
+    if fast_match:
+        return f"fa{fast_match.group(2)}"
+
+    return value
+
+
+def resolve_switch_id(cur, payload):
+    if payload.get("id_switch") is not None:
+        return payload["id_switch"]
+
+    switch_name = (payload.get("switch_name") or "").strip()
+    if not switch_name:
+        return None
+
+    cur.execute("SELECT id_switch FROM switchs WHERE nom = %s", (switch_name,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    return row.get("id_switch") if hasattr(row, "get") else row[0]
+
+
+def validate_port_assignments(cur, ports, id_switch=None):
+    requested_ports = split_port_list(ports)
+    if not requested_ports:
+        return ""
+
+    if id_switch is not None:
+        cur.execute("SELECT nom FROM interface WHERE id_switch = %s", (id_switch,))
+    else:
+        cur.execute("SELECT nom FROM interface")
+
+    rows = cur.fetchall()
+    existing_ports = {}
+    for row in rows:
+        interface_name = row.get("nom") if hasattr(row, "get") else row[0]
+        existing_ports[normalize_interface_name(interface_name)] = interface_name
+
+    if not existing_ports:
+        scope = f" pour le switch {id_switch}" if id_switch is not None else ""
+        raise ValueError(f"Aucune interface n'existe dans la table interface{scope}.")
+
+    invalid_ports = [
+        port for port in requested_ports
+        if normalize_interface_name(port) not in existing_ports
+    ]
+    if invalid_ports:
+        raise ValueError(
+            "Interface(s) inexistante(s) dans la table interface : "
+            + ", ".join(invalid_ports)
+        )
+
+    return ", ".join(
+        existing_ports[normalize_interface_name(port)]
+        for port in requested_ports
+    )
 
 
 def build_vlan_response(row):
@@ -64,6 +140,14 @@ def normalize_vlan_payload(data, forced_vlan_id=None):
     if not reseau and gateway:
         reseau = derive_network_from_gateway(gateway)
 
+    raw_id_switch = data.get("id_switch", data.get("switch_id"))
+    id_switch = None if raw_id_switch in (None, "", "all") else raw_id_switch
+    if id_switch is not None:
+        try:
+            id_switch = int(id_switch)
+        except (TypeError, ValueError):
+            raise ValueError("id_switch doit etre un entier")
+
     payload = {
         "id_vlan":     id_vlan,
         "nom":         str(data.get("nom", data.get("name", data.get("vlan_name", "")))).strip(),
@@ -74,6 +158,7 @@ def normalize_vlan_payload(data, forced_vlan_id=None):
         "status":      str(data.get("status", "Active")).strip() or "Active",
         "switch_name": str(data.get("switchName", data.get("switch_name", ""))).strip(),
         "switch_ip":   str(data.get("switchIp",   data.get("switch_ip",   ""))).strip(),
+        "id_switch":   id_switch,
     }
 
     if not payload["nom"]:
@@ -198,6 +283,16 @@ def create_vlan():
         if cur.fetchone():
             return jsonify({"success": False, "error": f"Le VLAN {payload['id_vlan']} existe déjà"}), 409
 
+        try:
+            payload["ports"] = validate_port_assignments(
+                cur,
+                payload["ports"],
+                resolve_switch_id(cur, payload),
+            )
+        except ValueError as e:
+            conn.rollback()
+            return jsonify({"success": False, "error": str(e)}), 400
+
         insert_columns = ["id_vlan", "nom", "reseau", "gateway", "type", "ports", "status"]
         insert_values  = [
             payload["id_vlan"],
@@ -272,6 +367,16 @@ def update_vlan(id_vlan):
     try:
         columns = get_vlan_columns(conn)
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        try:
+            payload["ports"] = validate_port_assignments(
+                cur,
+                payload["ports"],
+                resolve_switch_id(cur, payload),
+            )
+        except ValueError as e:
+            conn.rollback()
+            return jsonify({"success": False, "error": str(e)}), 400
 
         set_clauses = ["nom = %s", "reseau = %s", "gateway = %s", "type = %s", "ports = %s", "status = %s"]
         values      = [payload["nom"], payload["reseau"] or None, payload["gateway"] or None,
