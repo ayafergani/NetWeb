@@ -5,6 +5,7 @@ import subprocess
 import sys
 import yaml, os
 import logging
+import re
 import shutil
 import signal
 from datetime import datetime
@@ -28,6 +29,81 @@ def _load_hosts():
 def _save_hosts(data):
     with open(HOSTS_FILE, "w") as f:
         yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+
+
+TFTP_SUCCESS_RE = re.compile(
+    r"(bytes copied|copied in|bytes/sec|copy complete|\[OK\])",
+    re.IGNORECASE,
+)
+TFTP_ERROR_RE = re.compile(
+    r"(%\s*Error|error opening|timed out|timeout|permission denied|access denied|"
+    r"no such file|not found|unreachable|connection refused|failed|aborted)",
+    re.IGNORECASE,
+)
+
+
+def _switch_output_tail(output, size=500):
+    return (output or "")[-size:].strip()
+
+
+def _next_tftp_response(output):
+    """
+    Cisco IOS 9200 can ask for the host and destination even when the URL already
+    contains both values. An empty answer accepts the value shown in brackets.
+    """
+    tail = _switch_output_tail(output, 700).lower()
+    if "address or name of remote host" in tail:
+        return ""
+    if "destination filename" in tail or "source filename" in tail:
+        return ""
+    if "yes/no" in tail or "(y/n)" in tail:
+        return "yes"
+    if "file exists" in tail or "overwrite" in tail or "replace" in tail:
+        return ""
+    if "[confirm]" in tail or tail.endswith("?"):
+        return ""
+    return None
+
+
+def _run_tftp_copy(conn, cmd, log_prefix, max_rounds=12):
+    output = conn.send_command_timing(
+        cmd,
+        delay_factor=2.0,
+        max_loops=300,
+        strip_prompt=False,
+        strip_command=False,
+    )
+
+    for _ in range(max_rounds):
+        if TFTP_SUCCESS_RE.search(output):
+            return output
+        if TFTP_ERROR_RE.search(output):
+            raise Exception(f"Erreur TFTP: {_switch_output_tail(output)}")
+
+        response = _next_tftp_response(output)
+        if response is None:
+            if _switch_output_tail(output).endswith(("#", ">")):
+                break
+            response = ""
+
+        logger.debug(
+            "%s Reponse prompt TFTP: %s",
+            log_prefix,
+            "<Entree>" if response == "" else response,
+        )
+        output += conn.send_command_timing(
+            response,
+            delay_factor=2.0,
+            max_loops=300,
+            strip_prompt=False,
+            strip_command=False,
+        )
+
+    if TFTP_ERROR_RE.search(output):
+        raise Exception(f"Erreur TFTP: {_switch_output_tail(output)}")
+    if not TFTP_SUCCESS_RE.search(output):
+        raise Exception(f"Confirmation TFTP manquante. Sortie switch: {_switch_output_tail(output)}")
+    return output
 
 
 @network_bp.route("/start-detection", methods=["POST"])
@@ -459,7 +535,7 @@ def api_port_mirroring():
     span_commands = [
         f"no monitor session {session_id}",
         f"monitor session {session_id} source vlan {source_vlan} both",
-        f"monitor session {session_id} destination interface {destination_interface} ingress",
+        f"monitor session {session_id} destination interface {destination_interface} ingress vlan {source_vlan}",
     ]
 
     try:
@@ -649,35 +725,20 @@ def api_tftp_backup():
                 logger.debug(f"[TFTP-BACKUP][{task.host.name}] Commande: {cmd}")
                 
                 # Envoyer la commande avec timeout robuste
-                output = conn.send_command_timing(
-                    cmd, 
-                    delay_factor=2.0,
-                    max_loops=200,  # Augmenté pour les configs volumineuses
-                    strip_prompt=False,
-                    strip_command=False
+                output = _run_tftp_copy(
+                    conn,
+                    cmd,
+                    f"[TFTP-BACKUP][{task.host.name}]",
                 )
-                
-                # Gérer les prompts Cisco courants
-                # - "Destination filename [xxxx.cfg]?" → confirmer le nom
-                # - "... bytes copied in ..." → succès
-                # - "% Error" → erreur d'auth ou réseau
-                
-                if "Destination filename" in output:
-                    logger.debug(f"[TFTP-BACKUP][{task.host.name}] Prompt détecté: Destination filename")
-                    output += conn.send_command_timing(filename, delay_factor=2.0, max_loops=150)
-                
-                if "?" in output and "Destination" not in output:
-                    logger.debug(f"[TFTP-BACKUP][{task.host.name}] Confirmant avec Entrée")
-                    output += conn.send_command_timing("", delay_factor=2.0, max_loops=50)
                 
                 all_output.append(output)
                 
                 # Détection d'erreurs
-                if "Error" in output or "error" in output.lower() or "timeout" in output.lower():
+                if TFTP_ERROR_RE.search(output):
                     logger.error(f"[TFTP-BACKUP][{task.host.name}] Erreur détectée dans la sortie")
                     raise Exception(f"Erreur TFTP sur {task.host.name}: {output.strip()[-200:]}")
                 
-                if "bytes copied" not in output.lower() and "percent" not in output.lower():
+                if not TFTP_SUCCESS_RE.search(output):
                     logger.warning(f"[TFTP-BACKUP][{task.host.name}] Pas de confirmation de succès")
                     raise Exception(f"Confirmation de sauvegarde manquante sur {task.host.name}")
                 
@@ -746,7 +807,7 @@ def api_tftp_restore():
     logger.info(f"[TFTP-RESTORE] Début - Serveur: {tftp_server}, Config: {config_type}, Fichier: {filename}")
 
     try:
-        from network.interface_deploy import build_nornir
+        from network.interface_deploy import build_nornir, _save_config
         from nornir.core.task import Task, Result
 
         nr = build_nornir()
@@ -768,34 +829,20 @@ def api_tftp_restore():
                 logger.debug(f"[TFTP-RESTORE][{task.host.name}] Commande: {cmd}")
                 
                 # Envoyer avec timeout robuste
-                output = conn.send_command_timing(
+                output = _run_tftp_copy(
+                    conn,
                     cmd,
-                    delay_factor=2.0,
-                    max_loops=200,
-                    strip_prompt=False,
-                    strip_command=False
+                    f"[TFTP-RESTORE][{task.host.name}]",
                 )
-                
-                # Gérer les prompts Cisco
-                if "Destination filename" in output:
-                    logger.debug(f"[TFTP-RESTORE][{task.host.name}] Prompt détecté: Destination filename")
-                    output += conn.send_command_timing("", delay_factor=2.0, max_loops=150)
-                
-                if "File exists" in output or "Overwrite" in output:
-                    logger.debug(f"[TFTP-RESTORE][{task.host.name}] Confirming overwrite")
-                    output += conn.send_command_timing("yes", delay_factor=2.0, max_loops=150)
-                elif "?" in output and "bytes" not in output:
-                    logger.debug(f"[TFTP-RESTORE][{task.host.name}] Confirmant avec Entrée")
-                    output += conn.send_command_timing("", delay_factor=2.0, max_loops=50)
                 
                 all_output.append(output)
                 
                 # Détection d'erreurs
-                if "Error" in output or "error" in output.lower() or "timeout" in output.lower():
+                if TFTP_ERROR_RE.search(output):
                     logger.error(f"[TFTP-RESTORE][{task.host.name}] Erreur détectée")
                     raise Exception(f"Erreur TFTP sur {task.host.name}: {output.strip()[-200:]}")
                 
-                if "bytes copied" not in output.lower() and "percent" not in output.lower():
+                if not TFTP_SUCCESS_RE.search(output):
                     logger.warning(f"[TFTP-RESTORE][{task.host.name}] Pas de confirmation de succès")
                     raise Exception(f"Confirmation de restauration manquante sur {task.host.name}")
                 
@@ -821,17 +868,26 @@ def api_tftp_restore():
                 "output": "\n".join(all_output)
             }), 500
 
-        output_text = "\n".join(all_output)
         logger.info(f"[TFTP-RESTORE] Succès - Restaurée depuis tftp://{tftp_server}/{filename}")
 
         # Sauvegarder la configuration en NVRAM si running-config
         if config_type == "running":
             logger.info(f"[TFTP-RESTORE] Sauvegarde en NVRAM (write memory)...")
-            from nornir_netmiko.tasks import netmiko_save_config
-            save_result = nr.run(task=netmiko_save_config)
+
+            def save_nvram_task(task: Task) -> Result:
+                conn = task.host.get_connection("netmiko", task.nornir.config)
+                save_ok, save_output = _save_config(conn)
+                all_output.append(save_output)
+                if not save_ok:
+                    raise Exception(f"Sauvegarde NVRAM incertaine sur {task.host.name}: {_switch_output_tail(save_output)}")
+                return Result(host=task.host, result=save_output)
+
+            save_result = nr.run(task=save_nvram_task, name="Save running-config to startup-config")
             if save_result.failed:
                 logger.warning(f"[TFTP-RESTORE] Avertissement: write memory a échoué")
-        
+
+        output_text = "\n".join(all_output)
+
         return jsonify({
             "success": True,
             "message": f"{config_type}-config restaurée depuis tftp://{tftp_server}/{filename}" + 

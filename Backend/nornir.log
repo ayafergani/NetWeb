@@ -192,6 +192,7 @@ Device settings: cisco_ios 10.10.10.50:22
 >>>>>>> 842a3908a0b113f1dbf5d538bc6a56ae410a3dbd
 2026-05-12 15:34:46,041 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 16 - test' with args {'config_commands': ['vlan 16', 'name test', 'exit']} on 1 hosts
 2026-05-12 15:34:50,356 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+<<<<<<< HEAD
 2026-05-13 16:43:58,530 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 20 - Voice' with args {'config_commands': ['vlan 20', 'name Voice', 'exit']} on 1 hosts
 2026-05-13 16:44:08,783 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'Création VLAN 20 - Voice' failed with traceback:
 Traceback (most recent call last):
@@ -199,11 +200,50 @@ Traceback (most recent call last):
     self.remote_conn_pre.connect(**ssh_connect_params)
   File "C:\Users\hp\AppData\Local\Programs\Python\Python312\Lib\site-packages\paramiko\client.py", line 384, in connect
     sock.connect(addr)
+=======
+2026-05-12 16:18:39,556 -  nornir.core -     INFO -        run() - Running task 'TFTP Backup running-config' with args {} on 1 hosts
+2026-05-12 16:18:46,708 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'TFTP Backup running-config' failed with traceback:
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\task.py", line 98, in start
+    r = self.task(self, **self.params)
+  File "C:\Users\ADM\Desktop\NetWeb\Backend\network_api.py", line 670, in tftp_backup_task
+    raise Exception(f"Confirmation de sauvegarde manquante sur {task.host.name}")
+Exception: Confirmation de sauvegarde manquante sur switch_cible
+
+2026-05-12 16:21:51,120 -  nornir.core -     INFO -        run() - Running task 'TFTP Backup running-config' with args {} on 1 hosts
+2026-05-12 16:21:57,461 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'TFTP Backup running-config' failed with traceback:
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\task.py", line 98, in start
+    r = self.task(self, **self.params)
+  File "C:\Users\ADM\Desktop\NetWeb\Backend\network_api.py", line 670, in tftp_backup_task
+    raise Exception(f"Confirmation de sauvegarde manquante sur {task.host.name}")
+Exception: Confirmation de sauvegarde manquante sur switch_cible
+
+2026-05-12 16:22:04,635 -  nornir.core -     INFO -        run() - Running task 'TFTP Backup running-config' with args {} on 1 hosts
+2026-05-12 16:22:10,958 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'TFTP Backup running-config' failed with traceback:
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\task.py", line 98, in start
+    r = self.task(self, **self.params)
+  File "C:\Users\ADM\Desktop\NetWeb\Backend\network_api.py", line 670, in tftp_backup_task
+    raise Exception(f"Confirmation de sauvegarde manquante sur {task.host.name}")
+Exception: Confirmation de sauvegarde manquante sur switch_cible
+
+2026-05-12 16:24:57,891 -  nornir.core -     INFO -        run() - Running task 'TFTP Backup running-config' with args {} on 1 hosts
+2026-05-12 16:25:07,939 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'TFTP Backup running-config' failed with traceback:
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 1146, in establish_connection
+    self.remote_conn_pre.connect(**ssh_connect_params)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\paramiko\client.py", line 384, in connect
+    sock.connect(addr)
+    ~~~~~~~~~~~~^^^^^^
+>>>>>>> 30cc7b729f66f8a259ca44068d9a5dba77328a80
 TimeoutError: timed out
 
 During handling of the above exception, another exception occurred:
 
 Traceback (most recent call last):
+<<<<<<< HEAD
   File "C:\Users\hp\AppData\Local\Programs\Python\Python312\Lib\site-packages\nornir\core\task.py", line 98, in start
     r = self.task(self, **self.params)
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -225,6 +265,43 @@ Traceback (most recent call last):
   File "C:\Users\hp\AppData\Local\Programs\Python\Python312\Lib\site-packages\netmiko\base_connection.py", line 500, in _open
     self.establish_connection()
   File "C:\Users\hp\AppData\Local\Programs\Python\Python312\Lib\site-packages\netmiko\base_connection.py", line 1168, in establish_connection
+=======
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\task.py", line 98, in start
+    r = self.task(self, **self.params)
+  File "C:\Users\ADM\Desktop\NetWeb\Backend\network_api.py", line 630, in tftp_backup_task
+    conn = task.host.get_connection("netmiko", task.nornir.config)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\inventory.py", line 476, in get_connection
+    self.open_connection(
+    ~~~~~~~~~~~~~~~~~~~~^
+        connection=connection,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        extras=conn.extras,
+        ^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\inventory.py", line 528, in open_connection
+    conn_obj.open(
+    ~~~~~~~~~~~~~^
+        hostname=hostname,
+        ^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        configuration=configuration,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir_netmiko\connections\netmiko.py", line 59, in open
+    connection = ConnectHandler(**parameters)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\ssh_dispatcher.py", line 460, in ConnectHandler
+    return ConnectionClass(*args, **kwargs)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 495, in __init__
+    self._open()
+    ~~~~~~~~~~^^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 500, in _open
+    self.establish_connection()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 1168, in establish_connection
+>>>>>>> 30cc7b729f66f8a259ca44068d9a5dba77328a80
     raise NetmikoTimeoutException(msg)
 netmiko.exceptions.NetmikoTimeoutException: TCP connection to device failed.
 
@@ -237,3 +314,171 @@ Device settings: cisco_ios 10.10.10.50:22
 
 
 
+<<<<<<< HEAD
+=======
+2026-05-12 16:28:47,496 -  nornir.core -     INFO -        run() - Running task 'TFTP Backup running-config' with args {} on 1 hosts
+2026-05-12 16:28:55,822 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'TFTP Backup running-config' failed with traceback:
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\task.py", line 98, in start
+    r = self.task(self, **self.params)
+  File "C:\Users\ADM\Desktop\NetWeb\Backend\network_api.py", line 670, in tftp_backup_task
+    raise Exception(f"Confirmation de sauvegarde manquante sur {task.host.name}")
+Exception: Confirmation de sauvegarde manquante sur switch_cible
+
+2026-05-12 16:32:36,525 -  nornir.core -     INFO -        run() - Running task 'TFTP Backup running-config' with args {} on 1 hosts
+2026-05-12 16:32:42,889 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'TFTP Backup running-config' failed with traceback:
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\task.py", line 98, in start
+    r = self.task(self, **self.params)
+  File "C:\Users\ADM\Desktop\NetWeb\Backend\network_api.py", line 670, in tftp_backup_task
+    raise Exception(f"Confirmation de sauvegarde manquante sur {task.host.name}")
+Exception: Confirmation de sauvegarde manquante sur switch_cible
+
+2026-05-12 16:35:13,398 -  nornir.core -     INFO -        run() - Running task 'TFTP Backup running-config' with args {} on 1 hosts
+2026-05-12 16:35:19,764 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'TFTP Backup running-config' failed with traceback:
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\task.py", line 98, in start
+    r = self.task(self, **self.params)
+  File "C:\Users\ADM\Desktop\NetWeb\Backend\network_api.py", line 670, in tftp_backup_task
+    raise Exception(f"Confirmation de sauvegarde manquante sur {task.host.name}")
+Exception: Confirmation de sauvegarde manquante sur switch_cible
+
+2026-05-12 16:48:42,293 -  nornir.core -     INFO -        run() - Running task 'TFTP Backup running-config' with args {} on 1 hosts
+2026-05-12 16:48:52,319 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'TFTP Backup running-config' failed with traceback:
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 1146, in establish_connection
+    self.remote_conn_pre.connect(**ssh_connect_params)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\paramiko\client.py", line 384, in connect
+    sock.connect(addr)
+    ~~~~~~~~~~~~^^^^^^
+TimeoutError: timed out
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\task.py", line 98, in start
+    r = self.task(self, **self.params)
+  File "C:\Users\ADM\Desktop\NetWeb\Backend\network_api.py", line 706, in tftp_backup_task
+    conn = task.host.get_connection("netmiko", task.nornir.config)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\inventory.py", line 476, in get_connection
+    self.open_connection(
+    ~~~~~~~~~~~~~~~~~~~~^
+        connection=connection,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        extras=conn.extras,
+        ^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\inventory.py", line 528, in open_connection
+    conn_obj.open(
+    ~~~~~~~~~~~~~^
+        hostname=hostname,
+        ^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        configuration=configuration,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir_netmiko\connections\netmiko.py", line 59, in open
+    connection = ConnectHandler(**parameters)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\ssh_dispatcher.py", line 460, in ConnectHandler
+    return ConnectionClass(*args, **kwargs)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 495, in __init__
+    self._open()
+    ~~~~~~~~~~^^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 500, in _open
+    self.establish_connection()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 1168, in establish_connection
+    raise NetmikoTimeoutException(msg)
+netmiko.exceptions.NetmikoTimeoutException: TCP connection to device failed.
+
+Common causes of this problem are:
+1. Incorrect hostname or IP address.
+2. Wrong TCP port.
+3. Intermediate firewall blocking access.
+
+Device settings: cisco_ios 10.10.10.50:22
+
+
+
+2026-05-13 15:25:03,956 -  nornir.core -     INFO -        run() - Running task 'TFTP Backup running-config' with args {} on 1 hosts
+2026-05-13 15:29:46,716 -  nornir.core -     INFO -        run() - Running task 'Port Mirroring Session 1' with args {} on 1 hosts
+2026-05-13 15:29:51,958 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-05-13 15:32:18,399 -  nornir.core -     INFO -        run() - Running task 'Port Mirroring Session 1' with args {} on 1 hosts
+2026-05-13 15:32:23,793 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-05-13 15:38:13,387 -  nornir.core -     INFO -        run() - Running task 'Port Mirroring Session 1' with args {} on 1 hosts
+2026-05-13 15:38:18,728 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-05-13 15:38:46,790 -  nornir.core -     INFO -        run() - Running task 'Port Mirroring Session 1' with args {} on 1 hosts
+2026-05-13 15:38:52,138 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-05-13 16:03:43,028 -  nornir.core -     INFO -        run() - Running task 'Port Mirroring Session 1' with args {} on 1 hosts
+2026-05-13 16:03:53,087 - nornir.core.task -    ERROR -      start() - Host 'switch_cible': task 'Port Mirroring Session 1' failed with traceback:
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 1146, in establish_connection
+    self.remote_conn_pre.connect(**ssh_connect_params)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\paramiko\client.py", line 384, in connect
+    sock.connect(addr)
+    ~~~~~~~~~~~~^^^^^^
+TimeoutError: timed out
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\task.py", line 98, in start
+    r = self.task(self, **self.params)
+  File "C:\Users\ADM\Desktop\NetWeb\Backend\network_api.py", line 543, in port_mirroring_task
+    conn = task.host.get_connection("netmiko", task.nornir.config)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\inventory.py", line 476, in get_connection
+    self.open_connection(
+    ~~~~~~~~~~~~~~~~~~~~^
+        connection=connection,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        extras=conn.extras,
+        ^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir\core\inventory.py", line 528, in open_connection
+    conn_obj.open(
+    ~~~~~~~~~~~~~^
+        hostname=hostname,
+        ^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        configuration=configuration,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\nornir_netmiko\connections\netmiko.py", line 59, in open
+    connection = ConnectHandler(**parameters)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\ssh_dispatcher.py", line 460, in ConnectHandler
+    return ConnectionClass(*args, **kwargs)
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 495, in __init__
+    self._open()
+    ~~~~~~~~~~^^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 500, in _open
+    self.establish_connection()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ADM\AppData\Roaming\Python\Python314\site-packages\netmiko\base_connection.py", line 1168, in establish_connection
+    raise NetmikoTimeoutException(msg)
+netmiko.exceptions.NetmikoTimeoutException: TCP connection to device failed.
+
+Common causes of this problem are:
+1. Incorrect hostname or IP address.
+2. Wrong TCP port.
+3. Intermediate firewall blocking access.
+
+Device settings: cisco_ios 10.10.10.50:22
+
+
+
+2026-05-13 16:04:39,954 -  nornir.core -     INFO -        run() - Running task 'Port Mirroring Session 1' with args {} on 1 hosts
+2026-05-13 16:04:46,876 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-05-13 16:06:32,833 -  nornir.core -     INFO -        run() - Running task 'TFTP Backup running-config' with args {} on 1 hosts
+2026-05-13 16:50:31,462 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 175 - secu' with args {'config_commands': ['vlan 175', 'name secu', 'exit']} on 1 hosts
+2026-05-13 16:50:35,649 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+2026-05-13 16:52:26,569 -  nornir.core -     INFO -        run() - Running task 'Création VLAN 110 - meroua' with args {'config_commands': ['vlan 110', 'name meroua', 'exit']} on 1 hosts
+2026-05-13 16:52:28,689 -  nornir.core -     INFO -        run() - Running task 'netmiko_save_config' with args {} on 1 hosts
+>>>>>>> 30cc7b729f66f8a259ca44068d9a5dba77328a80

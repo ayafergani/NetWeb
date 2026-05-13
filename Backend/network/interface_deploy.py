@@ -89,6 +89,95 @@ def build_commands(interface_name, mode, vlan_id, status,
     return cmds
 
 
+def _save_config(net_connect, read_timeout: int = 60):
+    """
+    Sauvegarde la running-config sur un Cisco IOS avec 3 stratégies successives.
+
+    Stratégie 1 — copy system:running-config nvram:startup-config
+        Commande de bas niveau qui écrit DIRECTEMENT en NVRAM, sans passer
+        par aucun alias IOS ni configuration TFTP. C'est la méthode la plus
+        fiable même si `write memory` est aliasé sur un `copy run tftp://...`.
+
+    Stratégie 2 — copy running-config startup-config
+        Commande standard. Si le switch affiche un ou plusieurs prompts
+        interactifs (nom de fichier, hôte TFTP…), on envoie \n pour chacun.
+
+    Stratégie 3 — write memory avec gestion de tous les prompts interactifs
+        Dernier recours. Absorbe jusqu'à 5 prompts consécutifs (\n) pour couvrir
+        les switchs qui ont `write memory` aliasé sur copy…tftp et affichent :
+          - "Address or name of remote host [x.x.x.x]?"
+          - "Destination filename [running-config.cfg]?"
+
+    Retourne : (success: bool, output: str)
+    """
+    import re
+
+    PROMPT_RE   = re.compile(r"\[OK\]|Building configuration|\[confirm\]|\?|#\s*$")
+    SUCCESS_RE  = re.compile(r"\[OK\]|Building configuration|\bcopied\b", re.IGNORECASE)
+
+    def _absorb_prompts(initial_output, max_rounds=5):
+        """Envoie \n tant que le switch pose des questions (jusqu'à max_rounds fois)."""
+        out = initial_output
+        for _ in range(max_rounds):
+            if SUCCESS_RE.search(out):
+                break
+            if "?" in out or re.search(r"filename|host|address|confirm", out, re.IGNORECASE):
+                out += net_connect.send_command(
+                    "\n",
+                    expect_string=r"(\[OK\]|Building configuration|#)",
+                    read_timeout=read_timeout,
+                    strip_prompt=False,
+                    strip_command=False,
+                )
+            else:
+                break
+        return out
+
+    # ── Stratégie 1 : nvram direct (contourne tout alias write/TFTP) ─────────
+    try:
+        out1 = net_connect.send_command(
+            "copy system:running-config nvram:startup-config",
+            expect_string=r"(\[OK\]|Building configuration|Destination|\?|#)",
+            read_timeout=read_timeout,
+            strip_prompt=False,
+            strip_command=False,
+        )
+        out1 = _absorb_prompts(out1)
+        if SUCCESS_RE.search(out1):
+            return True, out1
+    except Exception as e:
+        print(f"  ⚠️  Stratégie 1 échouée ({e})")
+
+    # ── Stratégie 2 : copy running-config startup-config ────────────────────
+    try:
+        out2 = net_connect.send_command(
+            "copy running-config startup-config",
+            expect_string=r"(\[OK\]|Building configuration|Destination|\?|#)",
+            read_timeout=read_timeout,
+            strip_prompt=False,
+            strip_command=False,
+        )
+        out2 = _absorb_prompts(out2)
+        if SUCCESS_RE.search(out2):
+            return True, out2
+    except Exception as e:
+        print(f"  ⚠️  Stratégie 2 échouée ({e})")
+
+    # ── Stratégie 3 : write memory + absorption de tous les prompts ──────────
+    try:
+        out3 = net_connect.send_command(
+            "write memory",
+            expect_string=r"(\[OK\]|Building configuration|Overwrite|Address|Destination|\?|#)",
+            read_timeout=read_timeout,
+            strip_prompt=False,
+            strip_command=False,
+        )
+        out3 = _absorb_prompts(out3)
+        return SUCCESS_RE.search(out3) is not None, out3
+    except Exception as e:
+        return False, f"Toutes les stratégies de sauvegarde ont échoué. Dernière erreur : {e}"
+
+
 def run_deploy(interface_name, mode="access", vlan_id=1, status="UP",
                port_security=False, max_mac=1, violation_mode="shutdown",
                bpdu_guard=False, allowed_vlans=None, description=None,
@@ -172,19 +261,10 @@ def run_deploy(interface_name, mode="access", vlan_id=1, status="UP",
             # Retour en mode exec privilégié
             net_connect.send_command("end", expect_string=r"#")
 
-            # Sauvegarde — gère aussi la question "Overwrite? [yes/no]"
-            save_output = net_connect.send_command(
-                "write memory",
-                expect_string=r"(\[OK\]|Building configuration|Overwrite|#)",
-                read_timeout=60,
-            )
-            # Si le switch demande confirmation
-            if "Overwrite" in save_output or "confirm" in save_output.lower():
-                net_connect.send_command(
-                    "y",
-                    expect_string=r"#",
-                    read_timeout=60,
-                )
+            # ── Sauvegarde robuste (3 stratégies) ─────────────────────────
+            save_ok, save_output = _save_config(net_connect)
+            print(f"  💾 Sauvegarde : {'✅ OK' if save_ok else '⚠️  incertaine'}")
+            print(f"     {save_output.strip()[:120]}")
 
             net_connect.disconnect()
             print(f"🎉 Interface {interface_name} configurée et sauvegardée sur {switch_ip} !")
