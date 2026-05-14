@@ -2,11 +2,14 @@ from flask import Blueprint, jsonify, request
 from Database.db import get_db_connection
 import ipaddress
 import logging
+import os
 import psycopg2.extras
 import re
+import yaml
 
 vlan_bp = Blueprint("vlan", __name__)
 logger = logging.getLogger(__name__)
+HOSTS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "network", "hosts.yaml")
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -139,10 +142,12 @@ def parse_mac_table_output(output, vlan_id):
     devices = []
     seen_macs = set()
     vlan_text = str(vlan_id)
+    vlan_prefix_re = re.compile(rf"^\*?\s*{re.escape(vlan_text)}\s+", re.IGNORECASE)
+    interface_re = re.compile(r"\b((?:Gi|GigabitEthernet|Fa|FastEthernet|Te|TenGigabitEthernet|Eth|Ethernet|Po|Port-channel)\S+)\b", re.IGNORECASE)
 
     for raw_line in str(output or "").splitlines():
         line = raw_line.strip()
-        if not line or vlan_text not in line:
+        if not line or not vlan_prefix_re.search(line):
             continue
 
         mac_match = re.search(r"([0-9A-Fa-f]{4}\.){2}[0-9A-Fa-f]{4}|([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}|([0-9A-Fa-f]{2}-){5}[0-9A-Fa-f]{2}", line)
@@ -153,14 +158,18 @@ def parse_mac_table_output(output, vlan_id):
         if not mac_address or mac_address in seen_macs:
             continue
 
-        interface_match = re.search(r"((?:Gi|Fa|Te|Eth|Po)\S+)$", line, re.IGNORECASE)
+        interface_match = interface_re.search(line)
+        interface_name = interface_match.group(1) if interface_match else ""
+        if not interface_name:
+            continue
+
         seen_macs.add(mac_address)
         devices.append({
             "nom": f"Device {mac_address[-5:].replace(':', '')}",
             "type": "Unknown",
             "adresse_mac": mac_address,
             "utilisateur": "",
-            "interface": interface_match.group(1) if interface_match else "",
+            "interface": interface_name,
             "source": "switch-scan",
         })
 
@@ -184,6 +193,62 @@ def get_switch_credentials_for_vlan(cur, id_vlan):
         WHERE v.id_vlan = %s
     """, (id_vlan,))
     return cur.fetchone()
+
+
+def load_switch_profiles_from_hosts():
+    if not os.path.exists(HOSTS_FILE):
+        return []
+
+    with open(HOSTS_FILE, "r", encoding="utf-8") as file_handle:
+        hosts_data = yaml.safe_load(file_handle) or {}
+
+    profiles = []
+    for host_key, host_val in hosts_data.items():
+        extras = ((host_val.get("connection_options") or {}).get("netmiko") or {}).get("extras", {})
+        profiles.append({
+            "profile_name": host_key,
+            "host": host_val.get("hostname") or host_val.get("host") or "",
+            "username": host_val.get("username") or "",
+            "password": host_val.get("password") or "",
+            "secret": extras.get("secret", "") or "",
+            "port": int(host_val.get("port", 22) or 22),
+            "device_type": "cisco_ios",
+            "source": "hosts.yaml",
+        })
+    return profiles
+
+
+def build_switch_connection_profiles(switch_row):
+    profiles = []
+
+    password = switch_row.get("password") or ""
+    if isinstance(password, memoryview):
+        password = password.tobytes().decode(errors="ignore")
+    elif isinstance(password, bytes):
+        password = password.decode(errors="ignore")
+
+    if switch_row.get("ip") and switch_row.get("username"):
+        profiles.append({
+            "profile_name": switch_row.get("switch_nom") or switch_row.get("switch_name") or "switch-db",
+            "host": switch_row["ip"],
+            "username": switch_row["username"],
+            "password": password,
+            "secret": "",
+            "port": 22,
+            "device_type": "cisco_ios",
+            "source": "database",
+        })
+
+    for host_profile in load_switch_profiles_from_hosts():
+        if switch_row.get("ip") and host_profile["host"] != switch_row.get("ip"):
+            continue
+        if not any(
+            existing["host"] == host_profile["host"] and existing["username"] == host_profile["username"]
+            for existing in profiles
+        ):
+            profiles.append(host_profile)
+
+    return profiles
 
 
 def scan_vlan_devices_from_switch(switch_row, vlan_id):
@@ -220,13 +285,152 @@ def scan_vlan_devices_from_switch(switch_row, vlan_id):
     return parse_mac_table_output(output, vlan_id)
 
 
+def scan_vlan_devices_from_switch(switch_row, vlan_id):
+    try:
+        from netmiko import ConnectHandler
+    except ImportError as exc:
+        raise RuntimeError("Netmiko n'est pas installe sur le backend.") from exc
+
+    if not switch_row:
+        raise RuntimeError("VLAN introuvable.")
+
+    profiles = build_switch_connection_profiles(switch_row)
+    if not profiles:
+        raise RuntimeError("Aucun profil SSH exploitable n'a ete trouve pour ce switch.")
+
+    commands = [
+        f"show mac address-table vlan {vlan_id}",
+        f"show mac address-table dynamic vlan {vlan_id}",
+    ]
+    errors = []
+    last_output = ""
+
+    for profile in profiles:
+        device = {
+            "device_type": profile["device_type"],
+            "host": profile["host"],
+            "username": profile["username"],
+            "password": profile["password"],
+            "port": profile["port"],
+            "secret": profile.get("secret", ""),
+        }
+
+        try:
+            net_connect = ConnectHandler(**device)
+            try:
+                if device.get("secret"):
+                    net_connect.enable()
+
+                for command in commands:
+                    output = net_connect.send_command(command)
+                    last_output = output
+                    devices = parse_mac_table_output(output, vlan_id)
+                    if devices:
+                        return devices
+            finally:
+                net_connect.disconnect()
+        except Exception as exc:
+            errors.append(f"{profile['source']}:{profile['host']} -> {exc}")
+
+    if errors:
+        raise RuntimeError(" | ".join(errors))
+
+    output_tail = " ".join(str(last_output or "").splitlines()[-4:]).strip()
+    if output_tail:
+        raise RuntimeError(f"Aucune MAC detectee pour le VLAN {vlan_id}. Sortie switch: {output_tail}")
+    raise RuntimeError(f"Aucune MAC detectee pour le VLAN {vlan_id}.")
+
+
+def scan_vlan_devices_from_switch(switch_row, vlan_id):
+    commands = [
+        f"show mac address-table vlan {vlan_id}",
+        f"show mac address-table dynamic vlan {vlan_id}",
+    ]
+
+    nornir_errors = []
+    last_output = ""
+
+    try:
+        from network.deploy_vlan import build_nornir
+
+        nr = build_nornir()
+        for host in nr.inventory.hosts.values():
+            try:
+                conn = host.get_connection("netmiko", nr.config)
+                for command in commands:
+                    output = conn.send_command(command)
+                    last_output = output
+                    devices = parse_mac_table_output(output, vlan_id)
+                    if devices:
+                        return devices
+            except Exception as exc:
+                nornir_errors.append(f"nornir:{host.name} -> {exc}")
+    except Exception as exc:
+        nornir_errors.append(f"nornir-init -> {exc}")
+
+    try:
+        from netmiko import ConnectHandler
+    except ImportError as exc:
+        raise RuntimeError("Netmiko n'est pas installe sur le backend.") from exc
+
+    if not switch_row:
+        raise RuntimeError("VLAN introuvable.")
+
+    profiles = build_switch_connection_profiles(switch_row)
+    if not profiles and nornir_errors:
+        raise RuntimeError(" | ".join(nornir_errors))
+    if not profiles:
+        raise RuntimeError("Aucun profil SSH exploitable n'a ete trouve pour ce switch.")
+
+    profile_errors = []
+
+    for profile in profiles:
+        device = {
+            "device_type": profile["device_type"],
+            "host": profile["host"],
+            "username": profile["username"],
+            "password": profile["password"],
+            "port": profile["port"],
+            "secret": profile.get("secret", ""),
+        }
+
+        try:
+            net_connect = ConnectHandler(**device)
+            try:
+                if device.get("secret"):
+                    net_connect.enable()
+
+                for command in commands:
+                    output = net_connect.send_command(command)
+                    last_output = output
+                    devices = parse_mac_table_output(output, vlan_id)
+                    if devices:
+                        return devices
+            finally:
+                net_connect.disconnect()
+        except Exception as exc:
+            profile_errors.append(f"{profile['source']}:{profile['host']} -> {exc}")
+
+    all_errors = [*nornir_errors, *profile_errors]
+    if all_errors:
+        raise RuntimeError(" | ".join(all_errors))
+
+    output_tail = " ".join(str(last_output or "").splitlines()[-4:]).strip()
+    if output_tail:
+        raise RuntimeError(f"Aucune MAC detectee pour le VLAN {vlan_id}. Sortie switch: {output_tail}")
+    raise RuntimeError(f"Aucune MAC detectee pour le VLAN {vlan_id}.")
+
+
 def sync_scanned_devices(cur, vlan_id, devices):
     cur.execute("""
         SELECT column_name
         FROM information_schema.columns
         WHERE table_name = 'equipement'
     """)
-    equipement_columns = {row[0] for row in cur.fetchall()}
+    equipement_columns = {
+        row["column_name"] if hasattr(row, "keys") else row[0]
+        for row in cur.fetchall()
+    }
     required_columns = {"nom", "type", "vlan_id", "utilisateur", "adresse_mac"}
     if not required_columns.issubset(equipement_columns):
         missing_columns = ", ".join(sorted(required_columns - equipement_columns))
@@ -298,7 +502,10 @@ def load_devices_from_database(cur, vlan_id):
         FROM information_schema.columns
         WHERE table_name = 'equipement'
     """)
-    equipement_columns = {row[0] for row in cur.fetchall()}
+    equipement_columns = {
+        row["column_name"] if hasattr(row, "keys") else row[0]
+        for row in cur.fetchall()
+    }
     required_columns = {"id_eq", "nom", "type", "vlan_id", "utilisateur", "adresse_mac"}
     if not required_columns.issubset(equipement_columns):
         return []
@@ -474,14 +681,24 @@ def get_vlan_devices(id_vlan):
             return jsonify({"success": False, "error": "VLAN introuvable"}), 404
 
         devices = []
+        scanned_devices = []
         source = "database"
         warning = None
 
         if refresh:
             try:
                 scanned_devices = scan_vlan_devices_from_switch(switch_row, id_vlan)
-                devices = sync_scanned_devices(cur, id_vlan, scanned_devices)
-                conn.commit()
+                devices = scanned_devices
+                source = "switch-scan"
+                try:
+                    synced_devices = sync_scanned_devices(cur, id_vlan, scanned_devices)
+                    conn.commit()
+                    if synced_devices:
+                        devices = synced_devices
+                        source = "switch-scan+database"
+                except Exception as sync_error:
+                    conn.rollback()
+                    warning = f"Scan reussi, mais synchro base impossible: {sync_error}"
                 source = "switch-scan"
             except Exception as scan_error:
                 conn.rollback()
