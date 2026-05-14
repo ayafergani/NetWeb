@@ -1,10 +1,12 @@
 from flask import Blueprint, jsonify, request
 from Database.db import get_db_connection
 import ipaddress
+import logging
 import psycopg2.extras
 import re
 
 vlan_bp = Blueprint("vlan", __name__)
+logger = logging.getLogger(__name__)
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -123,6 +125,204 @@ def build_vlan_response(row):
         "switchIp":   row.get("switch_ip") or "",
         "devices":    0,
     }
+
+
+def normalize_mac_address(mac):
+    cleaned = re.sub(r"[^0-9A-Fa-f]", "", str(mac or ""))
+    if len(cleaned) != 12:
+        return ""
+    cleaned = cleaned.upper()
+    return ":".join(cleaned[i:i + 2] for i in range(0, 12, 2))
+
+
+def parse_mac_table_output(output, vlan_id):
+    devices = []
+    seen_macs = set()
+    vlan_text = str(vlan_id)
+
+    for raw_line in str(output or "").splitlines():
+        line = raw_line.strip()
+        if not line or vlan_text not in line:
+            continue
+
+        mac_match = re.search(r"([0-9A-Fa-f]{4}\.){2}[0-9A-Fa-f]{4}|([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}|([0-9A-Fa-f]{2}-){5}[0-9A-Fa-f]{2}", line)
+        if not mac_match:
+            continue
+
+        mac_address = normalize_mac_address(mac_match.group(0))
+        if not mac_address or mac_address in seen_macs:
+            continue
+
+        interface_match = re.search(r"((?:Gi|Fa|Te|Eth|Po)\S+)$", line, re.IGNORECASE)
+        seen_macs.add(mac_address)
+        devices.append({
+            "nom": f"Device {mac_address[-5:].replace(':', '')}",
+            "type": "Unknown",
+            "adresse_mac": mac_address,
+            "utilisateur": "",
+            "interface": interface_match.group(1) if interface_match else "",
+            "source": "switch-scan",
+        })
+
+    return devices
+
+
+def get_switch_credentials_for_vlan(cur, id_vlan):
+    cur.execute("""
+        SELECT
+            v.id_vlan,
+            v.nom AS vlan_nom,
+            v.switch_name,
+            s.id_switch,
+            s.nom AS switch_nom,
+            s.ip,
+            s.username,
+            s.password
+        FROM vlan v
+        LEFT JOIN switchs s
+            ON s.nom = v.switch_name
+        WHERE v.id_vlan = %s
+    """, (id_vlan,))
+    return cur.fetchone()
+
+
+def scan_vlan_devices_from_switch(switch_row, vlan_id):
+    try:
+        from netmiko import ConnectHandler
+    except ImportError as exc:
+        raise RuntimeError("Netmiko n'est pas installe sur le backend.") from exc
+
+    if not switch_row:
+        raise RuntimeError("VLAN introuvable.")
+    if not switch_row.get("ip") or not switch_row.get("username"):
+        raise RuntimeError("Les informations SSH du switch sont incomplètes.")
+
+    password = switch_row.get("password") or ""
+    if isinstance(password, memoryview):
+        password = password.tobytes().decode(errors="ignore")
+    elif isinstance(password, bytes):
+        password = password.decode(errors="ignore")
+
+    device = {
+        "device_type": "cisco_ios",
+        "host": switch_row["ip"],
+        "username": switch_row["username"],
+        "password": password,
+        "port": 22,
+    }
+
+    net_connect = ConnectHandler(**device)
+    try:
+        output = net_connect.send_command(f"show mac address-table vlan {vlan_id}")
+    finally:
+        net_connect.disconnect()
+
+    return parse_mac_table_output(output, vlan_id)
+
+
+def sync_scanned_devices(cur, vlan_id, devices):
+    cur.execute("""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'equipement'
+    """)
+    equipement_columns = {row[0] for row in cur.fetchall()}
+    required_columns = {"nom", "type", "vlan_id", "utilisateur", "adresse_mac"}
+    if not required_columns.issubset(equipement_columns):
+        missing_columns = ", ".join(sorted(required_columns - equipement_columns))
+        raise RuntimeError(f"Colonnes manquantes dans equipement : {missing_columns}")
+
+    synced_devices = []
+    for device in devices:
+        mac_address = device.get("adresse_mac")
+        scanned_name = (device.get("nom") or "").strip()
+        scanned_type = (device.get("type") or "").strip()
+        cur.execute("""
+            SELECT id_eq, nom, type, vlan_id, utilisateur, adresse_mac
+            FROM equipement
+            WHERE vlan_id = %s AND adresse_mac = %s
+            LIMIT 1
+        """, (vlan_id, mac_address))
+        existing = cur.fetchone()
+
+        if existing:
+            final_name = existing["nom"] or (scanned_name if scanned_name and scanned_name.lower() != "device inconnu" else "")
+            final_type = existing["type"] or (scanned_type if scanned_type and scanned_type.lower() != "unknown" else "")
+            cur.execute("""
+                UPDATE equipement
+                SET nom = COALESCE(NULLIF(%s, ''), nom),
+                    type = COALESCE(NULLIF(%s, ''), type),
+                    vlan_id = %s
+                WHERE id_eq = %s
+                RETURNING id_eq, nom, type, vlan_id, utilisateur, adresse_mac
+            """, (
+                final_name or "",
+                final_type or "",
+                vlan_id,
+                existing["id_eq"],
+            ))
+            row = cur.fetchone()
+        else:
+            final_name = scanned_name if scanned_name and scanned_name.lower() != "device inconnu" else f"Device {mac_address[-5:].replace(':', '')}"
+            final_type = scanned_type if scanned_type and scanned_type.lower() != "unknown" else "Unknown"
+            cur.execute("""
+                INSERT INTO equipement (nom, type, vlan_id, utilisateur, adresse_mac)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id_eq, nom, type, vlan_id, utilisateur, adresse_mac
+            """, (
+                final_name,
+                final_type,
+                vlan_id,
+                device.get("utilisateur") or None,
+                mac_address,
+            ))
+            row = cur.fetchone()
+
+        synced_devices.append({
+            "id_eq": row["id_eq"],
+            "nom": row["nom"],
+            "type": row["type"],
+            "vlan_id": row["vlan_id"],
+            "utilisateur": row.get("utilisateur") or "",
+            "adresse_mac": row["adresse_mac"],
+            "interface": device.get("interface") or "",
+            "source": device.get("source") or "database",
+        })
+
+    return synced_devices
+
+
+def load_devices_from_database(cur, vlan_id):
+    cur.execute("""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'equipement'
+    """)
+    equipement_columns = {row[0] for row in cur.fetchall()}
+    required_columns = {"id_eq", "nom", "type", "vlan_id", "utilisateur", "adresse_mac"}
+    if not required_columns.issubset(equipement_columns):
+        return []
+
+    cur.execute("""
+        SELECT id_eq, nom, type, vlan_id, utilisateur, adresse_mac
+        FROM equipement
+        WHERE vlan_id = %s
+        ORDER BY id_eq ASC
+    """, (vlan_id,))
+    rows = cur.fetchall()
+    return [
+        {
+            "id_eq": row["id_eq"],
+            "nom": row["nom"],
+            "type": row["type"],
+            "vlan_id": row["vlan_id"],
+            "utilisateur": row.get("utilisateur") or "",
+            "adresse_mac": row["adresse_mac"],
+            "interface": "",
+            "source": "database",
+        }
+        for row in rows
+    ]
 
 
 def normalize_vlan_payload(data, forced_vlan_id=None):
@@ -261,19 +461,72 @@ def get_switchs():
 
 # ─── Create VLAN (BDD + déploiement SSH automatique) ─────────────────────────
 
+@vlan_bp.route("/api/vlan/<int:id_vlan>/devices", methods=["GET"])
+@vlan_bp.route("/vlan/<int:id_vlan>/devices",     methods=["GET"])
+def get_vlan_devices(id_vlan):
+    refresh = request.args.get("refresh", "1").strip().lower() not in {"0", "false", "no"}
+
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        switch_row = get_switch_credentials_for_vlan(cur, id_vlan)
+        if not switch_row:
+            return jsonify({"success": False, "error": "VLAN introuvable"}), 404
+
+        devices = []
+        source = "database"
+        warning = None
+
+        if refresh:
+            try:
+                scanned_devices = scan_vlan_devices_from_switch(switch_row, id_vlan)
+                devices = sync_scanned_devices(cur, id_vlan, scanned_devices)
+                conn.commit()
+                source = "switch-scan"
+            except Exception as scan_error:
+                conn.rollback()
+                logger.warning("Scan du VLAN %s impossible: %s", id_vlan, scan_error)
+                warning = str(scan_error)
+
+        if not devices:
+            devices = load_devices_from_database(cur, id_vlan)
+
+        response = {
+            "success": True,
+            "vlan_id": id_vlan,
+            "vlan_name": switch_row.get("vlan_nom") or "",
+            "switch_name": switch_row.get("switch_nom") or switch_row.get("switch_name") or "",
+            "devices": devices,
+            "count": len(devices),
+            "source": source if devices else "database",
+        }
+        if warning:
+            response["warning"] = warning
+        return jsonify(response)
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+
 @vlan_bp.route("/api/vlan",                    methods=["POST"])
 @vlan_bp.route("/vlan",                        methods=["POST"])
 @vlan_bp.route("/api/network/deploy-vlan",     methods=["POST"])
 def create_vlan():
     """
     Crée un VLAN en base de données ET le déploie sur le switch via SSH.
+    Ordre : SSH d'abord → BDD ensuite (atomique).
+    Si le déploiement SSH échoue, la BDD n'est PAS modifiée.
     """
     try:
         payload = normalize_vlan_payload(request.get_json())
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
 
-    # ── 1. Sauvegarde en BDD ──────────────────────────────────────────────────
+    # ── Pré-validation BDD (sans commit) ─────────────────────────────────────
+    # On valide les données et prépare l'INSERT AVANT d'aller sur le switch.
+    # Le commit n'aura lieu qu'après le succès SSH.
     conn = get_db_connection()
     try:
         columns = get_vlan_columns(conn)
@@ -311,6 +564,26 @@ def create_vlan():
             insert_columns.append("switch_ip")
             insert_values.append(payload["switch_ip"])
 
+        # ── 1. Déploiement SSH sur le switch (AVANT le commit BDD) ───────────
+        deploy_result = {"success": False, "error": "Déploiement non tenté"}
+        try:
+            from network.deploy_vlan import run_deploy
+            deploy_result = run_deploy(payload["id_vlan"], payload["nom"])
+        except ImportError:
+            deploy_result = {"success": False, "error": "Module network.deploy_vlan introuvable"}
+        except Exception as e:
+            deploy_result = {"success": False, "error": str(e)}
+
+        # Si le switch a échoué → rollback, rien en BDD
+        if not deploy_result.get("success"):
+            conn.rollback()
+            return jsonify({
+                "success":    False,
+                "error":      "Le VLAN n'a pas été créé : le déploiement SSH a échoué.",
+                "ssh_deploy": deploy_result,
+            }), 502
+
+        # ── 2. SSH réussi → INSERT en BDD puis commit ─────────────────────────
         placeholders = ", ".join(["%s"] * len(insert_columns))
         cur.execute(f"""
             INSERT INTO vlan ({", ".join(insert_columns)})
@@ -326,31 +599,13 @@ def create_vlan():
     finally:
         conn.close()
 
-    # ── 2. Déploiement SSH sur le switch ──────────────────────────────────────
-    deploy_result = {"success": False, "error": "Déploiement non tenté"}
-    try:
-        from network.deploy_vlan import run_deploy
-        deploy_result = run_deploy(payload["id_vlan"], payload["nom"])
-    except ImportError:
-        deploy_result = {"success": False, "error": "Module network.deploy_vlan introuvable"}
-    except Exception as e:
-        deploy_result = {"success": False, "error": str(e)}
-
-    # ── 3. Réponse unifiée ────────────────────────────────────────────────────
-    response = {
-        "success":     True,
-        "message":     "VLAN créé en base de données.",
-        "vlan":        build_vlan_response(row),
-        "ssh_deploy":  deploy_result,
-    }
-
-    if not deploy_result.get("success"):
-        response["warning"] = (
-            f"VLAN enregistré en BDD mais le déploiement SSH a échoué : "
-            f"{deploy_result.get('error', 'Erreur inconnue')}"
-        )
-
-    return jsonify(response), 201
+    # ── 3. Réponse unifiée (les deux ont réussi) ──────────────────────────────
+    return jsonify({
+        "success":    True,
+        "message":    f"VLAN {payload['id_vlan']} '{payload['nom']}' créé sur le switch et enregistré en base de données.",
+        "vlan":       build_vlan_response(row),
+        "ssh_deploy": deploy_result,
+    }), 201
 
 
 # ─── PUT ──────────────────────────────────────────────────────────────────────

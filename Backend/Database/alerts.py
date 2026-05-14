@@ -48,7 +48,7 @@ def get_alerts():
     sort     = request.args.get("sort", "newest")
     try:
         limit = int(request.args.get("limit", 100))
-        limit = max(1, min(limit, 10000))   # entre 1 et 10 000 par page
+        limit = max(1, limit)   # pas de limite max
     except ValueError:
         limit = 100
     try:
@@ -57,6 +57,7 @@ def get_alerts():
     except ValueError:
         offset = 0
 
+    import re as _re
     conn = get_db_connection()
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -74,12 +75,32 @@ def get_alerts():
             params.extend(db_values)
 
         if search:
-            conditions.append(
-                "(LOWER(attack_type) LIKE %s OR LOWER(source_ip) LIKE %s "
-                "OR LOWER(destination_ip) LIKE %s OR LOWER(protocol) LIKE %s)"
-            )
-            like = f"%{search.lower()}%"
-            params.extend([like, like, like, like])
+            # Détection d'une recherche par date (format YYYY-MM-DD ou YYYY-MM)
+            date_match = _re.match(r'^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$', search.strip())
+            if date_match:
+                yr, mo, dy = date_match.groups()
+                if dy:
+                    conditions.append("DATE(timestamp) = %s::date")
+                    params.append(f"{yr}-{mo}-{dy}")
+                elif mo:
+                    conditions.append("EXTRACT(YEAR FROM timestamp)=%s AND EXTRACT(MONTH FROM timestamp)=%s")
+                    params.extend([int(yr), int(mo)])
+                else:
+                    conditions.append("EXTRACT(YEAR FROM timestamp) = %s")
+                    params.append(int(yr))
+            else:
+                conditions.append(
+                    "(LOWER(attack_type) LIKE %s OR LOWER(source_ip) LIKE %s "
+                    "OR LOWER(destination_ip) LIKE %s OR LOWER(protocol) LIKE %s)"
+                )
+                like = f"%{search.lower()}%"
+                params.extend([like, like, like, like])
+
+        month = request.args.get("month", "").strip()
+        if month and _re.match(r'^\d{4}-\d{2}$', month):
+            yr, mo = month.split("-")
+            conditions.append("EXTRACT(YEAR FROM timestamp)=%s AND EXTRACT(MONTH FROM timestamp)=%s")
+            params.extend([int(yr), int(mo)])
 
         where_clause = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         order_map = {"newest": "timestamp DESC", "oldest": "timestamp ASC", "sev": "severity ASC, timestamp DESC"}
