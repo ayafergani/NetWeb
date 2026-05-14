@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from Database.db import get_db_connection
 import ipaddress
 import psycopg2.extras
+import re
 
 vlan_bp = Blueprint("vlan", __name__)
 
@@ -28,6 +29,81 @@ def derive_network_from_gateway(gateway):
         return str(ipaddress.ip_network(f"{gateway}/24", strict=False))
     except ValueError:
         return ""
+
+
+def split_port_list(ports):
+    if not ports:
+        return []
+    return [item.strip() for item in str(ports).split(",") if item.strip()]
+
+
+def normalize_interface_name(name):
+    value = re.sub(r"\s+", "", str(name or "")).lower()
+
+    gig_match = re.match(r"^(gigabitethernet|gig|gi|g)(\d+/\d+/\d+)$", value)
+    if gig_match:
+        return f"gi{gig_match.group(2)}"
+
+    ten_gig_match = re.match(r"^(tengigabitethernet|tengig|te|t)(\d+/\d+/\d+)$", value)
+    if ten_gig_match:
+        return f"te{ten_gig_match.group(2)}"
+
+    fast_match = re.match(r"^(fastethernet|fa|f)(\d+/\d+)$", value)
+    if fast_match:
+        return f"fa{fast_match.group(2)}"
+
+    return value
+
+
+def resolve_switch_id(cur, payload):
+    if payload.get("id_switch") is not None:
+        return payload["id_switch"]
+
+    switch_name = (payload.get("switch_name") or "").strip()
+    if not switch_name:
+        return None
+
+    cur.execute("SELECT id_switch FROM switchs WHERE nom = %s", (switch_name,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    return row.get("id_switch") if hasattr(row, "get") else row[0]
+
+
+def validate_port_assignments(cur, ports, id_switch=None):
+    requested_ports = split_port_list(ports)
+    if not requested_ports:
+        return ""
+
+    if id_switch is not None:
+        cur.execute("SELECT nom FROM interface WHERE id_switch = %s", (id_switch,))
+    else:
+        cur.execute("SELECT nom FROM interface")
+
+    rows = cur.fetchall()
+    existing_ports = {}
+    for row in rows:
+        interface_name = row.get("nom") if hasattr(row, "get") else row[0]
+        existing_ports[normalize_interface_name(interface_name)] = interface_name
+
+    if not existing_ports:
+        scope = f" pour le switch {id_switch}" if id_switch is not None else ""
+        raise ValueError(f"Aucune interface n'existe dans la table interface{scope}.")
+
+    invalid_ports = [
+        port for port in requested_ports
+        if normalize_interface_name(port) not in existing_ports
+    ]
+    if invalid_ports:
+        raise ValueError(
+            "Interface(s) inexistante(s) dans la table interface : "
+            + ", ".join(invalid_ports)
+        )
+
+    return ", ".join(
+        existing_ports[normalize_interface_name(port)]
+        for port in requested_ports
+    )
 
 
 def build_vlan_response(row):
@@ -64,6 +140,14 @@ def normalize_vlan_payload(data, forced_vlan_id=None):
     if not reseau and gateway:
         reseau = derive_network_from_gateway(gateway)
 
+    raw_id_switch = data.get("id_switch", data.get("switch_id"))
+    id_switch = None if raw_id_switch in (None, "", "all") else raw_id_switch
+    if id_switch is not None:
+        try:
+            id_switch = int(id_switch)
+        except (TypeError, ValueError):
+            raise ValueError("id_switch doit etre un entier")
+
     payload = {
         "id_vlan":     id_vlan,
         "nom":         str(data.get("nom", data.get("name", data.get("vlan_name", "")))).strip(),
@@ -74,6 +158,7 @@ def normalize_vlan_payload(data, forced_vlan_id=None):
         "status":      str(data.get("status", "Active")).strip() or "Active",
         "switch_name": str(data.get("switchName", data.get("switch_name", ""))).strip(),
         "switch_ip":   str(data.get("switchIp",   data.get("switch_ip",   ""))).strip(),
+        "id_switch":   id_switch,
     }
 
     if not payload["nom"]:
@@ -106,7 +191,6 @@ def get_returning_fields(columns):
 @vlan_bp.route("/api/vlan", methods=["GET"])
 @vlan_bp.route("/vlan",     methods=["GET"])
 def get_vlans():
-    # Filtrage optionnel par switch (switch_name ou switch_id)
     filter_switch_name = request.args.get("switch_name", "").strip()
     filter_switch_id   = request.args.get("switch_id", "").strip()
 
@@ -122,7 +206,6 @@ def get_vlans():
             where_clauses.append("switch_name = %s")
             params.append(filter_switch_name)
         elif filter_switch_id:
-            # Résoudre le nom du switch depuis son id
             cur2 = conn.cursor()
             cur2.execute("SELECT nom FROM switchs WHERE id_switch = %s", (filter_switch_id,))
             sw_row = cur2.fetchone()
@@ -151,7 +234,6 @@ def get_vlans():
 @vlan_bp.route("/api/switchs", methods=["GET"])
 @vlan_bp.route("/switchs",     methods=["GET"])
 def get_switchs():
-    """Retourne la liste de tous les switches depuis la table switchs."""
     conn = get_db_connection()
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -177,7 +259,7 @@ def get_switchs():
         conn.close()
 
 
-# ─── Route principale : Create VLAN (BDD + déploiement SSH automatique) ──────
+# ─── Create VLAN (BDD + déploiement SSH automatique) ─────────────────────────
 
 @vlan_bp.route("/api/vlan",                    methods=["POST"])
 @vlan_bp.route("/vlan",                        methods=["POST"])
@@ -185,9 +267,6 @@ def get_switchs():
 def create_vlan():
     """
     Crée un VLAN en base de données ET le déploie sur le switch via SSH.
-    Les identifiants SSH sont lus automatiquement depuis network/hosts.yaml.
-    Le frontend n'envoie que : id_vlan, nom, gateway (opt), type, ports,
-    switchName (opt), switchIp (opt).
     """
     try:
         payload = normalize_vlan_payload(request.get_json())
@@ -203,6 +282,16 @@ def create_vlan():
         cur.execute("SELECT 1 FROM vlan WHERE id_vlan = %s", (payload["id_vlan"],))
         if cur.fetchone():
             return jsonify({"success": False, "error": f"Le VLAN {payload['id_vlan']} existe déjà"}), 409
+
+        try:
+            payload["ports"] = validate_port_assignments(
+                cur,
+                payload["ports"],
+                resolve_switch_id(cur, payload),
+            )
+        except ValueError as e:
+            conn.rollback()
+            return jsonify({"success": False, "error": str(e)}), 400
 
         insert_columns = ["id_vlan", "nom", "reseau", "gateway", "type", "ports", "status"]
         insert_values  = [
@@ -237,7 +326,7 @@ def create_vlan():
     finally:
         conn.close()
 
-    # ── 2. Déploiement SSH sur le switch (hosts.yaml) ─────────────────────────
+    # ── 2. Déploiement SSH sur le switch ──────────────────────────────────────
     deploy_result = {"success": False, "error": "Déploiement non tenté"}
     try:
         from network.deploy_vlan import run_deploy
@@ -256,7 +345,6 @@ def create_vlan():
     }
 
     if not deploy_result.get("success"):
-        # VLAN sauvegardé en BDD mais déploiement SSH échoué → avertissement
         response["warning"] = (
             f"VLAN enregistré en BDD mais le déploiement SSH a échoué : "
             f"{deploy_result.get('error', 'Erreur inconnue')}"
@@ -265,7 +353,7 @@ def create_vlan():
     return jsonify(response), 201
 
 
-# ─── PUT / DELETE ─────────────────────────────────────────────────────────────
+# ─── PUT ──────────────────────────────────────────────────────────────────────
 
 @vlan_bp.route("/api/vlan/<int:id_vlan>", methods=["PUT"])
 @vlan_bp.route("/vlan/<int:id_vlan>",     methods=["PUT"])
@@ -279,6 +367,16 @@ def update_vlan(id_vlan):
     try:
         columns = get_vlan_columns(conn)
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        try:
+            payload["ports"] = validate_port_assignments(
+                cur,
+                payload["ports"],
+                resolve_switch_id(cur, payload),
+            )
+        except ValueError as e:
+            conn.rollback()
+            return jsonify({"success": False, "error": str(e)}), 400
 
         set_clauses = ["nom = %s", "reseau = %s", "gateway = %s", "type = %s", "ports = %s", "status = %s"]
         values      = [payload["nom"], payload["reseau"] or None, payload["gateway"] or None,
@@ -312,9 +410,20 @@ def update_vlan(id_vlan):
         conn.close()
 
 
+# ─── DELETE (BDD + suppression SSH sur le switch) ────────────────────────────
+
 @vlan_bp.route("/api/vlan/<int:id_vlan>", methods=["DELETE"])
 @vlan_bp.route("/vlan/<int:id_vlan>",     methods=["DELETE"])
 def delete_vlan(id_vlan):
+    """
+    Supprime le VLAN de la base de données ET l'efface du switch via SSH.
+    Commandes envoyées sur le switch :
+        conf t
+        no vlan <id>
+        no interface vlan <id>    (supprime le SVI / gateway)
+        end
+        write memory
+    """
     conn = get_db_connection()
     try:
         columns = get_vlan_columns(conn)
@@ -329,9 +438,113 @@ def delete_vlan(id_vlan):
             return jsonify({"success": False, "error": "VLAN introuvable"}), 404
 
         conn.commit()
-        return jsonify({"success": True, "message": f"VLAN {id_vlan} supprimé.", "vlan": build_vlan_response(row)})
     except Exception as e:
         conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
         conn.close()
+
+    vlan_data = build_vlan_response(row)
+
+    # ── Suppression SSH sur le switch ─────────────────────────────────────────
+    ssh_result = {"success": False, "error": "Suppression SSH non tentée"}
+    try:
+        from network.deploy_vlan import run_delete
+        ssh_result = run_delete(id_vlan)
+    except ImportError:
+        # Fallback : si run_delete n'existe pas, on tente directement via Netmiko
+        try:
+            ssh_result = _ssh_delete_vlan(id_vlan)
+        except Exception as e2:
+            ssh_result = {"success": False, "error": str(e2)}
+    except Exception as e:
+        ssh_result = {"success": False, "error": str(e)}
+
+    response = {
+        "success":    True,
+        "message":    f"VLAN {id_vlan} supprimé de la base de données.",
+        "vlan":       vlan_data,
+        "ssh_delete": ssh_result,
+    }
+
+    if not ssh_result.get("success"):
+        response["warning"] = (
+            f"VLAN supprimé en BDD mais la suppression SSH a échoué : "
+            f"{ssh_result.get('error', 'Erreur inconnue')}"
+        )
+
+    return jsonify(response)
+
+
+def _ssh_delete_vlan(id_vlan: int) -> dict:
+    """
+    Connexion SSH directe (Netmiko) pour supprimer un VLAN du switch.
+    Lit les credentials depuis network/hosts.yaml (même logique que deploy_vlan).
+    """
+    import yaml, os
+    from netmiko import ConnectHandler
+
+    # Chercher hosts.yaml dans les chemins courants
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    hosts_path = None
+    for candidate in [
+        os.path.join(base_dir, "network", "hosts.yaml"),
+        os.path.join(base_dir, "hosts.yaml"),
+        os.path.join(os.getcwd(), "network", "hosts.yaml"),
+    ]:
+        if os.path.exists(candidate):
+            hosts_path = candidate
+            break
+
+    if not hosts_path:
+        return {"success": False, "error": "hosts.yaml introuvable — impossible de se connecter au switch"}
+
+    with open(hosts_path, "r") as f:
+        hosts_data = yaml.safe_load(f)
+
+    # Supports both list and dict formats
+    if isinstance(hosts_data, list):
+        host_cfg = hosts_data[0]
+    elif isinstance(hosts_data, dict):
+        # Format: {switch_cible: {...}} or direct dict
+        first_key = next(iter(hosts_data))
+        host_cfg = hosts_data[first_key] if isinstance(hosts_data[first_key], dict) else hosts_data
+    else:
+        return {"success": False, "error": "Format hosts.yaml invalide"}
+
+    device = {
+        "device_type": host_cfg.get("device_type", "cisco_ios"),
+        "host":        host_cfg.get("hostname") or host_cfg.get("host"),
+        "username":    host_cfg.get("username"),
+        "password":    host_cfg.get("password"),
+        "secret":      host_cfg.get("secret", ""),
+        "port":        int(host_cfg.get("port", 22)),
+    }
+
+    if not device["host"] or not device["username"]:
+        return {"success": False, "error": "Credentials SSH incomplets dans hosts.yaml"}
+
+    commands = [
+        "conf t",
+        f"no vlan {id_vlan}",
+        f"no interface vlan {id_vlan}",
+        "end",
+        "write memory",
+    ]
+
+    net_connect = ConnectHandler(**device)
+    try:
+        if device["secret"]:
+            net_connect.enable()
+        output = net_connect.send_config_set(commands[1:-1])  # entre conf t et end
+        net_connect.send_command("end")
+        net_connect.send_command("write memory")
+    finally:
+        net_connect.disconnect()
+
+    return {
+        "success":  True,
+        "message":  f"VLAN {id_vlan} supprimé du switch avec succès.",
+        "commands": commands,
+        "output":   output,
+    }

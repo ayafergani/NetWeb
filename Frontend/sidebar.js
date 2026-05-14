@@ -12,7 +12,6 @@
   }
 
   const session = window.NetGuardAuth.getSession();
-  const isAdmin = session && (session.role === 'admin' || session.role === 'ADMIN');
 
   const links = [
     { id: 'dashboard', label: 'Dashboard', href: 'dashboard.html', icon: 'monitor' },
@@ -24,10 +23,7 @@
     { id: 'users', label: 'Users', href: 'users.html', icon: 'users' },
     { id: 'equipements', label: 'Équipements', href: 'equipements.html', icon: 'switch' },
     { id: 'logs', label: 'Logs', href: 'logs.html', icon: 'logs' }
-  ].filter((link) => {
-    if (link.id === 'equipements' && !isAdmin) return false;
-    return window.NetGuardAuth.canAccessPage(link.id);
-  });
+  ].filter((link) => window.NetGuardAuth.canAccessPage(link.id));
 
   const icons = {
     vlan: '<path d="M21 5H3a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM21 13H3a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"></path>',
@@ -46,11 +42,23 @@
     icons[type] +
     '</svg>';
 
+  const renderLogo = () => `
+    <span class="sidebar-logo-pulse sidebar-logo-pulse-1"></span>
+    <span class="sidebar-logo-pulse sidebar-logo-pulse-2"></span>
+    <span class="sidebar-logo-inner">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        <polyline points="9 12 11 14 15 10" stroke="#a78bfa" stroke-width="1.8"></polyline>
+      </svg>
+    </span>
+  `;
+
   host.innerHTML = `
     <aside class="app-sidebar">
       <a class="sidebar-logo" href="${window.NetGuardAuth.getDefaultPage(session?.role)}" aria-label="Go to home">
-        ${renderIcon('vlan')}
+        ${renderLogo()}
       </a>
+      <div class="sidebar-brand-name">Net<span>Guard</span></div>
       <nav class="sidebar-nav" aria-label="Main navigation">
         ${links.map(
           (link) => `

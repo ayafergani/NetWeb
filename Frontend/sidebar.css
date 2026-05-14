@@ -9,16 +9,69 @@
 }
 
 .sidebar-logo {
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
-  background: #6366f1;
+  position: relative;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 30px;
-  color: #ffffff;
+  margin-bottom: 7px;
   text-decoration: none;
+}
+
+.sidebar-brand-name {
+  margin-bottom: 24px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  color: #f8fafc;
+}
+
+.sidebar-brand-name span {
+  color: #a78bfa;
+}
+
+.sidebar-logo-inner {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(30, 30, 80, 0.82);
+  border: 1px solid rgba(100, 108, 255, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 28px rgba(99, 102, 241, 0.2);
+  z-index: 1;
+}
+
+.sidebar-logo-pulse {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(100, 108, 255, 0.32);
+  animation: sidebar-logo-pulse 2.4s ease-out infinite;
+}
+
+.sidebar-logo-pulse-1 {
+  inset: 1px;
+}
+
+.sidebar-logo-pulse-2 {
+  inset: -7px;
+  opacity: 0.5;
+  animation-delay: 0.8s;
+}
+
+@keyframes sidebar-logo-pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.28);
+    opacity: 0;
+  }
 }
 
 .sidebar-nav {
@@ -81,6 +134,10 @@
   .sidebar-logo {
     margin-bottom: 0;
     margin-right: 12px;
+  }
+
+  .sidebar-brand-name {
+    display: none;
   }
 
   .sidebar-nav {

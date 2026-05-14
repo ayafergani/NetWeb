@@ -47,9 +47,15 @@ def get_alerts():
     search   = request.args.get("search", "").strip()
     sort     = request.args.get("sort", "newest")
     try:
-        limit = int(request.args.get("limit", 500))
+        limit = int(request.args.get("limit", 100))
+        limit = max(1, min(limit, 10000))   # entre 1 et 10 000 par page
     except ValueError:
-        limit = 500
+        limit = 100
+    try:
+        offset = int(request.args.get("offset", 0))
+        offset = max(0, offset)
+    except ValueError:
+        offset = 0
 
     conn = get_db_connection()
     try:
@@ -79,6 +85,12 @@ def get_alerts():
         order_map = {"newest": "timestamp DESC", "oldest": "timestamp ASC", "sev": "severity ASC, timestamp DESC"}
         order_clause = order_map.get(sort, "timestamp DESC")
 
+        # Compter le total (sans LIMIT/OFFSET) pour la pagination
+        count_query = f"SELECT COUNT(*) AS total FROM alertes {where_clause}"
+        cur.execute(count_query, params)
+        total_row = cur.fetchone()
+        total = int(total_row["total"]) if total_row else 0
+
         query = f"""
             SELECT id, timestamp, source_ip, destination_ip,
                    attack_type, severity, detection_engine,
@@ -87,14 +99,66 @@ def get_alerts():
             FROM alertes
             {where_clause}
             ORDER BY {order_clause}
-            LIMIT %s
+            LIMIT %s OFFSET %s
         """
         params.append(limit)
+        params.append(offset)
         cur.execute(query, params)
         rows = cur.fetchall()
         alerts = [row_to_alert(r) for r in rows]
-        return jsonify({"success": True, "count": len(alerts), "alerts": alerts})
+        return jsonify({
+            "success": True,
+            "count":   len(alerts),
+            "total":   total,
+            "limit":   limit,
+            "offset":  offset,
+            "alerts":  alerts,
+        })
     except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+@alerts_bp.route("/api/alerts", methods=["POST"])
+def create_alert():
+    data = request.get_json(silent=True) or {}
+
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            INSERT INTO alertes (
+                timestamp, source_ip, destination_ip,
+                attack_type, severity, detection_engine,
+                details, protocol, source_port, destination_port
+            )
+            VALUES (
+                COALESCE(%s::timestamp, NOW()), %s, %s,
+                %s, %s, %s,
+                %s, %s, %s, %s
+            )
+            RETURNING id, timestamp, source_ip, destination_ip,
+                      attack_type, severity, detection_engine,
+                      details, protocol, source_port, destination_port,
+                      loss, volume, service
+        """, (
+            data.get("timestamp"),
+            data.get("source_ip"),
+            data.get("destination_ip"),
+            data.get("attack_type") or "Unknown",
+            data.get("severity") or "inconnue",
+            data.get("detection_engine") or "Snort",
+            data.get("details") or data.get("attack_type") or "",
+            data.get("protocol") or "N/A",
+            data.get("source_port"),
+            data.get("destination_port"),
+        ))
+        row = cur.fetchone()
+        conn.commit()
+        return jsonify({"success": True, "alert": row_to_alert(row)}), 201
+    except Exception as e:
+        conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
         conn.close()
@@ -172,8 +236,35 @@ def get_stats():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
-        conn.close
+        conn.close()
         
+@alerts_bp.route("/api/regles/by-message", methods=["GET"])
+def get_regle_by_message():
+    """Cherche dans la table regles par le champ message (correspondant à attack_type)"""
+    message = request.args.get("message", "").strip()
+    if not message:
+        return jsonify({"success": False, "error": "Paramètre 'message' manquant"}), 400
+
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT id, sid, message, protocol, src_ip, src_port,
+                   dst_ip, dst_port, action, rule
+            FROM regles
+            WHERE LOWER(message) = LOWER(%s)
+            LIMIT 1
+        """, (message,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"success": True, "found": False, "regle": None})
+        return jsonify({"success": True, "found": True, "regle": dict(row)})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+
 @alerts_bp.route("/api/last-triggered-rule", methods=["GET"])
 def get_last_triggered_rule():
     """Récupère la dernière alerte et retourne les infos de la règle Snort correspondante"""

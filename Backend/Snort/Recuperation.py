@@ -6,29 +6,56 @@ import threading
 import re
 import os
 import sys
+import json
+import signal
+import urllib.error
+import urllib.request
 from datetime import datetime
 import psutil  # pip install psutil
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Database.db import get_db_connection as connect_db
+REMOTE_SNORT_USER = "Aya"
+REMOTE_SNORT_HOST = "10.10.10.31"
+REMOTE_SNORT_CONFIG = "/etc/snort/snort.conf"
+REMOTE_SNORT_LOG_DIR = "/var/log/snort"
+REMOTE_SNORT_ALERT_FILE = "/var/log/snort/alert"
+ALERTS_API_URL = os.getenv("ALERTS_API_URL", "http://127.0.0.1:5000/api/alerts")
+SSH_OPTIONS = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10"]
+SAFE_INTERFACE_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]+$")
+
+
+def print_sudo_setup_commands():
+    """Affiche les commandes Ubuntu pour autoriser Snort sans mot de passe."""
+    print(f"""
+# A executer une seule fois sur Ubuntu ({REMOTE_SNORT_HOST}) avec un compte sudo.
+# Cela ne desactive pas sudo globalement: seul l'utilisateur {REMOTE_SNORT_USER}
+# pourra lancer les commandes necessaires sans demande de mot de passe.
+
+SNORT_BIN=$(command -v snort)
+PKILL_BIN=$(command -v pkill)
+IP_BIN=$(command -v ip)
+TAIL_BIN=$(command -v tail)
+
+echo "{REMOTE_SNORT_USER} ALL=(ALL) NOPASSWD: $SNORT_BIN, $PKILL_BIN, $IP_BIN, $TAIL_BIN" | sudo tee /etc/sudoers.d/snort-web
+sudo chmod 440 /etc/sudoers.d/snort-web
+sudo visudo -cf /etc/sudoers.d/snort-web
+""".strip())
 
 
 class SnortManager:
-    def __init__(self, interface="5", log_dir="C:\\Snort\\log"):
+    def __init__(self, interface="enp0s8", log_dir="C:\\Snort\\log"):
         """
         Args:
-            interface: Nom de l'interface réseau Windows (ex: "Ethernet", "Wi-Fi")
-            log_dir: Dossier des logs Snort
+            interface: Nom de l'interface reseau distante (ex: "enp0s8")
+            log_dir: Dossier local conserve pour compatibilite
         """
         self.interface = interface
         self.log_dir = log_dir
         self.alert_file = os.path.join(log_dir, "alert")  # Format fast alert
         self.snort_process = None
+        self.alert_tail_process = None
         self.snort_running = False
         self.alert_count = 0
-        self.db_connection = None
-        self.db_cursor = None
-        self.db_insert_count = 0
+        self.api_insert_count = 0
         self.packet_count = 0
         
         # Créer le dossier des logs
@@ -44,39 +71,12 @@ class SnortManager:
         self.init_database()
     
     def init_database(self):
-        """Initialise la connexion PostgreSQL"""
-        try:
-            self.db_connection = connect_db()
-            if self.db_connection:
-                self.db_cursor = self.db_connection.cursor()
-                print("✅ Connexion à PostgreSQL établie")
-                self.create_tables_if_not_exists()
-        except Exception as e:
-            print(f"⚠️ Base de données non disponible: {e}")
+        """Initialise la cible API utilisee pour enregistrer les alertes."""
+        print(f"API alertes: {ALERTS_API_URL}")
     
     def create_tables_if_not_exists(self):
-        """Crée les tables nécessaires si elles n'existent pas"""
-        try:
-            self.db_cursor.execute("""
-                CREATE TABLE IF NOT EXISTS alertes (
-                    id SERIAL PRIMARY KEY,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    source_ip INET,
-                    destination_ip INET,
-                    attack_type VARCHAR(500),
-                    severity VARCHAR(50),
-                    detection_engine VARCHAR(100),
-                    details TEXT,
-                    protocol VARCHAR(10),
-                    source_port INTEGER,
-                    destination_port INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            self.db_connection.commit()
-            print("✅ Tables vérifiées/créées")
-        except Exception as e:
-            print(f"⚠️ Erreur création table: {e}")
+        """La creation des tables est geree cote API/base de donnees."""
+        return None
     
     def convert_timestamp(self, timestamp_str):
         """Convertit le timestamp Snort (MM/DD-HH:MM:SS) en format PostgreSQL"""
@@ -144,6 +144,12 @@ class SnortManager:
         if len(ip_ports) >= 2:
             dst_ip = ip_ports[1][0]
             dst_port = int(ip_ports[1][1]) if ip_ports[1][1].isdigit() else None
+
+        if not src_ip or not dst_ip:
+            ip_pair = re.search(r'(\d+\.\d+\.\d+\.\d+)\s*->\s*(\d+\.\d+\.\d+\.\d+)', ip_line)
+            if ip_pair:
+                src_ip = src_ip or ip_pair.group(1)
+                dst_ip = dst_ip or ip_pair.group(2)
         
         return {
             'timestamp_raw': timestamp,
@@ -159,11 +165,8 @@ class SnortManager:
             'detection_engine': sid.split(':')[0] if sid else 'Snort'
         }
     
-    def save_to_db(self, alert):
-        """Sauvegarde l'alerte dans PostgreSQL"""
-        if not self.db_connection:
-            return False
-        
+    def send_alert_to_api(self, alert):
+        """Envoie l'alerte a l'API alertes; l'API se charge de la BDD."""
         try:
             severity_text = self.convert_severity(alert['severity'])
             
@@ -175,71 +178,95 @@ class SnortManager:
             if details and len(details) > 500:
                 details = details[:500]
             
-            self.db_cursor.execute("""
-                INSERT INTO alertes (
-                    timestamp, source_ip, destination_ip,
-                    attack_type, severity, detection_engine,
-                    details, protocol, source_port, destination_port
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                alert['timestamp'],
-                alert['src_ip'],
-                alert['dst_ip'],
-                attack_type,
-                severity_text,
-                alert['detection_engine'],
-                details,
-                alert['protocol'],
-                alert['src_port'],
-                alert['dst_port']
-            ))
-            self.db_connection.commit()
-            self.db_insert_count += 1
+            payload = {
+                "timestamp": alert['timestamp'],
+                "source_ip": alert['src_ip'],
+                "destination_ip": alert['dst_ip'],
+                "attack_type": attack_type,
+                "severity": severity_text,
+                "detection_engine": alert['detection_engine'],
+                "details": details,
+                "protocol": alert['protocol'],
+                "source_port": alert['src_port'],
+                "destination_port": alert['dst_port'],
+            }
+            data = json.dumps(payload).encode("utf-8")
+            request = urllib.request.Request(
+                ALERTS_API_URL,
+                data=data,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+
+            with urllib.request.urlopen(request, timeout=10) as response:
+                if response.status >= 400:
+                    print(f"   Erreur API alertes: HTTP {response.status}")
+                    return False
+
+            self.api_insert_count += 1
             return True
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="ignore")
+            print(f"   Erreur API alertes: HTTP {e.code} {body}")
+            return False
+        except urllib.error.URLError as e:
+            print(f"   API alertes indisponible: {e.reason}")
+            return False
         except Exception as e:
-            print(f"   ❌ Erreur DB: {e}")
-            try:
-                self.db_connection.rollback()
-            except:
-                pass
+            print(f"   Erreur envoi alerte API: {e}")
             return False
     
     def start_snort(self):
-        """Démarre Snort sur Windows"""
+        """Demarre Snort a distance via SSH sur le serveur Linux"""
         try:
-            # Commande Snort pour Windows (format fast alert)
-            cmd = f'C:\\Snort\\bin\\snort.exe -A console -c C:\\Snort\\etc\\snort.conf -i {self.interface} -l "{self.log_dir}"'
+            # Commande fixe: le backend lance Snort sur le serveur Linux via SSH.
+            if not SAFE_INTERFACE_PATTERN.match(self.interface):
+                print(f"Interface invalide: {self.interface}")
+                return False
+
+            remote_target = f"{REMOTE_SNORT_USER}@{REMOTE_SNORT_HOST}"
+            remote_cmd = (
+                f"sudo -n pkill snort || true; "
+                f"sudo -n ip link set {self.interface} promisc on; "
+                f"sudo -n snort -D -i {self.interface} -A fast "
+                f"-l {REMOTE_SNORT_LOG_DIR} -c {REMOTE_SNORT_CONFIG} -k none"
+            )
+            cmd = ["ssh", *SSH_OPTIONS, remote_target, remote_cmd]
             
             print(f"\n{'=' * 80}")
-            print(f"🔍 SNORT - SURVEILLANCE RÉSEAU (Windows)")
+            print("SNORT - SURVEILLANCE RESEAU (serveur Linux distant)")
             print(f"{'=' * 80}")
-            print(f"📡 Interface: {self.interface}")
-            print(f"📁 Logs: {self.log_dir}")
-            print(f"💾 Base de données: {'✅ Activée' if self.db_connection else '❌ Désactivée'}")
+            print(f"Serveur: {remote_target}")
+            print(f"Interface distante: {self.interface}")
+            print(f"Alertes distantes: {REMOTE_SNORT_ALERT_FILE}")
+            print(f"API alertes: {ALERTS_API_URL}")
             print(f"{'=' * 80}\n")
             
-            # Démarrer Snort sans fenêtre
-            self.snort_process = subprocess.Popen(
+            # La commande Snort distante est lancee en daemon avec -D.
+            result = subprocess.run(
                 cmd,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+                capture_output=True,
+                text=True,
+                timeout=30
             )
+
+            if result.returncode != 0:
+                print(f"Erreur SSH/Snort: {result.stderr.strip()}")
+                print("Configurez une cle SSH et sudo sans mot de passe pour cette commande.")
+                print("Aide: python Recuperation.py --show-sudo-setup")
+                return False
+
+            self.snort_process = None
             self.snort_running = True
-            
-            # Thread pour surveiller les alertes
+
             thread = threading.Thread(target=self._tail_alerts, daemon=True)
             thread.start()
             
-            # Thread pour les statistiques paquets (Windows)
-            stats_thread = threading.Thread(target=self._update_packet_stats_windows, daemon=True)
-            stats_thread.start()
+            print("Detection active")
             
             return True
         except Exception as e:
-            print(f"❌ Erreur démarrage Snort: {e}")
+            print(f"Erreur demarrage Snort: {e}")
             return False
     
     def _update_packet_stats_windows(self):
@@ -275,6 +302,49 @@ class SnortManager:
     def _tail_alerts(self):
         """Surveille le fichier d'alertes en temps réel"""
         time.sleep(2)
+
+        remote_target = f"{REMOTE_SNORT_USER}@{REMOTE_SNORT_HOST}"
+        cmd = [
+            "ssh",
+            *SSH_OPTIONS,
+            remote_target,
+            f"sudo -n tail -n 0 -F {REMOTE_SNORT_ALERT_FILE}"
+        ]
+
+        try:
+            self.alert_tail_process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+            while self.snort_running and self.alert_tail_process.poll() is None:
+                line = self.alert_tail_process.stdout.readline()
+                if not line:
+                    time.sleep(0.1)
+                    continue
+
+                line = line.strip()
+                if not line or "[**]" not in line:
+                    continue
+
+                self.alert_count += 1
+                alert = self.parse_alert(line, line)
+                severity_text = self.convert_severity(alert['severity'])
+
+                print(f"\nALERTE #{self.alert_count}: {alert['attack_type']} [{severity_text}]")
+                print(f"   {alert['src_ip']}:{alert['src_port']} -> {alert['dst_ip']}:{alert['dst_port']}")
+
+                self.send_alert_to_api(alert)
+
+            if self.snort_running and self.alert_tail_process.returncode:
+                error = self.alert_tail_process.stderr.read().strip()
+                print(f"Erreur lecture alertes distantes: {error}")
+        except Exception as e:
+            print(f"Erreur lecture alertes distantes: {e}")
+
+        return
         
         while self.snort_running and self.snort_process and self.snort_process.poll() is None:
             if os.path.exists(self.alert_file):
@@ -304,8 +374,7 @@ class SnortManager:
                                     print(f"   📍 {alert['src_ip']}:{alert['src_port']} -> {alert['dst_ip']}:{alert['dst_port']}")
                                     
                                     # Sauvegarde en BDD
-                                    if self.db_connection:
-                                        self.save_to_db(alert)
+                                    self.send_alert_to_api(alert)
                 except Exception as e:
                     print(f"⚠️ Erreur lecture alertes: {e}")
             else:
@@ -314,6 +383,21 @@ class SnortManager:
     def stop_snort(self):
         """Arrête Snort proprement"""
         try:
+            remote_target = f"{REMOTE_SNORT_USER}@{REMOTE_SNORT_HOST}"
+            subprocess.run(
+                ["ssh", *SSH_OPTIONS, remote_target, "sudo -n pkill snort"],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if self.alert_tail_process:
+                self.alert_tail_process.terminate()
+                try:
+                    self.alert_tail_process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    self.alert_tail_process.kill()
+
             if self.snort_process:
                 self.snort_process.terminate()
                 try:
@@ -328,7 +412,7 @@ class SnortManager:
         print(f"\n🛑 Snort arrêté")
         print(f"📊 Statistiques finales:")
         print(f"   - Alertes détectées: {self.alert_count}")
-        print(f"   - Alertes sauvegardées: {self.db_insert_count}")
+        print(f"   - Alertes envoyees a l'API: {self.api_insert_count}")
         print(f"   - Paquets estimés: {self.packet_count}")
     
     def is_running(self):
@@ -345,7 +429,7 @@ class SnortManager:
 _snort_manager = None
 
 
-def start_snort(interface="Ethernet"):
+def start_snort(interface="enp0s8"):
     """Démarre Snort (fonction externe)"""
     global _snort_manager
     if _snort_manager is None:
@@ -379,13 +463,28 @@ def get_alert_count():
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Snort Manager Windows")
-    parser.add_argument("--interface", default="Ethernet", help="Nom de l'interface réseau")
+    parser = argparse.ArgumentParser(description="Snort Manager SSH")
+    parser.add_argument("--interface", default="enp0s8", help="Nom de l'interface reseau distante")
     parser.add_argument("--log-dir", default="C:\\Snort\\log", help="Dossier des logs")
+    parser.add_argument("--show-sudo-setup", action="store_true", help="Afficher les commandes sudoers a executer sur Ubuntu")
     
     args = parser.parse_args()
+
+    if args.show_sudo_setup:
+        print_sudo_setup_commands()
+        sys.exit(0)
     
     manager = SnortManager(interface=args.interface, log_dir=args.log_dir)
+
+    def handle_stop_signal(signum, frame):
+        print("\n\nArret demande...")
+        manager.stop_snort()
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, handle_stop_signal)
+    if hasattr(signal, "SIGBREAK"):
+        signal.signal(signal.SIGBREAK, handle_stop_signal)
+
     try:
         manager.start_snort()
         print("Snort en cours d'exécution. Appuyez sur Ctrl+C pour arrêter.")
@@ -393,7 +492,7 @@ if __name__ == "__main__":
             time.sleep(1)
             # Afficher statut périodique
             if manager.alert_count > 0:
-                print(f"\r📊 Alertes: {manager.alert_count} | DB: {manager.db_insert_count}", end="")
+                print(f"\r📊 Alertes: {manager.alert_count} | API: {manager.api_insert_count}", end="")
     except KeyboardInterrupt:
         print("\n\nArrêt demandé...")
         manager.stop_snort()

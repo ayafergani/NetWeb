@@ -81,6 +81,13 @@
           <div id="topbar-search-results" class="topbar-search-results" role="listbox" hidden></div>
         </div>
 
+        <button type="button" id="topbar-detection-toggle" class="detection-btn detection-btn--start" aria-label="Lancer la detection" data-active="false">
+          <svg id="topbar-detection-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M8 5v14l11-7z"></path>
+          </svg>
+          <span id="topbar-detection-label">Start detection</span>
+        </button>
+
         <div class="notif-wrapper">
           <button type="button" id="topbar-notif-button" class="icon-button" aria-label="Notifications">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -93,10 +100,113 @@
           <div id="topbar-alerts-dropdown" class="alerts-dropdown" hidden>
             <div class="alerts-dropdown-header">
               <span class="alerts-dropdown-title">Alertes récentes</span>
-              <a href="alerts.html" class="alerts-dropdown-viewall">Voir tout</a>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <button type="button" id="topbar-notif-config-btn" class="alerts-config-btn" title="Configurer les notifications">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                  </svg>
+                  Configurer
+                </button>
+                <a href="alerts.html" class="alerts-dropdown-viewall">Voir tout</a>
+              </div>
             </div>
             <div id="topbar-alerts-list" class="alerts-dropdown-list">
               <div class="alerts-dropdown-empty">Aucune alerte</div>
+            </div>
+          </div>
+
+          <!-- Modal configuration notifications -->
+          <div id="topbar-notif-config-modal" class="notif-config-overlay" hidden>
+            <div class="notif-config-card">
+              <div class="notif-config-header">
+                <div class="notif-config-header-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+                    <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 14.158V11a6 6 0 0 0-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="notif-config-title">Configuration des notifications</h3>
+                  <p class="notif-config-subtitle">Paramètres du service de notification IDS</p>
+                </div>
+                <button type="button" id="notif-config-close" class="notif-config-close-btn" aria-label="Fermer">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+
+              <div class="notif-config-body">
+
+                <!-- Section : Installation -->
+                <div class="notif-config-section">
+                  <div class="notif-config-section-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Installation du notifier
+                  </div>
+                  <p class="notif-config-hint">Installe le service de notification IDS en arrière-plan et le configure pour démarrer automatiquement.</p>
+                  <button type="button" class="notif-config-action-btn notif-config-action-btn--primary" id="notif-run-install">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Installer le notifier
+                  </button>
+                </div>
+
+                <div class="notif-config-divider"></div>
+
+                <!-- Section : Email SMTP -->
+                <div class="notif-config-section">
+                  <div class="notif-config-section-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    Configuration email (SMTP)
+                  </div>
+                  <p class="notif-config-hint">Configure le serveur SMTP pour envoyer des alertes par email aux administrateurs.</p>
+
+                  <div class="notif-config-fields">
+                    <div class="notif-config-field-group">
+                      <label class="notif-config-label">Serveur SMTP</label>
+                      <input type="text" id="nc-smtp-server" class="notif-config-input" placeholder="smtp.gmail.com" />
+                    </div>
+                    <div class="notif-config-field-group notif-config-field-group--half">
+                      <label class="notif-config-label">Port</label>
+                      <input type="number" id="nc-smtp-port" class="notif-config-input" placeholder="587" value="587" />
+                    </div>
+                    <div class="notif-config-field-group">
+                      <label class="notif-config-label">Email expéditeur</label>
+                      <input type="email" id="nc-smtp-user" class="notif-config-input" placeholder="ids@mondomaine.com" />
+                    </div>
+                    <div class="notif-config-field-group">
+                      <label class="notif-config-label">Mot de passe / Clé d'application</label>
+                      <input type="password" id="nc-smtp-password" class="notif-config-input" placeholder="••••••••••••" />
+                    </div>
+                    <div class="notif-config-field-group">
+                      <label class="notif-config-label">Nom affiché</label>
+                      <input type="text" id="nc-smtp-fromname" class="notif-config-input" placeholder="IDS Monitoring System" />
+                    </div>
+                  </div>
+
+                  <div class="notif-config-smtp-examples">
+                    <span class="notif-config-hint-label">Exemples :</span>
+                    <button type="button" class="notif-smtp-preset" data-server="smtp.gmail.com" data-port="587">Gmail</button>
+                    <button type="button" class="notif-smtp-preset" data-server="smtp-mail.outlook.com" data-port="587">Outlook</button>
+                    <button type="button" class="notif-smtp-preset" data-server="smtp.mail.yahoo.com" data-port="587">Yahoo</button>
+                    <button type="button" class="notif-smtp-preset" data-server="smtp.orange.fr" data-port="465">Orange</button>
+                  </div>
+
+                  <button type="button" class="notif-config-action-btn notif-config-action-btn--primary" id="notif-run-email-config">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    Configurer les emails
+                  </button>
+                </div>
+
+              </div>
+
+              <div class="notif-config-footer">
+                <div class="notif-config-info">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  Les actions s'exécutent en arrière-plan sur le serveur Windows.
+                </div>
+                <button type="button" id="notif-config-close-btn" class="notif-config-btn-close">Fermer</button>
+              </div>
             </div>
           </div>
         </div>
@@ -132,6 +242,8 @@
         </div>
       </div>
     </header>
+
+    <div id="topbar-detection-toast" class="detection-toast" role="status" aria-live="polite" hidden></div>
 
     <!-- ===================== MODAL PROFIL ===================== -->
     <div id="topbar-profile-modal" class="ng-profile-overlay" role="dialog" aria-modal="true" aria-labelledby="ng-profile-title">
@@ -235,6 +347,8 @@
   const profileModal = document.getElementById('topbar-profile-modal');
   const searchInput  = document.getElementById('topbar-search-input');
   const searchResults = document.getElementById('topbar-search-results');
+  const detectionToggleBtn = document.getElementById('topbar-detection-toggle');
+  const detectionToast     = document.getElementById('topbar-detection-toast');
 
   // ========== AVATAR + DROPDOWN ==========
   function initUserAvatar() {
@@ -339,6 +453,41 @@
     var value = Number(count) || 0;
     countEl.textContent = value > 99 ? '99+' : value;
     countEl.style.display = value > 0 ? 'flex' : 'none';
+  }
+
+  function showDetectionToast(message, isError) {
+    if (!detectionToast) return;
+    detectionToast.textContent = message;
+    detectionToast.classList.toggle('detection-toast--error', !!isError);
+    detectionToast.hidden = false;
+    clearTimeout(showDetectionToast.timer);
+    showDetectionToast.timer = setTimeout(function () {
+      detectionToast.hidden = true;
+    }, 3500);
+  }
+
+  async function callDetection(endpoint, button, loadingText) {
+    var originalHTML = button ? button.innerHTML : '';
+    try {
+      if (button) {
+        button.disabled = true;
+        var labelEl = button.querySelector('#topbar-detection-label') || button.querySelector('span');
+        if (labelEl) labelEl.textContent = loadingText;
+      }
+
+      var res = await fetch('http://localhost:5000' + endpoint, { method: 'POST' });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.message || data.error || 'Erreur serveur');
+
+      showDetectionToast(data.message || 'Action effectuée avec succès', false);
+    } catch (e) {
+      showDetectionToast(e.message || 'Impossible de contacter le serveur', true);
+      // Restaurer le HTML original en cas d'erreur
+      if (button) button.innerHTML = originalHTML;
+      throw e; // Re-throw pour que le .then() du toggle ne soit pas appelé
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
 
   function setTheme(isDark) {
@@ -525,6 +674,44 @@
   });
 
   if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+  if (detectionToggleBtn) {
+    detectionToggleBtn.addEventListener('click', function () {
+      var isActive = detectionToggleBtn.dataset.active === 'true';
+      if (!isActive) {
+        // Passer en mode "actif" → appeler start, switcher vers Stop
+        callDetection('/start-detection', detectionToggleBtn, 'Lancement...').then(function () {
+          detectionToggleBtn.dataset.active = 'true';
+          detectionToggleBtn.classList.remove('detection-btn--start');
+          detectionToggleBtn.classList.add('detection-btn--stop');
+          detectionToggleBtn.setAttribute('aria-label', 'Arrêter la détection');
+          document.getElementById('topbar-detection-label').textContent = 'Stop detection';
+          document.getElementById('topbar-detection-icon').innerHTML =
+            '<rect x="7" y="7" width="10" height="10" rx="1.5"></rect>';
+          document.getElementById('topbar-detection-icon').setAttribute('fill', 'none');
+          document.getElementById('topbar-detection-icon').setAttribute('stroke', 'currentColor');
+          document.getElementById('topbar-detection-icon').setAttribute('stroke-width', '2.4');
+          document.getElementById('topbar-detection-icon').setAttribute('stroke-linecap', 'round');
+          document.getElementById('topbar-detection-icon').setAttribute('stroke-linejoin', 'round');
+        });
+      } else {
+        // Passer en mode "inactif" → appeler stop, switcher vers Start
+        callDetection('/stop-detection', detectionToggleBtn, 'Arrêt...').then(function () {
+          detectionToggleBtn.dataset.active = 'false';
+          detectionToggleBtn.classList.remove('detection-btn--stop');
+          detectionToggleBtn.classList.add('detection-btn--start');
+          detectionToggleBtn.setAttribute('aria-label', 'Lancer la détection');
+          document.getElementById('topbar-detection-label').textContent = 'Start detection';
+          var icon = document.getElementById('topbar-detection-icon');
+          icon.setAttribute('fill', 'currentColor');
+          icon.removeAttribute('stroke');
+          icon.removeAttribute('stroke-width');
+          icon.removeAttribute('stroke-linecap');
+          icon.removeAttribute('stroke-linejoin');
+          icon.innerHTML = '<path d="M8 5v14l11-7z"></path>';
+        });
+      }
+    });
+  }
 
   userButton.addEventListener('click', function (e) {
     e.stopPropagation();
@@ -550,6 +737,103 @@
     if (userMenu && !userMenu.contains(e.target) && e.target !== userButton) closeUserMenu();
     if (searchResults && searchInput && !searchResults.contains(e.target) && e.target !== searchInput && !e.target.closest('.topbar-search')) closeSearchResults();
   });
+
+  // ========== MODAL CONFIGURATION NOTIFICATIONS ==========
+  var _notifConfigModal  = document.getElementById('topbar-notif-config-modal');
+  var _notifConfigOpenBtn = document.getElementById('topbar-notif-config-btn');
+  var _notifConfigCloseBtn = document.getElementById('notif-config-close');
+  var _notifConfigCloseBtnFooter = document.getElementById('notif-config-close-btn');
+
+  function _openNotifConfig() {
+    if (_notifConfigModal) _notifConfigModal.hidden = false;
+    if (typeof _closeAlertsDropdown === 'function') _closeAlertsDropdown();
+  }
+  function _closeNotifConfig() {
+    if (_notifConfigModal) _notifConfigModal.hidden = true;
+  }
+
+  if (_notifConfigOpenBtn)        _notifConfigOpenBtn.addEventListener('click', function(e) { e.stopPropagation(); _openNotifConfig(); });
+  if (_notifConfigCloseBtn)       _notifConfigCloseBtn.addEventListener('click', _closeNotifConfig);
+  if (_notifConfigCloseBtnFooter) _notifConfigCloseBtnFooter.addEventListener('click', _closeNotifConfig);
+
+  if (_notifConfigModal) {
+    _notifConfigModal.addEventListener('click', function(e) {
+      if (e.target === _notifConfigModal) _closeNotifConfig();
+    });
+  }
+
+  document.querySelectorAll('.notif-smtp-preset').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var s = document.getElementById('nc-smtp-server');
+      var p = document.getElementById('nc-smtp-port');
+      if (s) s.value = btn.dataset.server;
+      if (p) p.value = btn.dataset.port;
+    });
+  });
+
+  var _installBtn = document.getElementById('notif-run-install');
+  if (_installBtn) {
+    _installBtn.addEventListener('click', function() { _launchPBat('1', null, _installBtn, 'Installer le notifier', 'Installation lancée ✅'); });
+  }
+
+  var _emailConfigBtn = document.getElementById('notif-run-email-config');
+  if (_emailConfigBtn) {
+    _emailConfigBtn.addEventListener('click', function() {
+      var server   = (document.getElementById('nc-smtp-server')   || {}).value || '';
+      var port     = (document.getElementById('nc-smtp-port')     || {}).value || '587';
+      var user     = (document.getElementById('nc-smtp-user')     || {}).value || '';
+      var password = (document.getElementById('nc-smtp-password') || {}).value || '';
+      var fromname = (document.getElementById('nc-smtp-fromname') || {}).value || 'IDS Monitoring System';
+      if (!server || !user || !password) {
+        showDetectionToast('Veuillez remplir le serveur, email et mot de passe.', true);
+        return;
+      }
+      _launchPBat('8', { server: server, port: port, user: user, password: password, fromname: fromname },
+        _emailConfigBtn, 'Configurer les emails', 'Configuration email appliquée ✅');
+    });
+  }
+
+  function _launchPBat(option, params, btn, originalLabel, successLabel) {
+    var body = { option: option };
+    if (params) body.params = params;
+
+    // État chargement
+    if (btn) {
+      btn.disabled = true;
+      btn.style.opacity = '0.7';
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> En cours…';
+    }
+
+    fetch('http://localhost:5000/api/run-pbat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d && d.success) {
+        showDetectionToast(successLabel || 'Opération réussie ✅', false);
+        _closeNotifConfig();
+      } else {
+        showDetectionToast((d && d.message) || 'Erreur lors du lancement du service', true);
+      }
+    })
+    .catch(function() {
+      showDetectionToast('Impossible de contacter Flask — vérifiez que le serveur tourne sur localhost:5000', true);
+    })
+    .finally(function() {
+      if (btn) {
+        btn.disabled = false;
+        btn.style.opacity = '';
+        // Restaurer le label d'origine avec son icône
+        if (option === '1') {
+          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ' + (originalLabel || 'Installer le notifier');
+        } else {
+          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> ' + (originalLabel || 'Configurer les emails');
+        }
+      }
+    });
+  }
 
   // ========== ALERTES TEMPS RÉEL ==========
   var _lastAlertCount = null;
