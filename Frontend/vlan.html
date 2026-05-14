@@ -227,7 +227,8 @@
       switchIp: vlan.switchIp ?? '',
       vlanIp: vlan.vlanIp ?? vlan.gateway ?? '--',
       ports: vlan.ports ?? '',
-      devices: vlan.devices ?? 0,
+      devices: Array.isArray(vlan.connectedDevices) ? vlan.connectedDevices.length : (vlan.devices ?? 0),
+      connectedDevices: Array.isArray(vlan.connectedDevices) ? vlan.connectedDevices : [],
       status: vlan.status ?? 'Active'
     });
 
@@ -246,6 +247,8 @@
       const [switches, setSwitches] = useState([]);
       const [selectedSwitchId, setSelectedSwitchId] = useState('all');
       const [availableInterfaces, setAvailableInterfaces] = useState([]);
+      const [isLoadingDevices, setIsLoadingDevices] = useState(false);
+      const [devicesWarning, setDevicesWarning] = useState('');
 
       const [gatewayError, setGatewayError] = useState('');
       const [portsError, setPortsError] = useState('');
@@ -288,6 +291,55 @@
           setSelectedVlan(items.length ? items[0] : null);
         } catch (error) {
           console.error("Erreur chargement VLANs:", error);
+        }
+      };
+
+      const loadVlanDevices = async (vlanId, refresh = true) => {
+        if (!vlanId) return;
+
+        setIsLoadingDevices(true);
+        setDevicesWarning('');
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/vlan/${vlanId}/devices?refresh=${refresh ? 1 : 0}`, {
+            headers: window.NetGuardAuth.getAuthHeaders()
+          });
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || "Erreur lors du chargement des appareils");
+          }
+
+          const connectedDevices = (data.devices || []).map((device, index) => ({
+            id: device.id_eq ?? `${vlanId}-${index}`,
+            nom: device.nom || 'Device inconnu',
+            type: device.type || 'Unknown',
+            utilisateur: device.utilisateur || '',
+            adresse_mac: device.adresse_mac || '',
+            interface: device.interface || '',
+            source: device.source || data.source || 'database'
+          }));
+
+          if (data.warning) {
+            setDevicesWarning(data.warning);
+          }
+
+          setVlans(prev => prev.map(vlan => (
+            vlan.id === vlanId
+              ? { ...vlan, connectedDevices, devices: connectedDevices.length }
+              : vlan
+          )));
+
+          setSelectedVlan(prev => (
+            prev && prev.id === vlanId
+              ? { ...prev, connectedDevices, devices: connectedDevices.length }
+              : prev
+          ));
+        } catch (error) {
+          console.error("Erreur chargement appareils VLAN:", error);
+          setDevicesWarning(error.message);
+        } finally {
+          setIsLoadingDevices(false);
         }
       };
 
@@ -372,10 +424,18 @@
         loadInterfaces(selectedSwitchId);
       }, [selectedSwitchId]);
 
+      useEffect(() => {
+        if (selectedVlan?.id) {
+          loadVlanDevices(selectedVlan.id, true);
+        } else {
+          setDevicesWarning('');
+        }
+      }, [selectedVlan?.id]);
+
       const [vlans, setVlans] = useState([
-        { id: 10, name: 'Finance', type: 'Data', switchName: 'Core-SW', switchIp: '192.168.1.200', vlanIp: '192.168.10.1', ports: 'fa0/1, fa0/2', devices: 2, status: 'Active' },
-        { id: 20, name: 'IT', type: 'Data', switchName: 'Core-SW', switchIp: '192.168.1.200', vlanIp: '192.168.20.1', ports: 'fa0/3', devices: 1, status: 'Active' },
-        { id: 99, name: 'Quarantine', type: 'Security', switchName: 'Access-SW-1', switchIp: '192.168.1.201', vlanIp: '--', ports: 'fa0/4', devices: 1, status: 'Alert', reason: 'Intrusion detected (Snort)', srcIp: '192.168.1.10' }
+        { id: 10, name: 'Finance', type: 'Data', switchName: 'Core-SW', switchIp: '192.168.1.200', vlanIp: '192.168.10.1', ports: 'fa0/1, fa0/2', devices: 2, connectedDevices: [], status: 'Active' },
+        { id: 20, name: 'IT', type: 'Data', switchName: 'Core-SW', switchIp: '192.168.1.200', vlanIp: '192.168.20.1', ports: 'fa0/3', devices: 1, connectedDevices: [], status: 'Active' },
+        { id: 99, name: 'Quarantine', type: 'Security', switchName: 'Access-SW-1', switchIp: '192.168.1.201', vlanIp: '--', ports: 'fa0/4', devices: 1, connectedDevices: [], status: 'Alert', reason: 'Intrusion detected (Snort)', srcIp: '192.168.1.10' }
       ]);
 
       // ── Suppression VLAN ──────────────────────────────────────────────────
@@ -734,17 +794,63 @@
                     </div>
 
                     <div>
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-3 dark-mode:text-slate-500">Connected Devices</h4>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-[10px] font-bold text-slate-400 uppercase dark-mode:text-slate-500">Connected Devices</h4>
+                        <button
+                          onClick={() => loadVlanDevices(selectedVlan.id, true)}
+                          disabled={isLoadingDevices}
+                          className="px-3 py-1 text-[10px] font-bold rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all disabled:opacity-50 dark-mode:bg-slate-700 dark-mode:text-slate-300 dark-mode:hover:bg-slate-600"
+                        >
+                          {isLoadingDevices ? 'Scan...' : 'Actualiser'}
+                        </button>
+                      </div>
+                      {devicesWarning && (
+                        <p className="mb-2 text-[11px] font-medium text-amber-600 dark-mode:text-amber-400">
+                          {devicesWarning}
+                        </p>
+                      )}
                       <div className="space-y-2">
-                        {[...Array(selectedVlan.devices)].map((_, i) => (
-                          <div key={i} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:border-indigo-100 transition-colors dark-mode:border-slate-700 dark-mode:hover:border-indigo-800">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500 text-xs dark-mode:bg-indigo-900/30 dark-mode:text-indigo-400">PC</div>
-                              <span className="text-xs font-mono text-slate-600 dark-mode:text-slate-300">192.168.{selectedVlan.id}.{12 + i}</span>
-                            </div>
-                            <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                        {isLoadingDevices ? (
+                          <div className="p-3 border border-dashed border-slate-200 rounded-xl text-xs text-slate-400 dark-mode:border-slate-700 dark-mode:text-slate-500">
+                            Scan du VLAN en cours...
                           </div>
-                        ))}
+                        ) : (selectedVlan.connectedDevices || []).length > 0 ? (
+                          selectedVlan.connectedDevices.map((device) => (
+                            <div key={device.id} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:border-indigo-100 transition-colors dark-mode:border-slate-700 dark-mode:hover:border-indigo-800">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500 text-[10px] font-bold uppercase dark-mode:bg-indigo-900/30 dark-mode:text-indigo-400">
+                                  {(device.type || 'PC').slice(0, 2)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-slate-700 dark-mode:text-slate-200">{device.nom || 'Device inconnu'}</p>
+                                  <p className="text-[11px] font-mono text-slate-500 dark-mode:text-slate-400">{device.adresse_mac || 'MAC inconnue'}</p>
+                                  <div className="flex flex-wrap gap-2 mt-1">
+                                    {device.interface && (
+                                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-mono text-slate-500 dark-mode:bg-slate-700 dark-mode:text-slate-300">
+                                        Port: {device.interface}
+                                      </span>
+                                    )}
+                                    {device.type && (
+                                      <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-[10px] font-semibold text-indigo-600 dark-mode:bg-indigo-900/30 dark-mode:text-indigo-300">
+                                        Type: {device.type}
+                                      </span>
+                                    )}
+                                    {device.utilisateur && (
+                                      <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-[10px] font-semibold text-emerald-600 dark-mode:bg-emerald-900/30 dark-mode:text-emerald-300">
+                                        User: {device.utilisateur}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-3 border border-dashed border-slate-200 rounded-xl text-xs text-slate-400 dark-mode:border-slate-700 dark-mode:text-slate-500">
+                            Aucun appareil detecte pour ce VLAN.
+                          </div>
+                        )}
                       </div>
                     </div>
 
