@@ -48,7 +48,7 @@ def get_alerts():
     sort     = request.args.get("sort", "newest")
     try:
         limit = int(request.args.get("limit", 100))
-        limit = max(1, min(limit, 10000))   # entre 1 et 10 000 par page
+        limit = max(1, limit)   # pas de limite max
     except ValueError:
         limit = 100
     try:
@@ -57,6 +57,7 @@ def get_alerts():
     except ValueError:
         offset = 0
 
+    import re as _re
     conn = get_db_connection()
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -75,7 +76,6 @@ def get_alerts():
 
         if search:
             # Détection d'une recherche par date (format YYYY-MM-DD ou YYYY-MM)
-            import re as _re
             date_match = _re.match(r'^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$', search.strip())
             if date_match:
                 yr, mo, dy = date_match.groups()

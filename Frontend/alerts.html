@@ -172,7 +172,10 @@
         <button class="icon-btn icon-button" id="pause-btn" onclick="togglePause()" title="Pause ou reprise">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
         </button>
-        <button class="primary-btn" onclick="exportPDF()">Export PDF</button>
+        <select id="pdf-month-sel" onchange="onMonthChange()" style="height:36px;border:1px solid var(--border);background:var(--soft);border-radius:12px;color:var(--text);padding:0 12px;font-size:12px;font-weight:600;cursor:pointer;outline:none;" title="Filtrer par mois">
+          <option value="">Tous les mois</option>
+        </select>
+        <button class="primary-btn" onclick="exportPDF()" id="pdf-btn">&#128196; Export PDF</button>
         <button class="primary-btn" onclick="clearAll()">Reinitialiser</button>
       </div>
     </div>
@@ -187,7 +190,7 @@
           <span class="print-cover-logo-text">Snort IDS</span>
         </div>
         <div class="print-cover-main-title">Rapport de Sécurité</div>
-        <div class="print-cover-period">Mars 2026</div>
+        <div class="print-cover-period" id="cover-period">Toutes périodes</div>
         <div class="print-cover-generated">Généré le : <span id="cover-gen-date">12/04/2026 13:34</span></div>
         <div class="print-cover-divider"></div>
         <div class="print-cover-meta-row">
@@ -225,7 +228,7 @@
       <div class="filters-panel">
         <div class="filters-head"><h3>Analyse et filtrage</h3><p>Recherche rapide, gravite et tri des alertes.</p></div>
         <div class="controls-grid">
-          <div class="search-wrap"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg><input class="search-input-inline" id="search" type="text" placeholder="Rechercher une IP, une attaque ou un protocole..." oninput="applyFilters()" /></div>
+          <div class="search-wrap"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg><input class="search-input-inline" id="search" type="text" placeholder="IP, attaque, protocole ou date (ex: 2026-03-26)..." oninput="applyFilters()" /></div>
           <div class="filter-group">
             <button class="filter-btn active-all" onclick="setSev('all',this)">Tous</button>
             <button class="filter-btn" onclick="setSev('critical',this)"><span class="filter-dot" style="background:var(--crit)"></span>Critique</button>
@@ -321,8 +324,9 @@ async function fetchAndUpdateStats(){
     }
   }catch(e){ console.error("Erreur stats BDD:", e); }
 }
-function applyFilters(){pgOffset=0;fetchPage(0);}
-function renderList(){const list=document.getElementById("alerts-list");document.getElementById("visible-count").textContent=filteredAlerts.length;if(!filteredAlerts.length){list.innerHTML='<div class="empty-state">Aucune alerte ne correspond aux filtres actifs.</div>';return} const top=list.scrollTop;list.innerHTML=filteredAlerts.map(a=>`<div class="alert-row" onclick="showDetail(${a.id})"><div class="sev-dot-wrap"><div class="sev-pill ${a.sev}"></div></div><div class="cell ts">${fmtTime(a.ts)}</div><div class="cell cell-mono src">${a.src}</div><div class="cell cell-mono dst">${a.dst}</div><div class="attack-name"><strong>${a.name}</strong><span>Signature ${a.sid}</span></div><div class="cell cell-mono proto">${a.proto}</div><div><span class="sev-badge ${a.sev}">${SEV_LABELS[a.sev]}</span></div></div>`).join("");list.scrollTop=top;setTimeout(()=>alerts.forEach(a=>a.isNew=false),1800)}
+function applyFilters(){pgOffset=0;allAlerts=[];fetchPage(0);}
+function renderList(){const list=document.getElementById("alerts-list");document.getElementById("visible-count").textContent=filteredAlerts.length;if(!filteredAlerts.length){list.innerHTML='<div class="empty-state">Aucune alerte ne correspond aux filtres actifs.</div>';return} const top=list.scrollTop;list.innerHTML=filteredAlerts.map(a=>`<div class="alert-row" onclick="showDetail(${a.id})"><div class="sev-dot-wrap"><div class="sev-pill ${a.sev||'low'}"></div></div><div class="cell ts">${fmtTime(a.ts)}</div><div class="cell cell-mono src">${a.src||'N/A'}</div><div class="cell cell-mono dst">${a.dst||'N/A'}</div><div class="attack-name"><strong>${a.name||'Unknown'}</strong><span>Signature ${a.sid||'--'}</span></div><div class="cell cell-mono proto">${a.proto||'N/A'}</div><div><span class="sev-badge ${a.sev||'low'}">${SEV_LABELS[a.sev]||a.sev}</span></div></div>`).join("");list.scrollTop=top;setTimeout(()=>alerts.forEach(a=>a.isNew=false),1800)}
+function onMonthChange(){pgOffset=0;fetchPage(0);}
 function setSev(sev,btn){currentSev=sev;document.querySelectorAll(".filter-btn").forEach(b=>b.className="filter-btn");if(sev==="all")btn.classList.add("active-all");else if(sev==="critical")btn.classList.add("active-crit");else if(sev==="medium")btn.classList.add("active-med");else btn.classList.add("active-low");applyFilters()}
 function drawSparkline(sev){const canvas=document.getElementById("spark-canvas"),ctx=canvas.getContext("2d"),w=Math.max(canvas.parentElement.clientWidth-28,220);canvas.width=w;canvas.height=56;const data=Array.from({length:24},()=>Math.floor(Math.random()*10)+1),max=Math.max(...data,1),bw=canvas.width/data.length,palette={critical:"#ef4444",medium:"#f59e0b",low:"#6366f1"};ctx.clearRect(0,0,canvas.width,canvas.height);data.forEach((v,i)=>{const h=v/max*(canvas.height-10),x=i*bw+2,y=canvas.height-h-2;ctx.fillStyle=palette[sev]||palette.low;ctx.globalAlpha=.18+i/data.length*.65;ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,Math.max(bw-5,6),h,6);else ctx.rect(x,y,Math.max(bw-5,6),h);ctx.fill();ctx.globalAlpha=1})}
 async function showDetail(id){const a=alerts.find(x=>x.id===id);if(!a)return;selectedAlert=a;document.getElementById("d-title").textContent=a.name;document.getElementById("d-time").textContent=fmtTime(a.ts);document.getElementById("d-src").textContent=a.src;document.getElementById("d-dst").textContent=a.dst;document.getElementById("d-proto").textContent=a.proto;
@@ -345,48 +349,156 @@ async function showDetail(id){const a=alerts.find(x=>x.id===id);if(!a)return;sel
   } catch(e) { /* Echec silencieux, les valeurs par défaut restent affichées */ }
 }
 function closeDetail(){selectedAlert=null;document.getElementById("d-title").textContent="Detail d'alerte";document.getElementById("d-time").textContent="Selectionnez une alerte pour afficher ses details.";["d-src","d-dst","d-proto","d-sid","d-rule","d-payload"].forEach(id=>document.getElementById(id).textContent="--");drawSparkline("low")}
-function showCritBanner(a){const b=document.getElementById("banner");b.style.display="flex";b.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>Alerte critique detectee : ${a.name} depuis ${a.src.split(":")[0]}<button class="bar-close" onclick="document.getElementById('banner').style.display='none'">×</button>`;setTimeout(()=>{if(b.style.display!=="none")b.style.display="none"},4500)}
+function showCritBanner(a){const b=document.getElementById("banner");b.style.display="flex";const srcIp=(a.src||"").split(":")[0]||"?";b.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>Alerte critique detectee : ${a.name} depuis ${srcIp}<button class="bar-close" onclick="document.getElementById('banner').style.display='none'">×</button>`;setTimeout(()=>{if(b.style.display!=="none")b.style.display="none"},4500)}
 function clearAll(){alerts=[];filteredAlerts=[];allAlerts=[];pgOffset=0;pgTotal=0;critNotifCount=0;const n=document.getElementById("notif-count");if(n){n.textContent="0";n.style.display="none"}fetchAndUpdateStats();closeDetail();renderList();document.getElementById("pagination-bar").style.display="none";document.getElementById("visible-count").textContent="0"} 
 function togglePause(){paused=!paused;const bar=document.getElementById("paused-bar");if(bar)bar.style.display=paused?"flex":"none";}
 function addAlert(a){alerts.unshift(a);if(alerts.length>2000)alerts.pop();fetchAndUpdateStats();applyFilters();if(a.sev==="critical"){showCritBanner(a);critNotifCount++;const n=document.getElementById("notif-count");if(n){n.textContent=critNotifCount;n.style.display="flex"}} if(!selectedAlert)showDetail(a.id)}
 
-function updatePrintData(){
-  const genDate=new Date().toLocaleDateString("fr-FR")+" "+new Date().toLocaleTimeString("fr-FR");
-  document.getElementById("cover-gen-date").textContent=genDate;
-  document.getElementById("cover-total").textContent=pgTotal.toLocaleString("fr-FR");
-  document.getElementById("pb-date").textContent="Généré le : "+genDate;
-  document.getElementById("pp-footer-date").textContent=genDate;
-  const printData = allAlerts.length ? allAlerts : alerts;
-  const typeCounts={};
-  printData.forEach(a=>{typeCounts[a.name]=(typeCounts[a.name]||0)+1;});
-  const summaryRows=Object.entries(typeCounts).sort((a,b)=>b[1]-a[1]).map(([name,count])=>`<tr><td class="label-col">${name}</td><td class="num-col">${count}</td></tr>`).join("");
-  document.getElementById("pp-summary-tbody").innerHTML=summaryRows;
-  const ipMap={};
-  printData.forEach(a=>{const ip=a.src.split(":")[0];if(!ipMap[ip]) ipMap[ip]={total:0,haute:0,moyenne:0,basse:0,types:{},dsts:new Set()};ipMap[ip].total++;if(a.sev==="critical")ipMap[ip].haute++;else if(a.sev==="medium")ipMap[ip].moyenne++;else ipMap[ip].basse++;ipMap[ip].types[a.name]=(ipMap[ip].types[a.name]||0)+1;ipMap[ip].dsts.add(a.dst.split(":")[0]);});
-  const ipHTML=Object.entries(ipMap).map(([ip,d])=>`<div class="pp-ip-section"><div class="pp-ip-section-header"><div class="pp-ip-addr">${ip}</div><div class="pp-ip-badge">Total: <span>${d.total}</span> | Haute: <span>${d.haute}</span> | Moyenne: <span>${d.moyenne}</span> | Basse: <span>${d.basse}</span></div></div><div class="pp-ip-tags">${Object.entries(d.types).map(([t,c])=>`<span class="pp-ip-tag">${t}: ${c}</span>`).join("")}</div><div class="pp-ip-dest">Destinations : <span>${[...d.dsts].map(dst=>dst+' : '+d.total+' alertes').join(", ")}</span></div></div>`).join("");
-  document.getElementById("pp-ip-blocks").innerHTML=ipHTML;
-  const sortedAlerts=[...printData].sort((a,b)=>a.ts-b.ts);
-  const evRows=sortedAlerts.map((a,i)=>{const date=a.ts.toISOString().split("T")[0];const srcIp=a.src.split(":")[0],srcPort=a.src.split(":")[1];const dstIp=a.dst.split(":")[0],dstPort=a.dst.split(":")[1];return`<tr style="${i%2===1?'background:#f8fafc':''}"><td>${date}</td><td class="label-col">${a.name}</td><td>${srcIp}</td><td>${dstIp}</td><td><span class="pp-sev elevee">élevée</span></td><td>${a.proto}</td><td>${srcPort}→${dstPort}</td></tr>`;}).join("");
-  document.getElementById("pp-events-tbody").innerHTML=evRows;
+function updatePrintData(printData, monthLabel) {
+  const genDate = new Date().toLocaleDateString("fr-FR") + " " + new Date().toLocaleTimeString("fr-FR");
+  document.getElementById("cover-gen-date").textContent = genDate;
+  document.getElementById("cover-total").textContent = printData.length.toLocaleString("fr-FR");
+  document.getElementById("pb-date").textContent = "Généré le : " + genDate;
+  document.getElementById("pp-footer-date").textContent = genDate;
+  // Titre période
+  const period = monthLabel || "Toutes périodes";
+  document.querySelector(".print-cover-period").textContent = period;
+  const coverPeriodEl = document.getElementById("cover-period");
+  if (coverPeriodEl) coverPeriodEl.textContent = period;
+  document.querySelector(".pp-header-title").textContent = "Rapport de Sécurité — " + period;
+
+  const typeCounts = {};
+  printData.forEach(a => { typeCounts[a.name] = (typeCounts[a.name] || 0) + 1; });
+  document.getElementById("pp-summary-tbody").innerHTML = Object.entries(typeCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => `<tr><td class="label-col">${name}</td><td class="num-col">${count}</td></tr>`)
+    .join("");
+
+  const ipMap = {};
+  printData.forEach(a => {
+    const ip = (a.src || "N/A").split(":")[0] || "N/A";
+    if (!ipMap[ip]) ipMap[ip] = { total:0, haute:0, moyenne:0, basse:0, types:{}, dsts:new Set() };
+    ipMap[ip].total++;
+    if (a.sev === "critical") ipMap[ip].haute++;
+    else if (a.sev === "medium") ipMap[ip].moyenne++;
+    else ipMap[ip].basse++;
+    ipMap[ip].types[a.name] = (ipMap[ip].types[a.name] || 0) + 1;
+    ipMap[ip].dsts.add((a.dst || "N/A").split(":")[0] || "N/A");
+  });
+  document.getElementById("pp-ip-blocks").innerHTML = Object.entries(ipMap).map(([ip, d]) =>
+    `<div class="pp-ip-section"><div class="pp-ip-section-header"><div class="pp-ip-addr">${ip}</div>` +
+    `<div class="pp-ip-badge">Total: <span>${d.total}</span> | Haute: <span>${d.haute}</span> | Moyenne: <span>${d.moyenne}</span> | Basse: <span>${d.basse}</span></div></div>` +
+    `<div class="pp-ip-tags">${Object.entries(d.types).map(([t,c]) => `<span class="pp-ip-tag">${t}: ${c}</span>`).join("")}</div>` +
+    `<div class="pp-ip-dest">Destinations : <span>${[...d.dsts].join(", ")}</span></div></div>`
+  ).join("");
+
+  const sorted = [...printData].sort((a, b) => a.ts - b.ts);
+  document.getElementById("pp-events-tbody").innerHTML = sorted.map((a, i) => {
+    const srcFull = a.src || "N/A", dstFull = a.dst || "N/A";
+    const date = a.ts ? a.ts.toISOString().split("T")[0] : "N/A";
+    const srcIp = srcFull.split(":")[0], srcPort = srcFull.includes(":") ? srcFull.split(":")[1] : "";
+    const dstIp = dstFull.split(":")[0], dstPort = dstFull.includes(":") ? dstFull.split(":")[1] : "";
+    const sevLabel = a.sev === "critical" ? "Critique" : a.sev === "medium" ? "Moyen" : "Faible";
+    return `<tr style="${i%2===1?'background:#f8fafc':''}"><td>${date}</td><td class="label-col">${a.name}</td>` +
+      `<td>${srcIp}</td><td>${dstIp}</td><td><span class="pp-sev elevee">${sevLabel}</span></td>` +
+      `<td>${a.proto}</td><td>${srcPort}→${dstPort}</td></tr>`;
+  }).join("");
 }
 
-// ── Export PDF ────────────────────────────────────────────────────
-function exportPDF() {
-  // Utiliser directement les alertes déjà chargées (pas de fetch)
-  const printData = allAlerts.length ? allAlerts : alerts;
+// ── Export PDF : récupère TOUTES les alertes page par page ──────────
+async function fetchAllForPDF(monthParam, sevParam) {
+  const PAGE = 500;
+  let offset = 0, all = [], total = null;
+  const btn = document.getElementById("pdf-btn");
 
-  if (!printData.length) {
-    alert("Aucune alerte à exporter. Veuillez d'abord charger des alertes.");
-    return;
+  while (true) {
+    if (btn) btn.textContent = `⏳ Chargement… ${all.length}${total !== null ? "/" + total : ""} alertes`;
+    const res = await fetch(
+      `http://localhost:5000/api/alerts?limit=${PAGE}&offset=${offset}${sevParam}${monthParam}&sort=oldest`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    // Mémoriser le total réel retourné par l'API
+    if (total === null) total = data.total;
+
+    const batch = data.alerts.map(a => ({
+      id: a.id, ts: new Date(a.timestamp), src: a.src, dst: a.dst,
+      name: a.name, proto: a.proto, sid: a.sid, rule: a.rule,
+      payload: a.details || "", sev: a.severity, isNew: false,
+    }));
+
+    all = all.concat(batch);
+
+    // Arrêt : plus rien à charger
+    if (batch.length === 0 || all.length >= total) break;
+    offset += PAGE;
+  }
+  return all;
+}
+
+function exportPDF() {
+  const btn = document.getElementById("pdf-btn");
+  const sel = document.getElementById("pdf-month-sel");
+  const month = sel ? sel.value : "";
+
+  let monthLabel = "Toutes périodes";
+  if (month) {
+    const [y, m] = month.split("-");
+    monthLabel = new Date(y, parseInt(m) - 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    monthLabel = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
   }
 
-  if (!allAlerts.length) allAlerts = [...alerts];
+  if (btn) { btn.textContent = "⏳ Chargement…"; btn.disabled = true; }
 
-  updatePrintData();
-  window.print();
+  const sevParam   = currentSev !== "all" ? `&severity=${currentSev}` : "";
+  const monthParam = month ? `&month=${encodeURIComponent(month)}` : "";
+
+  fetchAllForPDF(monthParam, sevParam)
+    .then(printData => {
+      if (btn) { btn.textContent = "📄 Export PDF"; btn.disabled = false; }
+      if (!printData.length) {
+        alert("Aucune alerte trouvée" + (month ? " pour ce mois." : "."));
+        return;
+      }
+      updatePrintData(printData, monthLabel);
+      window.print();
+    })
+    .catch(e => {
+      console.error("exportPDF erreur:", e);
+      if (btn) { btn.textContent = "📄 Export PDF"; btn.disabled = false; }
+      alert("Erreur lors du chargement des alertes : " + e.message);
+    });
 }
+
 async function loadRealAlerts() {
   await fetchPage(0);
+  populateMonthSelector();
+}
+
+// Remplir le sélecteur de mois depuis l'API
+async function populateMonthSelector() {
+  const sel = document.getElementById("pdf-month-sel");
+  if (!sel) return;
+  try {
+    // Récupérer un grand échantillon pour lister les mois disponibles
+    const res = await fetch("http://localhost:5000/api/alerts?limit=99999&offset=0&sort=newest");
+    const data = await res.json();
+    if (!data.success) return;
+    const months = new Set();
+    data.alerts.forEach(a => {
+      const d = new Date(a.timestamp);
+      if (!isNaN(d)) months.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
+    });
+    const sorted = [...months].sort().reverse();
+    sel.innerHTML = '<option value="">Tous les mois</option>' + sorted.map(m => {
+      const [y, mo] = m.split("-");
+      let label = new Date(y, mo-1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+      label = label.charAt(0).toUpperCase() + label.slice(1);
+      return `<option value="${m}">${label}</option>`;
+    }).join("");
+  } catch(e) { console.warn("populateMonthSelector:", e.message); }
 }
 
 // ── État pagination ──────────────────────────────────────────────
@@ -405,14 +517,17 @@ async function fetchPage(offset) {
   const list = document.getElementById("alerts-list");
   list.innerHTML = '<div class="loading-row"><span class="spinner"></span>Chargement des alertes…</div>';
 
-  const sev    = currentSev !== "all" ? `&severity=${currentSev}` : "";
-  const q      = document.getElementById("search").value.trim();
-  const search = q ? `&search=${encodeURIComponent(q)}` : "";
-  const sort   = document.getElementById("sort-sel").value;
+  const sev       = currentSev !== "all" ? `&severity=${currentSev}` : "";
+  const q         = document.getElementById("search").value.trim();
+  const search    = q ? `&search=${encodeURIComponent(q)}` : "";
+  const sort      = document.getElementById("sort-sel").value;
+  const monthSel  = document.getElementById("pdf-month-sel");
+  const month     = monthSel ? monthSel.value : "";
+  const monthP    = month ? `&month=${encodeURIComponent(month)}` : "";
 
   try {
     const res  = await fetch(
-      `http://localhost:5000/api/alerts?limit=${pgLimit}&offset=${offset}${sev}${search}&sort=${sort}`
+      `http://localhost:5000/api/alerts?limit=${pgLimit}&offset=${offset}${sev}${search}${monthP}&sort=${sort}`
     );
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
@@ -423,15 +538,15 @@ async function fetchPage(offset) {
     // Convertir et stocker la page courante
     alerts = data.alerts.map(a => ({
       id:      a.id,
-      ts:      new Date(a.timestamp),
-      src:     a.src,
-      dst:     a.dst,
-      name:    a.name,
-      proto:   a.proto,
-      sid:     a.sid,
-      rule:    a.rule,
+      ts:      a.timestamp ? new Date(a.timestamp) : new Date(0),
+      src:     a.src || "N/A",
+      dst:     a.dst || "N/A",
+      name:    a.name || "Unknown",
+      proto:   a.proto || "N/A",
+      sid:     a.sid || "--",
+      rule:    a.rule || "",
       payload: a.details || "",
-      sev:     a.severity,
+      sev:     a.severity || "low",
       isNew:   false,
     }));
 
